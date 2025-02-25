@@ -1,0 +1,2 @@
+Guidance is a godot 4.3.x 3D physics sandbox building game that allows you to design, build, test.
+The point of this game, as the name suggests, is focusing around the consept of guided projectiles.
