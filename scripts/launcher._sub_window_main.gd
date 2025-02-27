@@ -1,4 +1,4 @@
-extends Node2D
+extends Window
 
 func _init() -> void:
 	pass
@@ -8,3 +8,7 @@ func _ready() -> void:
 
 func _process(delta) -> void:
 	pass
+
+
+func _on_close_requested() -> void:
+	self.queue_free()

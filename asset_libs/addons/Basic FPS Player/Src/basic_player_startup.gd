@@ -1,46 +1,63 @@
+@tool
 extends CharacterBody3D
+
+var BasicFPSPlayerScene : PackedScene = preload("basic_player_head.tscn")
+var addedHead = false
+
+func _enter_tree():
+	
+	if find_child("Head"):
+		addedHead = true
+	
+	if Engine.is_editor_hint() && !addedHead:
+		var s = BasicFPSPlayerScene.instantiate()
+		add_child(s)
+		s.owner = get_tree().edited_scene_root
+		addedHead = true
 
 ## PLAYER MOVMENT SCRIPT ##
 ###########################
 
+@export_category("Mouse Capture")
+@export var CAPTURE_ON_START := true
+
+@export_category("Movement")
 @export_subgroup("Settings")
-@export var SPEED := 25.0
+@export var SPEED := 5.0
 @export var ACCEL := 50.0
 @export var IN_AIR_SPEED := 3.0
 @export var IN_AIR_ACCEL := 5.0
-@export var IN_NOCLIP_SPEED := 25.0
-@export var IN_NOCLIP_ACCEL := 50.0
 @export var JUMP_VELOCITY := 4.5
 @export_subgroup("Head Bob")
-@export var HEAD_BOB := false
+@export var HEAD_BOB := true
 @export var HEAD_BOB_FREQUENCY := 0.3
 @export var HEAD_BOB_AMPLITUDE := 0.01
 @export_subgroup("Clamp Head Rotation")
 @export var CLAMP_HEAD_ROTATION := true
 @export var CLAMP_HEAD_ROTATION_MIN := -90.0
 @export var CLAMP_HEAD_ROTATION_MAX := 90.0
+
+@export_category("Key Binds")
 @export_subgroup("Mouse")
-@export var CAPTURE_ON_START := true
-@export var MOUSE_ACCEL := false
+@export var MOUSE_ACCEL := true
 @export var KEY_BIND_MOUSE_SENS := 0.005
 @export var KEY_BIND_MOUSE_ACCEL := 50
 @export_subgroup("Movement")
-@export var KEY_BIND_UP := "key_w"
-@export var KEY_BIND_LEFT := "key_a"
-@export var KEY_BIND_RIGHT := "key_d"
-@export var KEY_BIND_DOWN := "key_s"
-@export var KEY_BIND_JUMP := "key_space"
-@export var KEY_BIND_NOCLIP := "key_z"
+@export var KEY_BIND_UP := "ui_up"
+@export var KEY_BIND_LEFT := "ui_left"
+@export var KEY_BIND_RIGHT := "ui_right"
+@export var KEY_BIND_DOWN := "ui_down"
+@export var KEY_BIND_JUMP := "ui_accept"
 
 @export_category("Advanced")
-@export var UPDATE_PLAYER_ON_PHYS_STEP := true
+@export var UPDATE_PLAYER_ON_PHYS_STEP := true	# When check player is moved and rotated in _physics_process (fixed fps)
+												# Otherwise player is updated in _process (uncapped)
 
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 # To keep track of current speed and acceleration
 var speed = SPEED
 var accel = ACCEL
-var noclip = false
 
 # Used when lerping rotation to reduce stuttering when moving the mouse
 var rotation_target_player : float
@@ -60,7 +77,7 @@ func _ready():
 	if CAPTURE_ON_START:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
-	head_start_pos = $Player_Camera.position
+	head_start_pos = $Head.position
 
 func _physics_process(delta):
 	if Engine.is_editor_hint():
@@ -109,28 +126,24 @@ func rotate_player(delta):
 		# Shperical lerp between player rotation and target
 		quaternion = quaternion.slerp(Quaternion(Vector3.UP, rotation_target_player), KEY_BIND_MOUSE_ACCEL * delta)
 		# Same again for head
-		$Player_Camera.quaternion = $Player_Camera.quaternion.slerp(Quaternion(Vector3.RIGHT, rotation_target_head), KEY_BIND_MOUSE_ACCEL * delta)
+		$Head.quaternion = $Head.quaternion.slerp(Quaternion(Vector3.RIGHT, rotation_target_head), KEY_BIND_MOUSE_ACCEL * delta)
 	else:
 		# If mouse accel is turned off, simply set to target
 		quaternion = Quaternion(Vector3.UP, rotation_target_player)
-		$Player_Camera.quaternion = Quaternion(Vector3.RIGHT, rotation_target_head)
+		$Head.quaternion = Quaternion(Vector3.RIGHT, rotation_target_head)
 	
 func move_player(delta):
 	# Check if not on floor
-	if not is_on_floor() and not noclip:
+	if not is_on_floor():
 		# Reduce speed and accel
 		speed = IN_AIR_SPEED
 		accel = IN_AIR_ACCEL
 		# Add the gravity
 		velocity.y -= gravity * delta
-	elif noclip:
+	else:
 		# Set speed and accel to defualt
-		speed = IN_NOCLIP_SPEED
-		accel = IN_NOCLIP_ACCEL
-	elif is_on_floor():
 		speed = SPEED
 		accel = ACCEL
-		
 
 	# Handle Jump.
 	if Input.is_action_just_pressed(KEY_BIND_JUMP) and is_on_floor():
@@ -138,16 +151,9 @@ func move_player(delta):
 
 	# Get the input direction and handle the movement/deceleration.
 	var input_dir = Input.get_vector(KEY_BIND_LEFT, KEY_BIND_RIGHT, KEY_BIND_UP, KEY_BIND_DOWN)
-	var direction = (transform.basis * Vector3(input_dir.x, input_dir.y, input_dir.y)).normalized()
+	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 	
-	if Input.is_action_just_pressed(KEY_BIND_NOCLIP):
-		noclip = !noclip
-
 	velocity.x = move_toward(velocity.x, direction.x * speed, accel * delta)
-	
-	if noclip:
-		velocity.y = move_toward(velocity.y, -direction.y * speed, accel * delta)
-		
 	velocity.z = move_toward(velocity.z, direction.z * speed, accel * delta)
 
 	move_and_slide()
@@ -156,10 +162,10 @@ func head_bob_motion():
 	var pos = Vector3.ZERO
 	pos.y += sin(tick * HEAD_BOB_FREQUENCY) * HEAD_BOB_AMPLITUDE
 	pos.x += cos(tick * HEAD_BOB_FREQUENCY/2) * HEAD_BOB_AMPLITUDE * 2
-	$Player_Camera.position += pos
+	$Head.position += pos
 
 func reset_head_bob(delta):
 	# Lerp back to the staring position
-	if $Player_Camera.position == head_start_pos:
+	if $Head.position == head_start_pos:
 		pass
-	$Player_Camera.position = lerp($Player_Camera.position, head_start_pos, 2 * (1/HEAD_BOB_FREQUENCY) * delta)
+	$Head.position = lerp($Head.position, head_start_pos, 2 * (1/HEAD_BOB_FREQUENCY) * delta)

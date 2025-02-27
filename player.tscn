@@ -1,6 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://dlxi8x2yr1iyb"]
+[gd_scene load_steps=5 format=3 uid="uid://dlxi8x2yr1iyb"]
 
 [ext_resource type="Script" path="res://scripts/player_main.gd" id="1_y7sy4"]
+[ext_resource type="Environment" uid="uid://dgprbal832kg7" path="res://meshs/world_meshes/world_env.tres" id="2_aew54"]
+[ext_resource type="Script" path="res://scripts/player_camera_main.gd" id="3_jjgui"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_n662x"]
 
@@ -8,11 +10,20 @@
 rotation_edit_mode = 1
 script = ExtResource("1_y7sy4")
 
-[node name="Player_collider" type="CollisionShape3D" parent="."]
+[node name="Player_Shape" type="CollisionShape3D" parent="."]
+rotation_edit_mode = 1
+shape = SubResource("CylinderShape3D_n662x")
+
+[node name="Player_Object" type="RigidBody3D" parent="."]
+
+[node name="Player_Collider" type="CollisionShape3D" parent="Player_Object"]
 rotation_edit_mode = 1
 shape = SubResource("CylinderShape3D_n662x")
 
 [node name="Player_Camera" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 rotation_edit_mode = 1
+environment = ExtResource("2_aew54")
+current = true
 fov = 80.0
+script = ExtResource("3_jjgui")
