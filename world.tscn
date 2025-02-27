@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" path="res://scripts/world_main.gd" id="1_tuqnl"]
 [ext_resource type="Environment" uid="uid://dgprbal832kg7" path="res://meshs/world_meshes/world_env.tres" id="2_3pj4t"]
-[ext_resource type="PhysicsMaterial" uid="uid://busg2y68ds2kt" path="res://meshs/world_meshes/physics_materials/ground_hard.tres" id="2_ugqkj"]
 [ext_resource type="Script" path="res://scripts/world_gridmap_main.gd" id="4_s26d8"]
+[ext_resource type="Texture2D" uid="uid://bkfm4csr2rbv8" path="res://textures/terrain.png" id="5_tqh7i"]
 
 [node name="World" type="Node3D"]
 rotation_edit_mode = 1
@@ -17,8 +17,8 @@ transform = Transform3D(-1, 8.74228e-08, 3.82137e-15, 0, -4.37114e-08, 1, 8.7422
 
 [node name="GridMap" type="GridMap" parent="."]
 rotation_edit_mode = 1
-physics_material = ExtResource("2_ugqkj")
 cell_size = Vector3(10, 10, 10)
-cell_octant_size = 4
+cell_octant_size = 1
 bake_navigation = true
 script = ExtResource("4_s26d8")
+terrain_texture = ExtResource("5_tqh7i")

@@ -34,7 +34,7 @@ func load_player():
 	if player_scene:
 		player_instance = player_scene.instantiate()
 		add_child(player_instance)
-		player_instance.global_position = Vector3(0, 100, 0)  # Position it correctly
+		player_instance.global_position = Vector3(0, 4, 0)  # Position it correctly
 		print("Player loaded successfully!")
 	else:
 		print("Error: Terrain scene not assigned!")

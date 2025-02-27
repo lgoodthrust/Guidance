@@ -42,6 +42,13 @@ visible = false
 layout_mode = 2
 metadata/_tab_index = 1
 
+[node name="CheckButton" type="CheckButton" parent="Window/Tab_Container/Graphics"]
+layout_mode = 0
+offset_right = 44.0
+offset_bottom = 24.0
+action_mode = 0
+text = "V-Sync"
+
 [node name="Controls" type="Control" parent="Window/Tab_Container"]
 visible = false
 layout_mode = 2
