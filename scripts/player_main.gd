@@ -45,10 +45,10 @@ var noclip = false
 var rotation_target_player : float
 var rotation_target : float
 var start_pos : Vector3
+var launcher = Node
 
 func _ready():
-	if Engine.is_editor_hint():
-		return
+	launcher = get_node(".").get_parent()
 
 	if CAPTURE_ON_START:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -56,24 +56,18 @@ func _ready():
 	start_pos = $Player_Camera.position
 
 func _physics_process(delta):
-	if Engine.is_editor_hint():
-		return
 	
 	if UPDATE_PLAYER_ON_PHYS_STEP:
 		move_player(delta)
 		rotate_player(delta)
 
 func _process(delta):
-	if Engine.is_editor_hint():
-		return
 
 	if !UPDATE_PLAYER_ON_PHYS_STEP:
 		move_player(delta)
 		rotate_player(delta)
 
 func _input(event):
-	if Engine.is_editor_hint():
-		return
 		
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		set_rotation_target(event.relative)
@@ -137,6 +131,7 @@ func move_player(delta):
 		velocity.x = move_toward(velocity.x, direction.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, direction.z * speed, accel * delta)
 		move_and_slide()
+	some_event_happens(self.global_position)
 
 func toggle_noclip(enabled):
 	if enabled:
@@ -145,3 +140,8 @@ func toggle_noclip(enabled):
 	else:
 		set_collision_layer_value(1, true)
 		set_collision_mask_value(1, true)
+
+func some_event_happens(data):
+	if launcher:
+		launcher.shared_data = data
+		launcher.send_data_to_b()  # Notify Launcher to update Scene B
