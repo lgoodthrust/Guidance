@@ -106,7 +106,7 @@ func move_player(delta):
 
 	if noclip:
 		# Noclip flying mode
-		speed = IN_NOCLIP_SPEED * (2 if Input.is_action_pressed(KEY_BIND_SPRINT) else 0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1)
+		speed = IN_NOCLIP_SPEED * (2.0 if Input.is_action_pressed(KEY_BIND_SPRINT) else (0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1.0))
 		accel = IN_NOCLIP_ACCEL
 		# Get current camera rotation as a quaternion
 		var camera_quat = $Player_Camera.global_transform.basis.get_rotation_quaternion()
@@ -124,12 +124,12 @@ func move_player(delta):
 	else:
 		# Regular movement with physics
 		if is_on_floor():
-			speed = SPEED * (2 if Input.is_action_pressed(KEY_BIND_SPRINT) else 0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1)
+			speed = SPEED * (2.0 if Input.is_action_pressed(KEY_BIND_SPRINT) else (0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1.0))
 			accel = ACCEL
 			if Input.is_action_just_pressed(KEY_BIND_JUMP):
 				velocity.y = JUMP_VELOCITY
 		else:
-			speed = IN_AIR_SPEED
+			speed = IN_AIR_SPEED * (2.0 if Input.is_action_pressed(KEY_BIND_SPRINT) else (0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1.0))
 			accel = IN_AIR_ACCEL
 			velocity.y -= gravity * delta
 		velocity.x = move_toward(velocity.x, direction.x * speed, accel * delta)

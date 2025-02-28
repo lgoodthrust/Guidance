@@ -56,6 +56,4 @@ func _on_window_close_requested() -> void:
 
 
 func LAUCNHER_CHILD_SHARED_DATA_CALL():
-	var World = get_tree().current_scene.get_node("World")  # Ensure Scene B exists
-	if World:
-		World.INBOUND_DATA(LAUCNHER_CHILD_SHARED_DATA["WORLD"])  # Call Scene B's function
+	LAUCNHER_CHILD_SHARED_DATA
