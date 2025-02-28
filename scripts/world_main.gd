@@ -1,63 +1,70 @@
 extends Node3D
 
-const chunk_size = 32
-const chunk_amount = 8
+const CHUNK_SIZE = 32
+const CHUNK_AMOUNT = 8
 
 var noise: FastNoiseLite
-var chunks = {}
-var unready_chunks = {}
-var ground = preload("res://textures/terrain.png")
-var range_in = chunk_amount / float(2)
-var range_out = range_in + 1
-var player_position: Vector3
+var chunks = {}  # Stores active chunks
+var ground_material = preload("res://textures/terrain.png")
 
+var player_position: Vector3
+var range_in = CHUNK_AMOUNT / 2.0
+var range_out = range_in + 1.0
+var launcher = Node # FOR DATA SHARE
 
 func _ready():
+	launcher = get_node(".").get_parent() # FOR DATA SHARE
+	_initialize_noise()
 	
-	var sed = randi_range(1, 1000000)
+func _initialize_noise():
 	noise = FastNoiseLite.new()
-	noise.seed = sed
+	noise.seed = randi_range(1, 1000000)
 	noise.set_noise_type(FastNoiseLite.TYPE_PERLIN)
-	noise.set_frequency(0.001) # hillness... hill factor... idk
-	noise.set_fractal_gain(0.125) # hill roughness
-	
+	noise.set_frequency(0.001)
+	noise.set_fractal_gain(0.125)
 
-func add_chunk(x, z):
-	var key = str(x) + "," + str(z)
-	if chunks.has(key) or unready_chunks.has(key):
-		return
-	
-	_load_chunk(x, z)
-	unready_chunks[key] = 1
+func add_chunk(x: int, z: int):
+	var key = Vector2i(x, z)
+	if chunks.has(key):
+		return  # Already exists, skip
 
-func _load_chunk(x, z):
-	var chunk = Chunk.new(noise, x * chunk_size, z * chunk_size, chunk_size)
-	chunk.transform.origin = Vector3(x * chunk_size, 0, z * chunk_size)
+	var chunk = Chunk.new(noise, x * CHUNK_SIZE, z * CHUNK_SIZE, CHUNK_SIZE)
+	chunk.transform.origin = Vector3(x * CHUNK_SIZE, 0, z * CHUNK_SIZE)
+
 	add_child(chunk)
-	chunk.meshInstance.set_surface_override_material(0, ground)
-	chunks[str(x) + "," + str(z)] = chunk
+	chunks[key] = chunk
+
+
+func remove_chunk(x: int, z: int):
+	var key = Vector2i(x, z)
+	if chunks.has(key):
+		var chunk = chunks[key]
+		chunks.erase(key)
+		chunk.queue_free()
 
 func _physics_process(_delta):
-	var player_translation = player_position
-	var p_x = player_translation.x / chunk_size
-	var p_z = player_translation.z / chunk_size
+	var p_x = player_position.x / CHUNK_SIZE
+	var p_z = player_position.z / CHUNK_SIZE
 	
-	for chunk_hash in chunks:
-		var chunk = chunks[chunk_hash]
-		var chunk_x = chunk.transform.origin.x / chunk_size
-		var chunk_z = chunk.transform.origin.z / chunk_size
-		
-		if chunk_x < (p_x - range_out) or chunk_x > (p_x + range_out)\
-		or chunk_z < (p_z - range_out) or chunk_z > (p_z + range_out):
-			chunks.erase(chunk_hash)
-			unready_chunks.erase(chunk_hash)
-			remove_child(chunk)
-			
+	# Remove far chunks
+	for key in chunks.keys():
+		var chunk_x = key.x
+		var chunk_z = key.y
+		if chunk_x < (p_x - range_out) or chunk_x > (p_x + range_out) or \
+		   chunk_z < (p_z - range_out) or chunk_z > (p_z + range_out):
+			remove_chunk(chunk_x, chunk_z)
 	
+	# Load nearby chunks
 	for x in range(p_x - range_in, p_x + range_in):
 		for z in range(p_z - range_in, p_z + range_in):
 			add_chunk(x, z)
 
-func receive_data(data):
-	player_position = data
-	
+func LAUCNHER_CHILD_SHARE_SET(key, data): # FOR DATA SHARE
+	if launcher:
+		launcher.LAUCNHER_CHILD_SHARED_DATA[key] = [data]
+		launcher.LAUCNHER_CHILD_SHARED_DATA_CALL()
+
+func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
+	if launcher:
+		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[key]
+		return data

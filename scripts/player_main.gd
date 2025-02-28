@@ -4,12 +4,12 @@ extends CharacterBody3D
 ###########################
 
 @export_subgroup("Settings")
-@export var SPEED := 25.0
-@export var ACCEL := 50.0
+@export var SPEED := 5.0
+@export var ACCEL := 150.0
 @export var IN_AIR_SPEED := 3.0
 @export var IN_AIR_ACCEL := 5.0
 @export var IN_NOCLIP_SPEED := 25.0
-@export var IN_NOCLIP_ACCEL := 50.0
+@export var IN_NOCLIP_ACCEL := 100.0
 @export var JUMP_VELOCITY := 4.5
 
 
@@ -45,10 +45,10 @@ var noclip = false
 var rotation_target_player : float
 var rotation_target : float
 var start_pos : Vector3
-var launcher = Node
+var launcher = Node # FOR DATA SHARE
 
 func _ready():
-	launcher = get_node(".").get_parent()
+	launcher = get_node(".").get_parent() # FOR DATA SHARE
 
 	if CAPTURE_ON_START:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -94,15 +94,19 @@ func move_player(delta):
 	if Input.is_action_just_pressed(KEY_BIND_NOCLIP):
 		noclip = !noclip
 		toggle_noclip(noclip)
+	
+	if Input.is_action_pressed(KEY_BIND_CROUTCH):
+		$Player_Shape.shape.height = 1.0
+		$Player_Camera.position.y = 1.0
+		$Player_Object/Player_Collider.shape.height = 1.0
+	else:
+		$Player_Shape.shape.height = 2.0
+		$Player_Camera.position.y = 2.0
+		$Player_Object/Player_Collider.shape.height = 2.0
 
 	if noclip:
 		# Noclip flying mode
-		if Input.is_action_pressed(KEY_BIND_SPRINT):
-			speed = IN_NOCLIP_SPEED * 2
-		elif Input.is_action_pressed(KEY_BIND_CROUTCH):
-			speed = IN_NOCLIP_SPEED * 0.5
-		else:
-			speed = IN_NOCLIP_SPEED
+		speed = IN_NOCLIP_SPEED * (2 if Input.is_action_pressed(KEY_BIND_SPRINT) else 0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1)
 		accel = IN_NOCLIP_ACCEL
 		# Get current camera rotation as a quaternion
 		var camera_quat = $Player_Camera.global_transform.basis.get_rotation_quaternion()
@@ -120,10 +124,10 @@ func move_player(delta):
 	else:
 		# Regular movement with physics
 		if is_on_floor():
+			speed = SPEED * (2 if Input.is_action_pressed(KEY_BIND_SPRINT) else 0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1)
+			accel = ACCEL
 			if Input.is_action_just_pressed(KEY_BIND_JUMP):
 				velocity.y = JUMP_VELOCITY
-			speed = SPEED
-			accel = ACCEL
 		else:
 			speed = IN_AIR_SPEED
 			accel = IN_AIR_ACCEL
@@ -131,7 +135,7 @@ func move_player(delta):
 		velocity.x = move_toward(velocity.x, direction.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, direction.z * speed, accel * delta)
 		move_and_slide()
-	some_event_happens(self.global_position)
+	LAUCNHER_CHILD_SHARE_SET("player", self.global_position)
 
 func toggle_noclip(enabled):
 	if enabled:
@@ -141,7 +145,12 @@ func toggle_noclip(enabled):
 		set_collision_layer_value(1, true)
 		set_collision_mask_value(1, true)
 
-func some_event_happens(data):
+func LAUCNHER_CHILD_SHARE_SET(key, data): # FOR DATA SHARE
 	if launcher:
-		launcher.shared_data = data
-		launcher.send_data_to_b()  # Notify Launcher to update Scene B
+		launcher.LAUCNHER_CHILD_SHARED_DATA[key] = [data]
+		launcher.LAUCNHER_CHILD_SHARED_DATA_CALL()
+
+func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
+	if launcher:
+		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[key]
+		return data

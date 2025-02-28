@@ -6,8 +6,8 @@ extends Control
 
 var terrain_instance: Node3D
 var player_instance: CharacterBody3D
-var main_menu_instance: Control
-var shared_data  # Variable to store data from Scene A
+var main_menu_instance: Window
+var LAUCNHER_CHILD_SHARED_DATA = {"player":[], "world":[], "main_menu":[]} # Variable to store data from Scene A
 
 
 func _init() -> void:
@@ -55,7 +55,7 @@ func _on_window_close_requested() -> void:
 	load_main_menu()
 
 
-func send_data_to_b():
-	var scene_b = get_tree().current_scene.get_node("World")  # Ensure Scene B exists
-	if scene_b:
-		scene_b.receive_data(shared_data)  # Call Scene B's function
+func LAUCNHER_CHILD_SHARED_DATA_CALL():
+	var World = get_tree().current_scene.get_node("World")  # Ensure Scene B exists
+	if World:
+		World.INBOUND_DATA(LAUCNHER_CHILD_SHARED_DATA["WORLD"])  # Call Scene B's function
