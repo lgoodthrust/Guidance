@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://bcek3bjluycap"]
+[gd_scene load_steps=7 format=3 uid="uid://bcek3bjluycap"]
 
 [ext_resource type="Script" path="res://scripts/launcher._main.gd" id="1_c8l02"]
 [ext_resource type="PackedScene" uid="uid://cdiqbatoqks5f" path="res://world.tscn" id="2_2t1i3"]
 [ext_resource type="Script" path="res://scripts/launcher._sub_window_main.gd" id="2_d7t50"]
 [ext_resource type="PackedScene" uid="uid://dlxi8x2yr1iyb" path="res://player.tscn" id="3_o5t42"]
 [ext_resource type="PackedScene" uid="uid://byjrynbhgbq5v" path="res://main_menu.tscn" id="4_311sp"]
+[ext_resource type="PackedScene" uid="uid://dvf1m5jclhql5" path="res://builder.tscn" id="5_yliov"]
 
 [node name="Launcher" type="Control"]
 layout_mode = 3
@@ -13,6 +14,7 @@ script = ExtResource("1_c8l02")
 terrain_scene = ExtResource("2_2t1i3")
 player_scene = ExtResource("3_o5t42")
 main_menu_scene = ExtResource("4_311sp")
+builder_scene = ExtResource("5_yliov")
 
 [node name="Window" type="Window" parent="."]
 title = "Launcher"
@@ -38,6 +40,7 @@ layout_mode = 2
 metadata/_tab_index = 0
 
 [node name="Grid" type="GridContainer" parent="Window/Tab_Container/Main"]
+layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
 
@@ -75,6 +78,7 @@ layout_mode = 2
 metadata/_tab_index = 2
 
 [node name="Grid" type="GridContainer" parent="Window/Tab_Container/Controls"]
+layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
 
@@ -84,6 +88,7 @@ layout_mode = 2
 metadata/_tab_index = 3
 
 [node name="Grid" type="GridContainer" parent="Window/Tab_Container/Sound"]
+layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
 

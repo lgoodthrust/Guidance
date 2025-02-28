@@ -4,5 +4,6 @@ The point of this game, as the name suggests, is focusing around the consept of 
 OUTLINE:
 	launcher - allows user setup defined, connects child nodes(data hub)
 	world - the 3D space for designing, building, and testing
+	builder - the 3d designer space for creating stuff
 	main menu - runtime settings, idk...
 	player - the player instance

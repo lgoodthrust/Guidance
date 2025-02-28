@@ -29,7 +29,9 @@ func _threaded_generate_chunk():
 func _generate_mesh() -> ArrayMesh:
 	var planeMesh = PlaneMesh.new()
 	planeMesh.size = Vector2(chunkSize, chunkSize)
+	@warning_ignore("integer_division")
 	planeMesh.subdivide_depth = chunkSize / 2
+	@warning_ignore("integer_division")
 	planeMesh.subdivide_width = chunkSize / 2
 
 	var surfaceTool = SurfaceTool.new()

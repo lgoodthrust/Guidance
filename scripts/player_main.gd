@@ -9,7 +9,7 @@ extends CharacterBody3D
 @export var IN_AIR_SPEED := 3.0
 @export var IN_AIR_ACCEL := 5.0
 @export var IN_NOCLIP_SPEED := 25.0
-@export var IN_NOCLIP_ACCEL := 100.0
+@export var IN_NOCLIP_ACCEL := 50.0
 @export var JUMP_VELOCITY := 4.5
 
 
@@ -68,8 +68,8 @@ func _process(delta):
 		rotate_player(delta)
 
 func _input(event):
-		
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED: # if mouse moving, rotate
 		set_rotation_target(event.relative)
 
 func set_rotation_target(mouse_motion : Vector2):

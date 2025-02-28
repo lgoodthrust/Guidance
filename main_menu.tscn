@@ -35,3 +35,10 @@ layout_mode = 2
 layout_mode = 2
 placeholder_text = "IDK Value"
 clear_button_enabled = true
+
+[node name="HSeparator2" type="HSeparator" parent="Control/VBoxContainer"]
+layout_mode = 2
+
+[node name="Button_Exit" type="Button" parent="Control/VBoxContainer"]
+layout_mode = 2
+text = "Exit"

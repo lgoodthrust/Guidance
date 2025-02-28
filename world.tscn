@@ -1,16 +1,17 @@
-[gd_scene load_steps=8 format=3 uid="uid://cdiqbatoqks5f"]
+[gd_scene load_steps=7 format=3 uid="uid://cdiqbatoqks5f"]
 
 [ext_resource type="Script" path="res://scripts/world_main.gd" id="1_tuqnl"]
 [ext_resource type="Environment" uid="uid://dgprbal832kg7" path="res://meshs/world_meshes/world_env.tres" id="2_3pj4t"]
 [ext_resource type="PhysicsMaterial" uid="uid://busg2y68ds2kt" path="res://meshs/world_meshes/physics_materials/ground_hard.tres" id="3_qp27n"]
 [ext_resource type="Shape3D" uid="uid://p3ebrq7ejpio" path="res://meshs/world_meshes/world_build_base.tres" id="4_3wejh"]
-[ext_resource type="Texture2D" uid="uid://bkfm4csr2rbv8" path="res://textures/terrain.png" id="5_isg2c"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_x41yk"]
-albedo_texture = ExtResource("5_isg2c")
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1fsh3"]
+albedo_color = Color(0.190762, 0.190762, 0.190762, 1)
+metallic = 0.5
+roughness = 0.5
 
 [sub_resource type="BoxMesh" id="BoxMesh_ye4ns"]
-material = SubResource("StandardMaterial3D_x41yk")
+material = SubResource("StandardMaterial3D_1fsh3")
 size = Vector3(10, 1, 10)
 
 [node name="World" type="Node3D"]
