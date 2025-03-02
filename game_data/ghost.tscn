@@ -1,0 +1,23 @@
+[gd_scene load_steps=4 format=3 uid="uid://d35nsitn2npac"]
+
+[ext_resource type="Material" uid="uid://dyoso0jtf04vi" path="res://textures/ghost_1.tres" id="1_c4etg"]
+
+[sub_resource type="GDScript" id="GDScript_tpily"]
+script/source = "extends Node3D
+@export_subgroup(\"META_DATA\")
+@export var DATA = {
+	\"NAME\": \"Ghost\",
+	\"MASS\": 0,
+	\"UDLRTB\": [0,0,0,0,0,0],
+	\"TYPE\": 0
+}
+"
+
+[sub_resource type="BoxMesh" id="BoxMesh_ot0g5"]
+material = ExtResource("1_c4etg")
+
+[node name="Ghost" type="Node3D"]
+script = SubResource("GDScript_tpily")
+
+[node name="Model_Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_ot0g5")

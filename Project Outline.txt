@@ -7,3 +7,24 @@ OUTLINE:
 	builder - the 3d designer space for creating stuff
 	main menu - runtime settings, idk...
 	player - the player instance
+
+BLOCK METADATA:
+	NAME : strang - the name of the block
+	TYPE : int - the type/function of the block
+	TYPE values:
+		0 = none/nil/null/error/invalid
+		1 = seeker
+		2 = controller
+		3 = warhead
+		4 = fins (front half)
+		5 = cannards (front helf)
+		6 = fins (back half)
+		7 = cannards (back half)
+		8 = rocket fuel
+		9 = rocket motor
+	MASS : int - the mass of the block in kg
+	UDLRFB : array - up,down,left,right,front,back block connection points
+		UDLRFB values:
+			0 = none
+			-1 = all
+			1 = seaker/controller

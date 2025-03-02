@@ -18,13 +18,13 @@ func _ready() -> void:
 	Sound = $Tab_Container/Sound/Grid
 	
 	for SETTING in Main.get_children():
-		print(SETTING)
+		pass
 	for SETTING in Graphics.get_children():
-		print(SETTING)
+		pass
 	for SETTING in Controls.get_children():
-		print(SETTING)
+		pass
 	for SETTING in Sound.get_children():
-		print(SETTING)
+		pass
 
 func _process(_delta) -> void:
 	pass
