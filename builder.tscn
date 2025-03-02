@@ -9,6 +9,12 @@
 script = ExtResource("1_q1upv")
 ghost_block_scene = ExtResource("2_5yny8")
 
+[node name="Builder_World_Light" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 15, 0)
+light_volumetric_fog_energy = 0.0
+light_size = 3.0
+omni_range = 50.0
+
 [node name="Builder_Camera" type="Camera3D" parent="."]
 environment = ExtResource("3_s7avm")
 far = 100.0

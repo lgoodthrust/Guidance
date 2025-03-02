@@ -8,7 +8,7 @@ script/source = "extends Node3D
 @export_subgroup(\"META_DATA\")
 @export var DATA = {
 	\"NAME\": \"back_Cannard\",
-	\"MASS\": 7.5,
+	\"MASS\": 10,
 	\"UDLRTB\": [-1,-1,0,0,0,0],
 	\"TYPE\": 7
 }

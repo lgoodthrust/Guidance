@@ -1,3 +1,4 @@
 [gd_resource type="Environment" format=3 uid="uid://cic8uup31xvao"]
 
 [resource]
+ambient_light_color = Color(1, 1, 1, 1)

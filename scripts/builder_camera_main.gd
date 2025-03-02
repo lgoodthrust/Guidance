@@ -58,17 +58,19 @@ func _process(delta):
 		rotate_player(delta)
 
 func _input(event):
-	if event.is_action_pressed("key_mouse_right"):
-		if Input.mouse_mode == Input.MOUSE_MODE_CONFINED:
-			camming = true
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		if event is InputEventMouseMotion:
-			set_rotation_target(event.relative)
-			print("rototataie")
-	else:
-		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			camming = false
-			Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+		if event.pressed:
+			if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+				camming = true
+				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		else:
+			if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+				camming = false
+				Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+
+	if camming and event is InputEventMouseMotion:
+		set_rotation_target(event.relative)
+
 
 func set_rotation_target(mouse_motion : Vector2):
 	rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS
