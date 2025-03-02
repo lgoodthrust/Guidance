@@ -4,7 +4,7 @@ extends Camera3D
 ###########################
 
 @export_subgroup("Settings")
-@export var SPEED := 50.0
+@export var SPEED := 100.0
 @export var ACCEL := 150.0
 
 

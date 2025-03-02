@@ -1,6 +1,6 @@
 extends Node3D
 
-@export var grid_size: Vector3i = Vector3i(10, 10, 10)  # Grid dimensions
+@export var grid_size: Vector3i = Vector3i(1, 10, 1)  # Grid dimensions
 @export var cell_size: float = 1.0  # Grid cell size
 @export var block_folder_path: String = "res://game_data/blocks/"  # Folder for blocks
 @export var ghost_block_scene: PackedScene  # Ghost block preview
@@ -133,10 +133,11 @@ func remove_block():
 
 func _draw_grid():
 	var im = grid_mesh.mesh as ImmediateMesh
+	var gs = cell_size / 2
 	im.clear_surfaces()
 	im.surface_begin(Mesh.PRIMITIVE_LINES)
 
-	# Set grid color (adjust if needed)
+	# Set grid color
 	var grid_color = Color(0.1, 0.8, 0.1, 0.5)
 
 	# Draw horizontal lines (X-Z plane) at each Y level
@@ -145,14 +146,14 @@ func _draw_grid():
 		for x in range(grid_size.x + 1):
 			var x_pos = x * cell_size
 			im.surface_set_color(grid_color)
-			im.surface_add_vertex(Vector3(x_pos, y_pos, 0))
-			im.surface_add_vertex(Vector3(x_pos, y_pos, grid_size.z * cell_size))
+			im.surface_add_vertex(Vector3(x_pos - gs, y_pos - gs, -gs))
+			im.surface_add_vertex(Vector3(x_pos - gs, y_pos - gs, grid_size.z * cell_size - gs))
 
 		for z in range(grid_size.z + 1):
 			var z_pos = z * cell_size
 			im.surface_set_color(grid_color)
-			im.surface_add_vertex(Vector3(0, y_pos, z_pos))
-			im.surface_add_vertex(Vector3(grid_size.x * cell_size, y_pos, z_pos))
+			im.surface_add_vertex(Vector3(-gs, y_pos - gs, z_pos - gs))
+			im.surface_add_vertex(Vector3(grid_size.x * cell_size - gs, y_pos - gs, z_pos - gs))
 
 	# Draw vertical lines (Y axis) at each X-Z position
 	for x in range(grid_size.x + 1):
@@ -160,8 +161,8 @@ func _draw_grid():
 		for z in range(grid_size.z + 1):
 			var z_pos = z * cell_size
 			im.surface_set_color(grid_color)
-			im.surface_add_vertex(Vector3(x_pos, 0, z_pos))
-			im.surface_add_vertex(Vector3(x_pos, grid_size.y * cell_size, z_pos))
+			im.surface_add_vertex(Vector3(x_pos - gs, -gs, z_pos - gs))
+			im.surface_add_vertex(Vector3(x_pos - gs, grid_size.y * cell_size - gs, z_pos - gs))
 
 	im.surface_end()
 
@@ -199,7 +200,7 @@ func create_block_button(block_path: String):
 		
 		block_selector.add_child(button)
 
-		block_instance.queue_free()  # We only needed metadata, remove instance
+		block_instance.queue_free()
 
 #LAUCNHER_CHILD_SHARE_SET("builder", [])
 
