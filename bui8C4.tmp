@@ -67,6 +67,3 @@ layout_mode = 2
 layout_mode = 2
 action_mode = 0
 text = "Save Assembly"
-
-[connection signal="pressed" from="Builder_Camera/GUI/VBoxContainer/Loader" to="." method="_LOADER"]
-[connection signal="pressed" from="Builder_Camera/GUI/VBoxContainer/Saver" to="." method="_SAVER"]

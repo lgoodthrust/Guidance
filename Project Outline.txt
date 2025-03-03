@@ -8,7 +8,7 @@ OUTLINE:
 	main menu - runtime settings, idk...
 	player - the player instance
 
-BLOCK METADATA:
+BLOCK DATA:
 	NAME : strang - the name of the block
 	TYPE : int - the type/function of the block
 	TYPE values:

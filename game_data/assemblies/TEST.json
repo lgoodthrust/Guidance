@@ -1,0 +1,262 @@
+[
+	{
+		"DATA": {
+			"MASS": 10,
+			"NAME": "IR_Seeker",
+			"TYPE": 1,
+			"UDLRTB": [
+				0,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/ir_seeker.tscn",
+		"position": {
+			"x": 0,
+			"y": 9,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 10,
+			"NAME": "Controller",
+			"TYPE": 2,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/controller.tscn",
+		"position": {
+			"x": 0,
+			"y": 8,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 10,
+			"NAME": "Controller",
+			"TYPE": 2,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/controller.tscn",
+		"position": {
+			"x": 0,
+			"y": 6,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 10,
+			"NAME": "Controller",
+			"TYPE": 2,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/controller.tscn",
+		"position": {
+			"x": 0,
+			"y": 7,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 7.5,
+			"NAME": "Front_Cannard",
+			"TYPE": 5,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/front_cannard.tscn",
+		"position": {
+			"x": 0,
+			"y": 5,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 10,
+			"NAME": "Controller",
+			"TYPE": 2,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/controller.tscn",
+		"position": {
+			"x": 0,
+			"y": 4,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 10,
+			"NAME": "Controller",
+			"TYPE": 2,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/controller.tscn",
+		"position": {
+			"x": 0,
+			"y": 2,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 10,
+			"NAME": "Controller",
+			"TYPE": 2,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/controller.tscn",
+		"position": {
+			"x": 0,
+			"y": 3,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 5,
+			"NAME": "Back_Fin",
+			"TYPE": 6,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/back_fin.tscn",
+		"position": {
+			"x": 0,
+			"y": 1,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 10,
+			"NAME": "Controller",
+			"TYPE": 2,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/controller.tscn",
+		"position": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	}
+]

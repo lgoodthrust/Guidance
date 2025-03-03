@@ -12,14 +12,24 @@ var ghost_block: Node3D  # Ghost block instance
 var launcher = Node  # FOR DATA SHARE
 var grid_mesh: MeshInstance3D  # The grid renderer
 var selected_block: PackedScene = null  # Currently selected block
+var loader_saver
 
 @onready var camera = $Builder_Camera #get_tree().current_scene.find_child("Player_Camera", true, false)
 @onready var block_selector = $Builder_Camera/GUI/GUI_Scroll_Container/GUI_Scroll_Selector/GUI_Scroll_Selector_Seporater
+
 
 func _ready():
 	launcher = get_node(".").get_parent() # FOR DATA SHARE
 	
 	center_camera()
+	
+	loader_saver = Loader_Saver.new(
+		"res://game_data/assemblies/TEST.json", 
+		"res://game_data/assemblies/TEST.json",
+		self,  # Pass builder node
+		grid,  # Reference to the grid
+		cell_size  # Pass cell size
+	)
 	
 	#Ensure ghost block scene is assigned
 	if ghost_block_scene:
@@ -213,3 +223,9 @@ func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
 	if launcher:
 		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[key]
 		return data
+
+func _SAVER():
+	loader_saver.save_vehicle()
+
+func _LOADER():
+	loader_saver.load_vehicle()
