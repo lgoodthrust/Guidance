@@ -1,29 +1,26 @@
-[gd_scene load_steps=7 format=3 uid="uid://dvf1m5jclhql5"]
+[gd_scene load_steps=6 format=3 uid="uid://dvf1m5jclhql5"]
 
 [ext_resource type="Script" path="res://scripts/builder_main.gd" id="1_q1upv"]
 [ext_resource type="PackedScene" uid="uid://d35nsitn2npac" path="res://game_data/ghost.tscn" id="2_5yny8"]
 [ext_resource type="PackedScene" uid="uid://ds7rt4wqvd5bb" path="res://game_data/cg_marker.tscn" id="3_kbtfm"]
 [ext_resource type="Environment" uid="uid://cic8uup31xvao" path="res://meshs/world_meshes/builder_env.tres" id="3_s7avm"]
 [ext_resource type="Script" path="res://scripts/builder_camera_main.gd" id="4_2bh26"]
-[ext_resource type="PackedScene" uid="uid://bynfkdmkalk3v" path="res://game_data/cl_marker.tscn" id="4_i6lgh"]
 
 [node name="Builder" type="Node3D"]
 script = ExtResource("1_q1upv")
 ghost_block_scene = ExtResource("2_5yny8")
 gc_block_scene = ExtResource("3_kbtfm")
-cl_block_scene = ExtResource("4_i6lgh")
+
+[node name="Builder_World_Light" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 15, 0)
+light_volumetric_fog_energy = 0.0
+light_size = 3.0
+omni_range = 50.0
 
 [node name="Builder_Camera" type="Camera3D" parent="."]
 environment = ExtResource("3_s7avm")
 far = 100.0
 script = ExtResource("4_2bh26")
-
-[node name="Builder_Camera_Light" type="OmniLight3D" parent="Builder_Camera"]
-light_volumetric_fog_energy = 0.0
-light_size = 0.01
-light_specular = 0.99
-light_bake_mode = 1
-omni_range = 30.0
 
 [node name="GUI" type="Control" parent="Builder_Camera"]
 layout_mode = 3

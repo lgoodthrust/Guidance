@@ -53,58 +53,7 @@
 	},
 	{
 		"DATA": {
-			"MASS": 10,
-			"NAME": "Controller",
-			"TYPE": 2,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/controller.tscn",
-		"position": {
-			"x": 0,
-			"y": 6,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
-			"MASS": 10,
-			"NAME": "Controller",
-			"TYPE": 2,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/controller.tscn",
-		"position": {
-			"x": 0,
-			"y": 7,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
+			"LIFT": 0.0292,
 			"MASS": 7.5,
 			"NAME": "Front_Cannard",
 			"TYPE": 5,
@@ -120,7 +69,7 @@
 		"path": "res://game_data/blocks/front_cannard.tscn",
 		"position": {
 			"x": 0,
-			"y": 5,
+			"y": 7,
 			"z": 0
 		},
 		"rotation": {
@@ -132,8 +81,8 @@
 	{
 		"DATA": {
 			"MASS": 10,
-			"NAME": "Controller",
-			"TYPE": 2,
+			"NAME": "Warhead",
+			"TYPE": 3,
 			"UDLRTB": [
 				-1,
 				-1,
@@ -143,7 +92,59 @@
 				0
 			]
 		},
-		"path": "res://game_data/blocks/controller.tscn",
+		"path": "res://game_data/blocks/warhead.tscn",
+		"position": {
+			"x": 0,
+			"y": 6,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 10,
+			"NAME": "Warhead",
+			"TYPE": 3,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/warhead.tscn",
+		"position": {
+			"x": 0,
+			"y": 5,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"MASS": 5,
+			"NAME": "Rocket_Fuel",
+			"TYPE": 7,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/rocket_fuel.tscn",
 		"position": {
 			"x": 0,
 			"y": 4,
@@ -157,9 +158,9 @@
 	},
 	{
 		"DATA": {
-			"MASS": 10,
-			"NAME": "Controller",
-			"TYPE": 2,
+			"MASS": 5,
+			"NAME": "Rocket_Fuel",
+			"TYPE": 7,
 			"UDLRTB": [
 				-1,
 				-1,
@@ -169,33 +170,7 @@
 				0
 			]
 		},
-		"path": "res://game_data/blocks/controller.tscn",
-		"position": {
-			"x": 0,
-			"y": 2,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
-			"MASS": 10,
-			"NAME": "Controller",
-			"TYPE": 2,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/controller.tscn",
+		"path": "res://game_data/blocks/rocket_fuel.tscn",
 		"position": {
 			"x": 0,
 			"y": 3,
@@ -210,8 +185,8 @@
 	{
 		"DATA": {
 			"MASS": 5,
-			"NAME": "Back_Fin",
-			"TYPE": 6,
+			"NAME": "Rocket_Fuel",
+			"TYPE": 7,
 			"UDLRTB": [
 				-1,
 				-1,
@@ -221,7 +196,34 @@
 				0
 			]
 		},
-		"path": "res://game_data/blocks/back_fin.tscn",
+		"path": "res://game_data/blocks/rocket_fuel.tscn",
+		"position": {
+			"x": 0,
+			"y": 2,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"LIFT": 0.0437,
+			"MASS": 5,
+			"NAME": "Fin",
+			"TYPE": 4,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/fin.tscn",
 		"position": {
 			"x": 0,
 			"y": 1,
@@ -235,9 +237,9 @@
 	},
 	{
 		"DATA": {
-			"MASS": 10,
-			"NAME": "Controller",
-			"TYPE": 2,
+			"MASS": 5,
+			"NAME": "Rocket_Motor",
+			"TYPE": 8,
 			"UDLRTB": [
 				-1,
 				-1,
@@ -247,7 +249,7 @@
 				0
 			]
 		},
-		"path": "res://game_data/blocks/controller.tscn",
+		"path": "res://game_data/blocks/rocket_motor.tscn",
 		"position": {
 			"x": 0,
 			"y": 0,

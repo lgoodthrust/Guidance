@@ -1,14 +1,21 @@
 extends Node3D
 
+@export_subgroup("BUILDER CONFIG")
 @export var grid_size: Vector3i = Vector3i(1, 10, 1)  # Grid dimensions
 @export var cell_size: float = 1.0  # Grid cell size
 @export var block_folder_path: String = "res://game_data/blocks/"  # Folder for blocks
-@export var ghost_block_scene: PackedScene  # Ghost block preview
 @export var placement_distance: int = 3  # Distance from camera to place block
+@export_subgroup("MISC")
+@export var ghost_block_scene: PackedScene  # Ghost block preview
+@export var gc_block_scene: PackedScene  # CG block preview
+@export var cl_block_scene: PackedScene  # CL block preview
+
 
 var grid: Dictionary = {}  # Stores placed blocks
 var selected_position: Vector3i = Vector3i.ZERO  # Current selected grid cell
 var ghost_block: Node3D  # Ghost block instance
+var cg_block: Node3D  # CG block instance
+var cl_block: Node3D  # CL block instance
 var launcher = Node  # FOR DATA SHARE
 var grid_mesh: MeshInstance3D  # The grid renderer
 var selected_block: PackedScene = null  # Currently selected block
@@ -31,6 +38,20 @@ func _ready():
 		cell_size  # Pass cell size
 	)
 	
+	if gc_block_scene:
+		cg_block = gc_block_scene.instantiate()
+		cg_block.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(cg_block)
+	else:
+		push_error("cg block scene not assigned!")
+	
+	if cl_block_scene:
+		cl_block = cl_block_scene.instantiate()
+		cl_block.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(cl_block)
+	else:
+		push_error("cl block scene not assigned!")
+	
 	#Ensure ghost block scene is assigned
 	if ghost_block_scene:
 		ghost_block = ghost_block_scene.instantiate()
@@ -49,6 +70,7 @@ func _ready():
 
 	# Load UI block selector
 	load_blocks_into_ui()
+	
 
 func _process(_delta):
 	
@@ -135,11 +157,15 @@ func place_block():
 
 	add_child(block)
 	grid[selected_position] = block
+	update_center_of_gravity()
+	update_center_of_lift()
 
 func remove_block():
 	if grid.has(selected_position):
 		grid[selected_position].queue_free()
 		grid.erase(selected_position)
+	update_center_of_gravity()
+	update_center_of_lift()
 
 func _draw_grid():
 	var im = grid_mesh.mesh as ImmediateMesh
@@ -173,9 +199,48 @@ func _draw_grid():
 			im.surface_set_color(grid_color)
 			im.surface_add_vertex(Vector3(x_pos - gs, -gs, z_pos - gs))
 			im.surface_add_vertex(Vector3(x_pos - gs, grid_size.y * cell_size - gs, z_pos - gs))
-
+	
 	im.surface_end()
 
+func update_center_of_gravity():
+	var total_mass = 0.0
+	var weighted_position = Vector3.ZERO
+
+	# grid is { position: block_node }
+	for pos in grid:
+		var block_node = grid[pos]
+		if block_node.DATA.has("MASS"):
+			var part_mass = block_node.DATA["MASS"]
+			total_mass += part_mass
+			var block_pos = block_node.global_transform.origin
+			weighted_position += block_pos * part_mass
+
+	if total_mass > 0.0:
+		var cog = weighted_position / total_mass
+		cg_block.global_position = cog
+		cg_block.visible = true
+	else:
+		cg_block.visible = false
+
+func update_center_of_lift():
+	var total_lift = 0.0
+	var lifting_position = Vector3.ZERO
+
+	# grid is { position: block_node }
+	for pos in grid:
+		var block_node = grid[pos]
+		if block_node.DATA.has("LIFT"):
+			var part_lift = block_node.DATA["LIFT"]
+			total_lift += part_lift
+			var block_pos = block_node.global_transform.origin
+			lifting_position += block_pos * part_lift
+
+	if total_lift > 0.0:
+		var col = lifting_position / total_lift
+		cl_block.global_position = col
+		cl_block.visible = true
+	else:
+		cl_block.visible = false
 
 func select_block(block_path: String):
 	selected_block = load(block_path)
@@ -197,6 +262,7 @@ func load_blocks_into_ui():
 			file_name = dir.get_next()
 	else:
 		push_error("Failed to open block folder!")
+
 
 func create_block_button(block_path: String):
 	var block_scene = load(block_path)
@@ -225,7 +291,12 @@ func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
 		return data
 
 func _SAVER():
-	loader_saver.save_vehicle()
+	if grid:
+		loader_saver.save_vehicle()
+	else:
+		print("Invalid Grid Data")
 
 func _LOADER():
 	loader_saver.load_vehicle()
+	update_center_of_gravity()
+	update_center_of_lift()

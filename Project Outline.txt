@@ -18,11 +18,11 @@ BLOCK DATA:
 		3 = warhead
 		4 = fins (front half)
 		5 = cannards (front helf)
-		6 = fins (back half)
-		7 = cannards (back half)
-		8 = rocket fuel
-		9 = rocket motor
+		6 = cannards (back half)
+		7 = rocket fuel
+		8 = rocket motor
 	MASS : int - the mass of the block in kg
+	LIFT : float - the lift effect, lift force per foward velocity 
 	UDLRFB : array - up,down,left,right,front,back block connection points
 		UDLRFB values:
 			0 = none
