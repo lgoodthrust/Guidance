@@ -31,10 +31,6 @@ func _ready():
 	center_camera()
 	
 	loader_saver = Loader_Saver.new(
-		"res://game_data/assemblies/TEST.json", 
-		"res://game_data/assemblies/TEST.json",
-		"res://game_data/assemblies/TEST.tscn",
-		"res://game_data/assemblies/TEST.tscn",
 		self,  # Pass builder node
 		grid,  # Reference to the grid
 		cell_size  # Pass cell size
@@ -72,10 +68,8 @@ func _ready():
 
 	# Load UI block selector
 	load_blocks_into_ui()
-	
 
 func _process(_delta):
-	
 	update_selected_position()
 	ghost_block.position = selected_position * cell_size  # Move ghost block
 	
@@ -282,6 +276,21 @@ func create_block_button(block_path: String):
 
 #LAUCNHER_CHILD_SHARE_SET("builder", [])
 
+func _SAVER():
+	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0] # get save file path
+	if grid:
+		loader_saver.save_vehicle(path)
+		loader_saver.save_assembly(path)
+	else:
+		print("Invalid Grid Data")
+
+func _LOADER():
+	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0] # get save file path
+	loader_saver.load_vehicle(path)
+	update_center_of_gravity()
+	update_center_of_lift()
+
+
 func LAUCNHER_CHILD_SHARE_SET(key, data): # FOR DATA SHARE
 	if launcher:
 		launcher.LAUCNHER_CHILD_SHARED_DATA[key] = [data]
@@ -291,15 +300,3 @@ func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
 	if launcher:
 		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[key]
 		return data
-
-func _SAVER():
-	if grid:
-		loader_saver.save_vehicle()
-		loader_saver.save_assembly()
-	else:
-		print("Invalid Grid Data")
-
-func _LOADER():
-	loader_saver.load_vehicle()
-	update_center_of_gravity()
-	update_center_of_lift()

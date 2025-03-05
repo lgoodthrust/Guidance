@@ -46,14 +46,18 @@ var rotation_target_player : float
 var rotation_target : float
 var start_pos : Vector3
 var launcher = Node # FOR DATA SHARE
+var Camera: Camera3D
 
 func _ready():
 	launcher = get_node(".").get_parent() # FOR DATA SHARE
-
+	
+	Camera = $Player_Camera
+	
 	if CAPTURE_ON_START:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
-	start_pos = $Player_Camera.position
+	
+	start_pos = Camera.position
+	
 
 func _physics_process(delta):
 	
@@ -82,14 +86,15 @@ func set_rotation_target(mouse_motion : Vector2):
 func rotate_player(delta):
 	if MOUSE_ACCEL:
 		quaternion = quaternion.slerp(Quaternion(Vector3.UP, rotation_target_player), KEY_BIND_MOUSE_ACCEL * delta)
-		$Player_Camera.quaternion = $Player_Camera.quaternion.slerp(Quaternion(Vector3.RIGHT, rotation_target), KEY_BIND_MOUSE_ACCEL * delta)
+		Camera.quaternion = Camera.quaternion.slerp(Quaternion(Vector3.RIGHT, rotation_target), KEY_BIND_MOUSE_ACCEL * delta)
 	else:
 		quaternion = Quaternion(Vector3.UP, rotation_target_player)
-		$Player_Camera.quaternion = Quaternion(Vector3.RIGHT, rotation_target)
+		Camera.quaternion = Quaternion(Vector3.RIGHT, rotation_target)
 
 func move_player(delta):
 	var input_dir = Input.get_vector(KEY_BIND_LEFT, KEY_BIND_RIGHT, KEY_BIND_UP, KEY_BIND_DOWN)
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
+	print(input_dir)
 
 	if Input.is_action_just_pressed(KEY_BIND_NOCLIP):
 		noclip = !noclip
@@ -97,11 +102,11 @@ func move_player(delta):
 	
 	if Input.is_action_pressed(KEY_BIND_CROUTCH):
 		$Player_Shape.shape.height = 1.0
-		$Player_Camera.position.y = 1.0
+		Camera.position.y = 1.0
 		$Player_Object/Player_Collider.shape.height = 1.0
 	else:
 		$Player_Shape.shape.height = 2.0
-		$Player_Camera.position.y = 2.0
+		Camera.position.y = 2.0
 		$Player_Object/Player_Collider.shape.height = 2.0
 
 	if noclip:
@@ -109,7 +114,7 @@ func move_player(delta):
 		speed = IN_NOCLIP_SPEED * (2.0 if Input.is_action_pressed(KEY_BIND_SPRINT) else (0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1.0))
 		accel = IN_NOCLIP_ACCEL
 		# Get current camera rotation as a quaternion
-		var camera_quat = $Player_Camera.global_transform.basis.get_rotation_quaternion()
+		var camera_quat = Camera.global_transform.basis.get_rotation_quaternion()
 		# Get movement directions based on camera quaternion
 		var forward = camera_quat * Vector3.BACK
 		var right = camera_quat * Vector3.RIGHT

@@ -43,7 +43,7 @@ func remove_chunk(x: int, z: int):
 		chunk.queue_free()
 
 func _physics_process(_delta):
-	player_position = LAUCNHER_CHILD_SHARE_GET("player")[0]
+	player_position = LAUCNHER_CHILD_SHARE_GET("player")[0] # get player position
 	var p_x = player_position.x / CHUNK_SIZE
 	var p_z = player_position.z / CHUNK_SIZE
 	

@@ -9,7 +9,7 @@ var terrain_instance: Node3D
 var player_instance: CharacterBody3D
 var main_menu_instance: Window
 var builder_instance: Node3D
-var LAUCNHER_CHILD_SHARED_DATA = {"player":[], "world":[], "main_menu":[], "builder":[]} # Variable to store data from Scene A
+var LAUCNHER_CHILD_SHARED_DATA = {"scenes":[], "player":[], "world":[], "main_menu":[], "builder":[]} # Variable to store data from Scene A
 
 
 func _init() -> void:
@@ -28,6 +28,7 @@ func load_terrain():
 	if terrain_scene:
 		terrain_instance = terrain_scene.instantiate()
 		add_child(terrain_instance)
+		LAUCNHER_CHILD_SHARED_DATA["scenes"].append(terrain_instance)
 		terrain_instance.global_position = Vector3(0, 0, 0)
 		print("World loaded successfully!")
 	else:
@@ -37,7 +38,8 @@ func load_Builder():
 	if builder_scene:
 		builder_instance = builder_scene.instantiate()
 		add_child(builder_instance)
-		builder_instance.global_position = Vector3(0, 1, 0)
+		LAUCNHER_CHILD_SHARED_DATA["scenes"].append(builder_instance)
+		builder_instance.global_position = Vector3(0, 0, 0)
 		print("Builder loaded successfully!")
 	else:
 		print("Error: World scene not assigned!")
@@ -46,23 +48,26 @@ func load_player():
 	if player_scene:
 		player_instance = player_scene.instantiate()
 		add_child(player_instance)
-		player_instance.global_position = Vector3(10, 2, 0)
+		LAUCNHER_CHILD_SHARED_DATA["scenes"].append(player_instance)
+		player_instance.global_position = Vector3(0, 3, 10)
 		print("Player loaded successfully!")
 	else:
 		print("Error: Player scene not assigned!")
-
 
 func load_main_menu():
 	if player_scene:
 		main_menu_instance = main_menu_scene.instantiate()
 		add_child(main_menu_instance)
+		LAUCNHER_CHILD_SHARED_DATA["scenes"].append(main_menu_instance)
 		print("Main Menu loaded successfully!")
 	else:
 		print("Error: Main Menu scene not assigned!")
 
+
 func _on_window_close_requested() -> void:
 	load_player()
 	load_terrain()
+	load_Builder()
 	load_main_menu()
 
 

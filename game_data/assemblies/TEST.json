@@ -106,58 +106,6 @@
 	},
 	{
 		"DATA": {
-			"MASS": 10,
-			"NAME": "Warhead",
-			"TYPE": 3,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/warhead.tscn",
-		"position": {
-			"x": 0,
-			"y": 5,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
-			"MASS": 5,
-			"NAME": "Rocket_Fuel",
-			"TYPE": 7,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/rocket_fuel.tscn",
-		"position": {
-			"x": 0,
-			"y": 4,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
 			"MASS": 5,
 			"NAME": "Rocket_Fuel",
 			"TYPE": 7,
@@ -253,6 +201,60 @@
 		"position": {
 			"x": 0,
 			"y": 0,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"LIFT": 0,
+			"MASS": 10,
+			"NAME": "Rocket_Fuel",
+			"TYPE": 7,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/rocket_fuel.tscn",
+		"position": {
+			"x": 0,
+			"y": 4,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"LIFT": 0,
+			"MASS": 10,
+			"NAME": "Warhead",
+			"TYPE": 3,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/warhead.tscn",
+		"position": {
+			"x": 0,
+			"y": 5,
 			"z": 0
 		},
 		"rotation": {
