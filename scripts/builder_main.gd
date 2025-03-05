@@ -33,6 +33,8 @@ func _ready():
 	loader_saver = Loader_Saver.new(
 		"res://game_data/assemblies/TEST.json", 
 		"res://game_data/assemblies/TEST.json",
+		"res://game_data/assemblies/TEST.tscn",
+		"res://game_data/assemblies/TEST.tscn",
 		self,  # Pass builder node
 		grid,  # Reference to the grid
 		cell_size  # Pass cell size
@@ -293,6 +295,7 @@ func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
 func _SAVER():
 	if grid:
 		loader_saver.save_vehicle()
+		loader_saver.save_assembly()
 	else:
 		print("Invalid Grid Data")
 

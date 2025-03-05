@@ -19,26 +19,53 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Control"]
+[node name="V_Container" type="VBoxContainer" parent="Control"]
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
 
-[node name="Label" type="Label" parent="Control/VBoxContainer"]
+[node name="Param_Group_Target" type="Label" parent="Control/V_Container"]
 layout_mode = 2
-text = "IDK"
+theme_override_font_sizes/font_size = 25
+text = "Testing Area"
 
-[node name="HSeparator" type="HSeparator" parent="Control/VBoxContainer"]
+[node name="HSeparator" type="HSeparator" parent="Control/V_Container"]
 layout_mode = 2
 
-[node name="LineEdit" type="LineEdit" parent="Control/VBoxContainer"]
+[node name="Label_Target_Speed" type="Label" parent="Control/V_Container"]
 layout_mode = 2
-placeholder_text = "IDK Value"
+text = "Target Speed"
+
+[node name="Line_Target_Speed" type="LineEdit" parent="Control/V_Container"]
+layout_mode = 2
+placeholder_text = "(m/s)"
 clear_button_enabled = true
 
-[node name="HSeparator2" type="HSeparator" parent="Control/VBoxContainer"]
+[node name="HSeparator2" type="HSeparator" parent="Control/V_Container"]
 layout_mode = 2
 
-[node name="Button_Exit" type="Button" parent="Control/VBoxContainer"]
+[node name="Label_Target_Altitude" type="Label" parent="Control/V_Container"]
 layout_mode = 2
-text = "Exit"
+text = "Target Altitude"
+
+[node name="Line_Target_Altitude" type="LineEdit" parent="Control/V_Container"]
+layout_mode = 2
+placeholder_text = "(m)"
+clear_button_enabled = true
+
+[node name="HSeparator3" type="HSeparator" parent="Control/V_Container"]
+layout_mode = 2
+
+[node name="Label_Target_Distance" type="Label" parent="Control/V_Container"]
+layout_mode = 2
+text = "Target Distance"
+
+[node name="Line_Target_Distance" type="LineEdit" parent="Control/V_Container"]
+layout_mode = 2
+placeholder_text = "(m)"
+clear_button_enabled = true
+
+[node name="HSeparator4" type="HSeparator" parent="Control/V_Container"]
+layout_mode = 2
+
+[connection signal="close_requested" from="." to="." method="toggler"]
