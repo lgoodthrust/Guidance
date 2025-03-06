@@ -15,8 +15,8 @@ extends CharacterBody3D
 
 @export_subgroup("Clamp Head Rotation")
 @export var CLAMP_HEAD_ROTATION := true
-@export var CLAMP_HEAD_ROTATION_MIN := -90.0
-@export var CLAMP_HEAD_ROTATION_MAX := 90.0
+@export var CLAMP_HEAD_ROTATION_MIN := -89.999
+@export var CLAMP_HEAD_ROTATION_MAX := 89.999
 
 @export_subgroup("Mouse")
 @export var CAPTURE_ON_START := true

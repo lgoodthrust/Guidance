@@ -1,9 +1,8 @@
 extends Node3D
 
-var yaw_drift: float = 1.0
-var pitch_drift: float = 1.0
-var drift_rate: float = 1.0
-var current_drift: Vector2 = Vector2.ZERO
+var yaw: float = 1.0
+var pitch: float = 1.0
+var input_value: Vector2 = Vector2.ZERO
 var time: float = 0.0
 
 var forward_velocity: float = 10.0
@@ -15,16 +14,11 @@ var rotation_target_pitch: float = 0.0
 
 var curr_velocity: Vector3 = Vector3.ZERO
 
-@onready var Seeker
 
-
-func _process(delta: float) -> void:
-	# Accumulate time so drift changes each frame
-	time += delta * drift_rate
-	
+func _process(_delta: float) -> void:
 	# Let the drift oscillate using sine over time
-	current_drift.x = sin(time * yaw_drift * PI)/90
-	current_drift.y = cos(time * pitch_drift * PI)/180
+	input_value.x = sin(time * yaw * PI)/90
+	input_value.y = cos(time * pitch * PI)/180
 
 
 func _physics_process(delta: float) -> void:
@@ -33,11 +27,11 @@ func _physics_process(delta: float) -> void:
 
 
 func rotate_player(_delta: float) -> void:
-	rotation_target_pitch = clamp(current_drift.y, deg_to_rad(-90), deg_to_rad(90))
+	rotation_target_pitch = clamp(input_value.y, deg_to_rad(-90), deg_to_rad(90))
 	# Create quaternions from the two angles:
 	#  - rotation around the Y axis for yaw
 	#  - rotation around the X axis for pitch
-	var yaw_quat = Quaternion(Vector3.UP, current_drift.x)
+	var yaw_quat = Quaternion(Vector3.UP, input_value.x)
 	var pitch_quat = Quaternion(Vector3.RIGHT, rotation_target_pitch)
 	
 	# Combine them to get the final orientation
