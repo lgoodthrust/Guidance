@@ -125,13 +125,27 @@ func save_assembly(save_dir: String):
 			block.DATA = data_dict["DATA"]
 
 			builder_instance.add_child(block)
+
 			grid[Vector3i(pos_dict.x, pos_dict.y, pos_dict.z)] = block
+
+		if block_scene:
+			var block:Node3D = block_scene.instantiate()
+
+			var pos_dict = data_dict["position"]
+			block.position = Vector3(pos_dict.x, pos_dict.y, pos_dict.z) * cell_size
+
+			var rot_dict = data_dict["rotation"]
+			block.rotation_degrees = Vector3(rot_dict.x, rot_dict.y, rot_dict.z)
+
+			block.DATA = data_dict["DATA"]
+			
+			temp_scene.add_child(block)
+			block.owner = temp_scene
 
 	var packed_scene = PackedScene.new()
 	packed_scene.pack(temp_scene)
-	
-	temp_scene.queue_free()
 
+	# We no longer queue_free temp_scene before packing it
 	var tscn_dir = save_dir + ".tscn"
 	var err = ResourceSaver.save(packed_scene, tscn_dir)
 	if err == OK:
