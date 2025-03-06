@@ -1,0 +1,4 @@
+[gd_resource type="ParticleProcessMaterial" format=3 uid="uid://rufndlhwv0vp"]
+
+[resource]
+gravity = Vector3(0, 0, 0)

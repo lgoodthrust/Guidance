@@ -56,7 +56,7 @@ func toggler(): # release mouse when menu active
 
 func update_build_file(filename: String):
 	var full_filename = str(build_file_path + filename)
-	LAUCNHER_CHILD_SHARE_SET("main_menu", [full_filename])
+	LAUCNHER_CHILD_SHARE_SET("main_menu", [{"FILE_PATH":full_filename}])
 
 
 func switch_to_tester():

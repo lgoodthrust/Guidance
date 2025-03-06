@@ -1,0 +1,51 @@
+[gd_scene load_steps=10 format=3 uid="uid://dci17n0stw0oi"]
+
+[ext_resource type="Script" path="res://scripts/active_target_main.gd" id="1_vrp18"]
+[ext_resource type="Material" uid="uid://rufndlhwv0vp" path="res://textures/target_debug_trail_procmat.tres" id="2_6643f"]
+[ext_resource type="Material" uid="uid://cgt4c65osggbf" path="res://textures/target_debug_trail.tres" id="2_yxshy"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_pbbpo"]
+size = Vector3(2.5, 1, 10)
+
+[sub_resource type="PrismMesh" id="PrismMesh_8i4vb"]
+size = Vector3(1, 2, 2.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_8evv8"]
+size = Vector3(14, 0.25, 2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_avniy"]
+size = Vector3(8, 0.25, 1.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_58q8e"]
+size = Vector3(0.25, 3, 2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_5lqw2"]
+material = ExtResource("2_yxshy")
+size = Vector3(0.1, 0.1, 0.1)
+
+[node name="Active_Target" type="Node3D"]
+script = ExtResource("1_vrp18")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_pbbpo")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1.91069e-15, 4.37114e-08, 1, 1, -4.37114e-08, 0, 4.37114e-08, 1, -4.37114e-08, 0, 0, 6)
+mesh = SubResource("PrismMesh_8i4vb")
+
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_8evv8")
+
+[node name="MeshInstance3D4" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -4.25)
+mesh = SubResource("BoxMesh_avniy")
+
+[node name="MeshInstance3D5" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -4)
+mesh = SubResource("BoxMesh_58q8e")
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="."]
+amount = 350
+lifetime = 3.0
+process_material = ExtResource("2_6643f")
+draw_pass_1 = SubResource("BoxMesh_5lqw2")

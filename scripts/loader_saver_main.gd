@@ -12,6 +12,9 @@ func _init(builder: Node, grid_ref: Dictionary, cell_size_ref: float):
 	grid = grid_ref
 	cell_size = cell_size_ref
 
+func _ready():
+	pass
+
 
 func save_vehicle(save_dir: String):
 	var path = save_dir + ".json"
@@ -137,12 +140,21 @@ func save_assembly(save_dir: String):
 		push_error("Failed to save TSCN. Error: %d" % err)
 
 
-func load_assembly(tscn_dir: String) -> Node3D:
+func load_assembly_rigidbody(tscn_dir: String) -> RigidBody3D:
 	var resource = ResourceLoader.load(tscn_dir)
 	if not resource or not (resource is PackedScene):
 		push_error("Failed to load TSCN at: %s" % tscn_dir)
-		return Node3D.new()
+		return RigidBody3D.new()
 
-	var instance = resource.instantiate() as Node3D
-	assembly_scene_instance = instance
-	return instance
+	# Instantiate the assembly as a Node3D
+	var assembly = resource.instantiate() as Node3D
+	
+	# Create a RigidBody3D to serve as the physics parent
+	var rigid_body = RigidBody3D.new()
+	# Optionally configure rigid_body properties here, e.g. mode, mass, etc.
+
+	# Make the assembly a child of the rigid body
+	rigid_body.add_child(assembly)
+	
+	# Return the fully populated rigid body
+	return rigid_body

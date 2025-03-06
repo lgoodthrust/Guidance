@@ -94,7 +94,6 @@ func rotate_player(delta):
 func move_player(delta):
 	var input_dir = Input.get_vector(KEY_BIND_LEFT, KEY_BIND_RIGHT, KEY_BIND_UP, KEY_BIND_DOWN)
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
-	print(input_dir)
 
 	if Input.is_action_just_pressed(KEY_BIND_NOCLIP):
 		noclip = !noclip

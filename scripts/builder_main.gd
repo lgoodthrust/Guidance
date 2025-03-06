@@ -277,7 +277,7 @@ func create_block_button(block_path: String):
 #LAUCNHER_CHILD_SHARE_SET("builder", [])
 
 func _SAVER():
-	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0] # get save file path
+	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")["FILE_PATH"] # get save file path
 	if grid:
 		loader_saver.save_vehicle(path)
 		loader_saver.save_assembly(path)
@@ -285,7 +285,7 @@ func _SAVER():
 		print("Invalid Grid Data")
 
 func _LOADER():
-	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0] # get save file path
+	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")["FILE_PATH"] # get save file path
 	loader_saver.load_vehicle(path)
 	update_center_of_gravity()
 	update_center_of_lift()
