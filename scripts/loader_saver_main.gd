@@ -140,7 +140,8 @@ func save_assembly(save_dir: String):
 		push_error("Failed to save TSCN. Error: %d" % err)
 
 
-func load_assembly_rigidbody(tscn_dir: String) -> RigidBody3D:
+func load_assembly(tscn_dir: String) -> RigidBody3D:
+	tscn_dir = tscn_dir + ".tscn"
 	var resource = ResourceLoader.load(tscn_dir)
 	if not resource or not (resource is PackedScene):
 		push_error("Failed to load TSCN at: %s" % tscn_dir)
