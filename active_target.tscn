@@ -21,7 +21,7 @@ size = Vector3(0.25, 3, 2)
 
 [sub_resource type="BoxMesh" id="BoxMesh_5lqw2"]
 material = ExtResource("2_yxshy")
-size = Vector3(0.1, 0.1, 0.1)
+size = Vector3(0.25, 0.25, 0.25)
 
 [node name="Active_Target" type="Node3D"]
 script = ExtResource("1_vrp18")

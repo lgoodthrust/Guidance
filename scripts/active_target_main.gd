@@ -2,11 +2,11 @@ extends Node3D
 
 var yaw_drift: float = 15.0
 var pitch_drift: float = 15.0
-var drift_rate: float = 1.0
+var drift_rate: float = 0.5
 var current_drift: Vector2 = Vector2.ZERO
 var time: float = 0.0
 
-var forward_velocity: float = 10.0
+var forward_velocity: float = 125
 var forward_acceleration: float = 5.0
 
 # Yaw and pitch targets

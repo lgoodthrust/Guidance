@@ -36,8 +36,8 @@ func get_relative_angles_to_target(target_global_position: Vector3) -> Vector2:
 
 	# 3) Calculate yaw and pitch in degrees
 	# Since UP (+Y) is our scanning direction:
-	var yaw_deg = rad_to_deg(atan2(local_direction.x, local_direction.y))  # X-axis relative to UP
-	var pitch_deg = rad_to_deg(atan2(local_direction.z, local_direction.y))  # Z-axis relative to UP
+	var yaw_deg = rad_to_deg(atan2(local_direction.x, local_direction.y))/horizontal_fov  # X-axis relative to UP
+	var pitch_deg = rad_to_deg(atan2(local_direction.z, local_direction.y))/vertical_fov  # Z-axis relative to UP
 
 	# 4) Check if within the horizontal/vertical half-FOV
 	if abs(yaw_deg) <= horizontal_fov * 0.5 and abs(pitch_deg) <= vertical_fov * 0.5:
@@ -51,7 +51,4 @@ func _physics_process(_delta: float):
 	if enemy:
 		var angles = get_relative_angles_to_target(enemy.global_transform.origin)
 		if angles != Vector2.INF:
-			print("Detected enemy within FOV! Yaw =", angles.x, " Pitch =", angles.y)
-			XY = Vector2(angles.x, angles.y)
-		else:
-			print("No enemy detected")
+			XY = Vector2(-angles.x, angles.y)

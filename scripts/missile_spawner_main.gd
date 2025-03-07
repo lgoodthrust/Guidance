@@ -1,6 +1,6 @@
 extends Node3D
 
-@export var intersection_distance: float = 1000.0  # Distance in front of leader node
+@export var intersection_distance: float = 3000.0  # Distance in front of leader node
 
 
 
@@ -49,18 +49,20 @@ func get_player() -> Node:
 func spawn_missile():
 	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0]["FILE_PATH"] # get save file path
 	var missile_instance: Node3D = loader_saver.load_assembly(path)
+	var seeker = missile_instance.get_node("MissileRoot/RigidBody3D/IR_Seeker")
 	var missile_script = load("res://scripts/active_missile_main.gd")
 	var seeker_script = load("res://scripts/block_scripts/ir_seeker.gd")
-	var seeker = missile_instance.get_node("RigidBody3D/IR_Seeker")
-	var papa = get_tree().current_scene.get_node(".")
+	var warhead_script = load("res://scripts/block_scripts/warhead.gd")
+	var fin_script = load("res://scripts/block_scripts/fin_seeker.gd")
+	var world_root = get_tree().current_scene.get_node(".")
 	
 	# Assign scripts
-	missile_instance.set_script(missile_script)
 	seeker.set_script(seeker_script)
-
+	missile_instance.set_script(missile_script)
+	
 	# Add to scene
-	papa.add_child(missile_instance)
-	missile_instance.owner = papa
+	world_root.add_child(missile_instance)
+	missile_instance.owner = world_root
 	
 	missile_instance.name = "Active_Missile"
 	missile_instance.global_position = global_position

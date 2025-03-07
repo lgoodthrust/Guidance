@@ -89,63 +89,75 @@ func load_vehicle(load_dir: String):
 
 
 func save_assembly(save_dir: String):
-	var temp_scene = RigidBody3D.new()
+	# 1) Create a top-level Node3D as the new root.
+	var missile_root = Node3D.new()
+	missile_root.name = "MissileRoot"
+	
+	# 2) Create a RigidBody3D child to hold all the blocks.
+	var rigid_body = RigidBody3D.new()
+	rigid_body.name = "RigidBody3D"
+	
+	# 3) Attach the RigidBody3D to MissileRoot, and set its owner
+	missile_root.add_child(rigid_body)
+	rigid_body.owner = missile_root
+
+	# 4) Prepare to parse the JSON
 	var path = save_dir + ".json"
-
-	# Clear out old blocks
-	for pos in grid.keys():
-		grid[pos].queue_free()
-	grid.clear()
-
 	var file = FileAccess.open(path, FileAccess.READ)
 	if not file:
 		push_error("Failed to open JSON at: %s" % path)
 		return
 
+	# Clear out old blocks in your builder (if you really need to do that here)
+	for pos in grid.keys():
+		grid[pos].queue_free()
+	grid.clear()
+
 	var parse_result = JSON.parse_string(file.get_as_text())
 	file.close()
 
-	# Expect an array of block-data dictionaries
 	if typeof(parse_result) != TYPE_ARRAY:
 		push_error("Expected an array of blocks in JSON: %s" % path)
 		return
-	
+
 	var block_dict_array = parse_result
+
+	# 5) Instantiate each block and:
+	#   - Add one copy to your in-editor builder (if you need it)
+	#   - Add one copy to the RigidBody3D for the final scene
 	for data_dict in block_dict_array:
 		var block_scene = load(data_dict["path"])
 		if block_scene:
-			var block = block_scene.instantiate()
+			# a) Create the block for the builder
+			var block_builder_instance = block_scene.instantiate()
 
 			var pos_dict = data_dict["position"]
-			block.position = Vector3(pos_dict.x, pos_dict.y, pos_dict.z) * cell_size
+			block_builder_instance.position = Vector3(pos_dict.x, pos_dict.y, pos_dict.z) * cell_size
 
 			var rot_dict = data_dict["rotation"]
-			block.rotation_degrees = Vector3(rot_dict.x, rot_dict.y, rot_dict.z)
+			block_builder_instance.rotation_degrees = Vector3(rot_dict.x, rot_dict.y, rot_dict.z)
 
-			block.DATA = data_dict["DATA"]
+			block_builder_instance.DATA = data_dict["DATA"]
 
-			builder_instance.add_child(block)
+			builder_instance.add_child(block_builder_instance)
+			grid[Vector3i(pos_dict.x, pos_dict.y, pos_dict.z)] = block_builder_instance
 
-			grid[Vector3i(pos_dict.x, pos_dict.y, pos_dict.z)] = block
+			# b) Create a second copy for the actual RigidBody scene
+			var block_rigid_instance = block_scene.instantiate()
 
-		if block_scene:
-			var block:Node3D = block_scene.instantiate()
+			# Position/rotation
+			block_rigid_instance.position = block_builder_instance.position
+			block_rigid_instance.rotation_degrees = block_builder_instance.rotation_degrees
+			block_rigid_instance.DATA = block_builder_instance.DATA
 
-			var pos_dict = data_dict["position"]
-			block.position = Vector3(pos_dict.x, pos_dict.y, pos_dict.z) * cell_size
+			# Add to the RigidBody, set its owner to missile_root so it's saved
+			rigid_body.add_child(block_rigid_instance)
+			block_rigid_instance.owner = missile_root
 
-			var rot_dict = data_dict["rotation"]
-			block.rotation_degrees = Vector3(rot_dict.x, rot_dict.y, rot_dict.z)
-
-			block.DATA = data_dict["DATA"]
-			
-			temp_scene.add_child(block)
-			block.owner = temp_scene
-
+	# 6) Finally, pack the top-level MissileRoot into a PackedScene
 	var packed_scene = PackedScene.new()
-	packed_scene.pack(temp_scene)
+	packed_scene.pack(missile_root)
 
-	# We no longer queue_free temp_scene before packing it
 	var tscn_dir = save_dir + ".tscn"
 	var err = ResourceSaver.save(packed_scene, tscn_dir)
 	if err == OK:
@@ -154,22 +166,22 @@ func save_assembly(save_dir: String):
 		push_error("Failed to save TSCN. Error: %d" % err)
 
 
-func load_assembly(tscn_dir: String) -> RigidBody3D:
+func load_assembly(tscn_dir: String) -> Node3D:
 	tscn_dir = tscn_dir + ".tscn"
 	var resource = ResourceLoader.load(tscn_dir)
 	if not resource or not (resource is PackedScene):
 		push_error("Failed to load TSCN at: %s" % tscn_dir)
-		return RigidBody3D.new()
+		return Node3D.new()
 
 	# Instantiate the assembly as a Node3D
 	var assembly = resource.instantiate() as Node3D
 	
 	# Create a RigidBody3D to serve as the physics parent
-	var rigid_body = RigidBody3D.new()
+	var Missile = Node3D.new()
 	# Optionally configure rigid_body properties here, e.g. mode, mass, etc.
 
 	# Make the assembly a child of the rigid body
-	rigid_body.add_child(assembly)
+	Missile.add_child(assembly)
 	
 	# Return the fully populated rigid body
-	return rigid_body
+	return Missile

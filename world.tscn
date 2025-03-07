@@ -45,7 +45,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 50, 0)
 
 [node name="Missile_Spawner" type="Node3D" parent="."]
 transform = Transform3D(0.334, 0, 0, 0, 0.334, 0, 0, 0, 0.334, 0, 3, 0)
-rotation_edit_mode = 1
 script = ExtResource("6_rethw")
 
 [node name="Missile_Spawner_Outline" type="MeshInstance3D" parent="Missile_Spawner"]
