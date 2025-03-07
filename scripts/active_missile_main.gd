@@ -97,7 +97,7 @@ func seeker(node):
 		else:
 			input_value = node.XY
 
-func apply_rot(delta):
+func apply_rot(_delta):
 	if not front_cannard_node:
 		return
 	
@@ -116,9 +116,8 @@ func apply_rot(delta):
 	var rot_torque = (torque_x + torque_z) + roll_torque
 
 	rigid_node.apply_torque(rot_torque * torque_multiplier)
-	print(rigid_node.angular_velocity)
 
-func apply_thrust(delta):
+func apply_thrust(_delta):
 	if rocket_motor_node:
 		var force = (transform.basis.y).normalized() * motor_force
 		rigid_node.apply_force(force, rocket_motor_node.position)

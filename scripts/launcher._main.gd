@@ -21,7 +21,8 @@ func _ready() -> void:
 
 
 func _process(_delta) -> void:
-	pass
+	if Input.is_action_just_pressed("key_alt_f4"):
+		get_tree().root.get_node(".").queue_free()
 
 
 func load_terrain():

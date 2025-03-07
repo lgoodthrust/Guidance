@@ -50,14 +50,18 @@ func spawn_missile():
 	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0]["FILE_PATH"] # get save file path
 	var missile_instance: Node3D = loader_saver.load_assembly(path)
 	var seeker = missile_instance.get_node("MissileRoot/RigidBody3D/IR_Seeker")
+	var warhead = missile_instance.get_node("MissileRoot/RigidBody3D/Warhead")
+	var fin = missile_instance.get_node("MissileRoot/RigidBody3D/Fin")
 	var missile_script = load("res://scripts/active_missile_main.gd")
 	var seeker_script = load("res://scripts/block_scripts/ir_seeker.gd")
 	var warhead_script = load("res://scripts/block_scripts/warhead.gd")
-	var fin_script = load("res://scripts/block_scripts/fin_seeker.gd")
+	var fin_script = load("res://scripts/block_scripts/fin.gd")
 	var world_root = get_tree().current_scene.get_node(".")
 	
 	# Assign scripts
 	seeker.set_script(seeker_script)
+	warhead.set_script(warhead_script)
+	fin.set_script(fin_script)
 	missile_instance.set_script(missile_script)
 	
 	# Add to scene
