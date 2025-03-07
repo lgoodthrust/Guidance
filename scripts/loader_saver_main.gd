@@ -89,7 +89,7 @@ func load_vehicle(load_dir: String):
 
 
 func save_assembly(save_dir: String):
-	var temp_scene = Node3D.new()
+	var temp_scene = RigidBody3D.new()
 	var path = save_dir + ".json"
 
 	# Clear out old blocks

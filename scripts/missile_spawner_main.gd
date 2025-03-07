@@ -49,10 +49,16 @@ func get_player() -> Node:
 func spawn_missile():
 	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0]["FILE_PATH"] # get save file path
 	var missile_instance: Node3D = loader_saver.load_assembly(path)
-	
+	var missile_script = load("res://scripts/active_missile_main.gd")
+	var seeker_script = load("res://scripts/block_scripts/ir_seeker.gd")
+	var seeker = missile_instance.get_node("RigidBody3D/IR_Seeker")
 	var papa = get_tree().current_scene.get_node(".")
 	
+	missile_instance.set_script(missile_script)
+	seeker.set_script(seeker_script)
+	
 	papa.add_child(missile_instance)
+	missile_instance.owner = papa
 	
 	missile_instance.name = "Active_Missile"
 	missile_instance.global_position = global_position

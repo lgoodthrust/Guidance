@@ -1,62 +1,88 @@
-extends Node3D
+extends RigidBody3D
 
-var yaw: float = 1.0
-var pitch: float = 1.0
-var input_value: Vector2 = Vector2.ZERO
-var time: float = 0.0
+var motor_force: float = 50.0
+var c_g: Vector3
+var c_l: Vector3
+var missile_inertia = 1.0
+var missile_mass: float = 0.0
+var msl_lifetime = 30.0
+var msl_life = 0.0
 
-var forward_velocity: float = 10.0
-var forward_acceleration: float = 1.0
+var velocity
 
 # Yaw and pitch targets
-var rotation_target_yaw: float = 0.0
-var rotation_target_pitch: float = 0.0
-
+var input_value: Vector2 = Vector2.ZERO
 var curr_velocity: Vector3 = Vector3.ZERO
 
+var seeker_node: Node3D
+var controller_node: Node3D
+var front_cannard_node: Node3D
+var fin_node: Node3D
+var warhead_node: Node3D
+var back_cannard_node: Node3D
+var rocket_fuel_node: Node3D
+var rocket_motor_node: Node3D
 
-func _process(_delta: float) -> void:
-	# Let the drift oscillate using sine over time
-	input_value.x = sin(time * yaw * PI)/90
-	input_value.y = cos(time * pitch * PI)/180
+func _ready():
+	var kids = get_node("RigidBody3D").get_children()
+	print(kids)
+	for block: Node3D in kids:
+		if block.name == "IR_Seeker":
+			print("IR_Seeker")
+			seeker_node = block
+			missile_mass += block.DATA["MASS"]
+		if block.name == "Controller":
+			print("Controller")
+			controller_node = block
+			missile_mass += block.DATA["MASS"]
+		if block.name == "Front_Cannard":
+			print("Front_Cannard")
+			front_cannard_node = block
+			missile_mass += block.DATA["MASS"]
+		if block.name == "Back_Cannard":
+			print("Back_Cannard")
+			back_cannard_node = block
+			missile_mass += block.DATA["MASS"]
+		if block.name == "Warhead":
+			print("Warhead")
+			warhead_node = block
+			missile_mass += block.DATA["MASS"]
+		if block.name == "Rocket_Fuel":
+			print("Rocket_Fuel")
+			rocket_fuel_node = block
+			missile_mass += block.DATA["MASS"]
+		if block.name == "Fin":
+			print("Fin")
+			fin_node = block
+			missile_mass += block.DATA["MASS"]
+		if block.name == "Rocket_Motor":
+			print("Rocket_Motor")
+			rocket_motor_node = block
+			missile_mass += block.DATA["MASS"]
+	
+	mass = missile_mass
+	inertia = Vector3(missile_inertia, missile_inertia, missile_inertia)
+
+func _process(delta: float) -> void:
+	msl_life += delta
+	if msl_life >= msl_lifetime:
+		self.queue_free()
 
 
 func _physics_process(delta: float) -> void:
-	rotate_player(delta)
-	move_player(delta)
+	velocity = self.linear_velocity.y
+	seeker(seeker_node)
+	
+	apply_rot(delta)
+	apply_thrust(delta)
 
+func seeker(node):
+	input_value = node.XY
 
-func rotate_player(_delta: float) -> void:
-	rotation_target_pitch = clamp(input_value.y, deg_to_rad(-90), deg_to_rad(90))
-	# Create quaternions from the two angles:
-	#  - rotation around the Y axis for yaw
-	#  - rotation around the X axis for pitch
-	var yaw_quat = Quaternion(Vector3.UP, input_value.x)
-	var pitch_quat = Quaternion(Vector3.RIGHT, rotation_target_pitch)
-	
-	# Combine them to get the final orientation
-	var final_quat = yaw_quat * pitch_quat
-	
-	# Apply the combined rotation as a quaternion
-	global_transform.basis = Basis(final_quat)
+func apply_rot(delta):
+	var rot_torque = (Vector3(input_value.x, 0, input_value.y) * velocity * delta)
+	self.apply_torque(rot_torque)
 
-
-func move_player(delta: float) -> void:
-	# Currently there's no real input, but we define a Vector2 for demonstration
-	var input_dir = Vector2(0,1)
-	
-	# Use the node's current rotation to figure out forward/right vectors
-	var camera_quat = global_transform.basis.get_rotation_quaternion()
-	var forward = camera_quat * Vector3.BACK
-	var right = camera_quat * Vector3.RIGHT
-	
-	# Movement direction
-	var movement_dir = (forward * input_dir.y) + (right * input_dir.x)
-	if movement_dir.length() > 0.0:
-		movement_dir = movement_dir.normalized()
-	
-	# Smooth acceleration using lerp
-	curr_velocity = curr_velocity.lerp(movement_dir * forward_velocity, forward_acceleration * delta)
-	
-	# Noclip-style movement (directly adjust transform)
-	global_transform.origin += curr_velocity * delta
+func apply_thrust(delta):
+	var force = Vector3.UP * 5000.0
+	self.apply_force(force * delta, rocket_motor_node.position)
