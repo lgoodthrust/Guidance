@@ -54,9 +54,11 @@ func spawn_missile():
 	var seeker = missile_instance.get_node("RigidBody3D/IR_Seeker")
 	var papa = get_tree().current_scene.get_node(".")
 	
+	# Assign scripts
 	missile_instance.set_script(missile_script)
 	seeker.set_script(seeker_script)
-	
+
+	# Add to scene
 	papa.add_child(missile_instance)
 	missile_instance.owner = papa
 	
@@ -64,6 +66,7 @@ func spawn_missile():
 	missile_instance.global_position = global_position
 	look_dir(missile_instance, Vector3.UP)
 	missile_instance.rotate_object_local(Vector3.LEFT, PI/2)
+
 
 
 func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE

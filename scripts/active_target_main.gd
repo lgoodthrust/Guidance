@@ -1,16 +1,16 @@
 extends Node3D
 
-var yaw_drift: float = 1.0
-var pitch_drift: float = 1.0
+var yaw_drift: float = 15.0
+var pitch_drift: float = 15.0
 var drift_rate: float = 1.0
 var current_drift: Vector2 = Vector2.ZERO
 var time: float = 0.0
 
 var forward_velocity: float = 10.0
-var forward_acceleration: float = 1.0
+var forward_acceleration: float = 5.0
 
 # Yaw and pitch targets
-var rotation_target_yaw: float = 0.0
+var rotation_target_yaw: float = PI
 var rotation_target_pitch: float = 0.0
 
 var curr_velocity: Vector3 = Vector3.ZERO
@@ -35,8 +35,8 @@ func rotate_player(_delta: float) -> void:
 	# Create quaternions from the two angles:
 	#  - rotation around the Y axis for yaw
 	#  - rotation around the X axis for pitch
-	var yaw_quat = Quaternion(Vector3.UP, current_drift.x)
-	var pitch_quat = Quaternion(Vector3.RIGHT, rotation_target_pitch)
+	var yaw_quat = Quaternion(Vector3.UP, (current_drift.x + rotation_target_yaw))
+	var pitch_quat = Quaternion(Vector3.RIGHT, (rotation_target_pitch + rotation_target_pitch))
 	
 	# Combine them to get the final orientation
 	var final_quat = yaw_quat * pitch_quat
