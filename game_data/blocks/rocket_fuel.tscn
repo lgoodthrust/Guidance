@@ -1,18 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://c6ikuns81cj1j"]
 
+[ext_resource type="Script" path="res://scripts/block_scripts/rocket_fuel.gd" id="1_ps2nj"]
 [ext_resource type="Material" uid="uid://cj6l10iuw5mrx" path="res://textures/metal_2.tres" id="1_yorl6"]
-
-[sub_resource type="GDScript" id="GDScript_ih84r"]
-script/source = "extends Node3D
-@export_subgroup(\"META_DATA\")
-@export var DATA = {
-	\"NAME\": \"Rocket_Fuel\",
-	\"MASS\": 10,
-	\"LIFT\": 0.0,
-	\"UDLRTB\": [-1,-1,0,0,0,0],
-	\"TYPE\": 7
-}
-"
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_x6peh"]
 material = ExtResource("1_yorl6")
@@ -20,7 +9,7 @@ height = 1.0
 radial_segments = 16
 
 [node name="Rocket_Fuel" type="Node3D"]
-script = SubResource("GDScript_ih84r")
+script = ExtResource("1_ps2nj")
 metadata/NAME = "IR_Seeker"
 metadata/MASS = 5.0
 metadata/UDLRFB = [0, -1, 0, 0, 0, 0]

@@ -6,7 +6,7 @@ var drift_rate: float = 0.5
 var current_drift: Vector2 = Vector2.ZERO
 var time: float = 0.0
 
-var forward_velocity: float = 125
+var forward_velocity: float = 25.0
 var forward_acceleration: float = 5.0
 
 # Yaw and pitch targets
@@ -26,11 +26,11 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	rotate_player(delta)
-	move_player(delta)
+	_rotate(delta)
+	_move(delta)
 
 
-func rotate_player(_delta: float) -> void:
+func _rotate(_delta: float) -> void:
 	rotation_target_pitch = clamp(current_drift.y, deg_to_rad(-90), deg_to_rad(90))
 	# Create quaternions from the two angles:
 	#  - rotation around the Y axis for yaw
@@ -45,7 +45,7 @@ func rotate_player(_delta: float) -> void:
 	global_transform.basis = Basis(final_quat)
 
 
-func move_player(delta: float) -> void:
+func _move(delta: float) -> void:
 	# Currently there's no real input, but we define a Vector2 for demonstration
 	var input_dir = Vector2(0,1)
 	

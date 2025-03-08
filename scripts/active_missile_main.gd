@@ -1,123 +1,147 @@
-extends Node3D
+extends RigidBody3D  # Vector up = missile forward
 
-var motor_force: float = 1000.0
-var missile_mass: float = 0.0
-var missile_inertia: float = 1.0  # Base inertia value
-var msl_lifetime = 30.0
-var msl_life = 0.0
+@export_subgroup("PHYSICS")
+@export var thrust_force: float = 3000.0
+@export var lift_coefficient: float = 1.2
+@export var air_density: float = 1.225
+@export var drag_coefficient: float = 0.125
+@export var stability_factor: float = 0.01
 
-var input_value: Vector2 = Vector2.ZERO
-var curr_velocity: float = 0.0
-var torque_multiplier: float = 1.0  # Dynamic torque scaling
+@export_subgroup("MAIN")
+@export var horizontal_fov: float = 30.0
+@export var vertical_fov: float = 30.0
+@export var max_range: float = 8000.0
+@export var msl_lifetime: float = 30.0
 
-var rigid_node: RigidBody3D
+var COM: Vector3 = Vector3.ZERO
+var COL: Vector3 = Vector3.ZERO
+var COT: Vector3 = Vector3.ZERO
 
-var seeker_node: Node3D
-var controller_node: Node3D
-var front_cannard_node: Node3D
-var fin_node: Node3D
-var warhead_node: Node3D
-var back_cannard_node: Node3D
-var rocket_fuel_node: Node3D
-var rocket_motor_node: Node3D
+var blocks := []
+var fuel: int = 0
+var has_ir_seeker := false
+var TLA: float = 0.0
+
+var msl_life: float = 0.0
+var XY: Vector2 = Vector2.ZERO
+var TARGETING: bool = false
 
 func _ready():
-	print("ready")
-	rigid_node = get_node("MissileRoot/RigidBody3D")
-	print("applying rigid params")
+	# Ensure RigidBody is not static
+	self.freeze = false
+	self.gravity_scale = 0.0  # Disable gravity since missiles operate in simulated physics
+	self.custom_integrator = false  # Godot's physics engine should handle motion
+
+	for block in get_children():
+		if block is Node3D and block.DATA.has("NAME"):
+			blocks.append(block)
 	
-	rigid_node.gravity_scale = 0.0
-	rigid_node.freeze = false
-	rigid_node.linear_damp = 0.0
-	rigid_node.angular_damp = 0.0
-	rigid_node.custom_integrator = false
-	rigid_node.linear_velocity = Vector3.ZERO
-
-	# Get child nodes and sum up mass
-	var kids = get_node("MissileRoot/RigidBody3D").get_children() # do not touch
-	for block in kids:
-		match block.name:
-			"IR_Seeker":
-				seeker_node = block
-			"Controller":
-				controller_node = block
-			"Front_Cannard":
-				front_cannard_node = block
-			"Back_Cannard":
-				back_cannard_node = block
-			"Warhead":
-				warhead_node = block
-			"Rocket_Fuel":
-				rocket_fuel_node = block
-			"Fin":
-				fin_node = block
-			"Rocket_Motor":
-				rocket_motor_node = block
+	var total_mass := 0.0
+	var lift_blocks: int = 0
+	var thrust_blocks: int = 0
+	
+	for block in blocks:
+		var block_pos = block.to_global(Vector3.ZERO)  # Ensure global position
+		if block.DATA.has("TYPE"):
+			match block.DATA["TYPE"]:
+				1: has_ir_seeker = true
+				4, 5, 6:
+					COL += block_pos
+					lift_blocks += 1
+					TLA += block.DATA["LIFT"]
+				7: fuel += 1
+				8:
+					COT += block_pos
+					thrust_blocks += 1
 		
-		if "DATA" in block:
-			missile_mass += block.DATA.get("MASS", 0)
+		if block.DATA.has("MASS"):
+			COM += block_pos * block.DATA["MASS"]
+			total_mass += block.DATA["MASS"]
+	
+	if total_mass > 0:
+		COM /= total_mass
+	COL /= max(1, lift_blocks)
+	COT /= max(1, thrust_blocks)
+	
+	# Set physics properties
+	self.mass = max(1.0, total_mass)  # Prevent division by zero
+	self.inertia = Vector3(self.mass / 5.0, self.mass, self.mass / 5.0)  # More stable rotational inertia
 
-	# Set mass and initial inertia
-	rigid_node.mass = missile_mass
-	missile_inertia = missile_mass * 0.1  # Base inertia (adjustable)
-	rigid_node.inertia = Vector3(missile_inertia, missile_inertia, missile_inertia)
-	rigid_node.angular_damp = 0.125
-	rigid_node.linear_damp = 0.01
-
-func _process(delta: float) -> void:
-	msl_life += delta
-	if msl_life >= msl_lifetime:
-		queue_free()
+	# Apply initial boost if necessary
+	self.apply_impulse(Vector3.ZERO, transform.basis.y * 1000.0)  # Give it an initial push
 
 func _physics_process(delta: float) -> void:
-	# Compute velocity magnitude
-	curr_velocity = rigid_node.linear_velocity.length()
-	
-	# Adjust missile inertia dynamically based on velocity
-	torque_multiplier = clamp(curr_velocity / 343.0, 0.75, 1.75)  # Scale between 1.0x and 5.0x
-	
-	# Apply dynamic inertia to the rigid body
-	rigid_node.inertia = Vector3(
-		missile_mass * 0.1 * torque_multiplier, 
-		missile_mass * 1.0 * torque_multiplier, 
-		missile_mass * 0.1 * torque_multiplier
-		)
-	
-	seeker(seeker_node)
-	apply_rot(delta)
-	apply_thrust(delta)
-	
-	var clamped = Vector3(10.0,10.0,10.0)
-	rigid_node.angular_velocity = clamp(rigid_node.angular_velocity, -clamped, clamped)
+	msl_life += delta
+	if msl_life < msl_lifetime:
+		var total_force = Vector3.ZERO
+		var total_torque = calculate_stability()
+		
+		if msl_life < 2.0 + (fuel * 3.0):
+			var thrust = calculate_thrust()
+			total_force += thrust
+			print("Applying Thrust:", thrust)  # Debugging
 
-func seeker(node):
-	if node:
-		if node.XY == Vector2.INF:
-			input_value = Vector2(0,0)
-		else:
-			input_value = node.XY
+		# Apply aerodynamic forces
+		total_force += calculate_lift() + calculate_drag()
 
-func apply_rot(_delta):
-	if not front_cannard_node:
-		return
+		# IR Tracking Logic
+		var enemy = get_tree().current_scene.get_node_or_null("World/Active_Target")
+		if enemy and has_ir_seeker:
+			var angles = get_relative_angles_to_target(enemy.global_transform.origin)
+			if angles != Vector2.INF:
+				print("Tracking Target")
+				XY = Vector2(-angles.x, angles.y)
+			
+		# Debugging
+		print("Total Force:", total_force)
+		print("Total Torque:", total_torque)
+
+		# Apply forces
+		self.apply_force(total_force, COM)
+		self.apply_torque_impulse(total_torque)
+
+func calculate_thrust() -> Vector3:
+	# Ensure thrust is correctly applied forward
+	var thrust_direction = (transform.basis.y).normalized()
+	return thrust_direction * thrust_force
+
+func calculate_lift() -> Vector3:
+	var velocity = self.linear_velocity
+	var forward_speed = velocity.dot(transform.basis.y)
+	var lift_area = max(0.1, TLA)
+	var lift_magnitude = 0.5 * air_density * forward_speed ** 2 * lift_coefficient * lift_area
+	return transform.basis.z * lift_magnitude
+
+func calculate_drag() -> Vector3:
+	var velocity = self.linear_velocity
+	if velocity.length() < 0.1:
+		return Vector3.ZERO
 	
-	var torque_x = transform.basis.x * input_value.y  # **Pitch correction (X-axis)**
-	var torque_z = transform.basis.z * input_value.x  # **Yaw correction (Z-axis)**
+	var frontal_area = PI
+	var drag_magnitude = 0.5 * air_density * velocity.length_squared() * drag_coefficient * frontal_area
+	return -velocity.normalized() * drag_magnitude
+
+func calculate_stability() -> Vector3:
+	var local_velocity = transform.basis.inverse() * self.linear_velocity
 	
-	var missile_quat = rigid_node.global_transform.basis.get_rotation_quaternion()
-	var roll_angle = missile_quat.get_euler().y  # Extract roll **around forward Y-axis**
-
-	# Compute a corrective torque to minimize roll
-	var roll_torque = -roll_angle * transform.basis.y  # **Apply counter-torque along Y (forward)**
+	var pitch_torque = -local_velocity.z * stability_factor
+	var yaw_torque = local_velocity.x * stability_factor
 	
-	var roll_stabilization_strength = 50.0  # Adjust as needed
-	roll_torque *= roll_stabilization_strength
+	return transform.basis.x * pitch_torque + transform.basis.z * yaw_torque
 
-	var rot_torque = (torque_x + torque_z) + roll_torque
-
-	rigid_node.apply_torque(rot_torque * torque_multiplier)
-
-func apply_thrust(_delta):
-	if rocket_motor_node:
-		var force = (transform.basis.y).normalized() * motor_force
-		rigid_node.apply_force(force, rocket_motor_node.position)
+func get_relative_angles_to_target(target_global_position: Vector3) -> Vector2:
+	var to_target: Vector3 = target_global_position - global_transform.origin
+	var distance: float = to_target.length()
+	
+	if distance > max_range:
+		return Vector2.INF
+	
+	var local_direction: Vector3 = global_transform.basis.inverse() * to_target.normalized()
+	
+	var yaw_deg = rad_to_deg(atan2(local_direction.x, local_direction.y))
+	var pitch_deg = rad_to_deg(atan2(local_direction.z, local_direction.y))
+	
+	if abs(yaw_deg) <= horizontal_fov * 0.5 and abs(pitch_deg) <= vertical_fov * 0.5:
+		return Vector2(yaw_deg, pitch_deg)
+	else:
+		return Vector2.INF

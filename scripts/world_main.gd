@@ -13,7 +13,7 @@ var range_out = range_in + 1.0
 var launcher = Node # FOR DATA SHARE
 
 func _ready():
-	launcher = get_node(".").get_parent() # FOR DATA SHARE
+	launcher = self.get_parent() # FOR DATA SHARE
 	_initialize_noise()
 	
 func _initialize_noise():
@@ -43,7 +43,9 @@ func remove_chunk(x: int, z: int):
 		chunk.queue_free()
 
 func _physics_process(_delta):
-	player_position = LAUCNHER_CHILD_SHARE_GET("player")[0] # get player position
+	player_position = LAUCNHER_CHILD_SHARE_GET("player", "POS") # get player position
+	if player_position == null:
+		return
 	var p_x = player_position.x / CHUNK_SIZE
 	var p_z = player_position.z / CHUNK_SIZE
 	
@@ -60,12 +62,12 @@ func _physics_process(_delta):
 		for z in range(p_z - range_in, p_z + range_in):
 			add_chunk(x, z)
 
-func LAUCNHER_CHILD_SHARE_SET(key, data): # FOR DATA SHARE
-	if launcher:
-		launcher.LAUCNHER_CHILD_SHARED_DATA[key] = [data]
-		launcher.LAUCNHER_CHILD_SHARED_DATA_CALL()
 
-func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
+func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:
-		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[key]
+		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data
+
+func LAUCNHER_CHILD_SHARE_GET(scene, key): # FOR DATA SHARE
+	if launcher:
+		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key]
 		return data

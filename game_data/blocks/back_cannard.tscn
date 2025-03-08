@@ -1,19 +1,8 @@
 [gd_scene load_steps=6 format=3 uid="uid://c8y1d14qkdba8"]
 
 [ext_resource type="Material" uid="uid://brkjxr8xvdnbo" path="res://textures/metal_1.tres" id="1_h7i0j"]
+[ext_resource type="Script" path="res://scripts/block_scripts/back_cannard.gd" id="1_lcqn8"]
 [ext_resource type="Material" uid="uid://cj6l10iuw5mrx" path="res://textures/metal_2.tres" id="2_6nojg"]
-
-[sub_resource type="GDScript" id="GDScript_be45v"]
-script/source = "extends Node3D
-@export_subgroup(\"META_DATA\")
-@export var DATA = {
-	\"NAME\": \"back_Cannard\",
-	\"MASS\": 10,
-	\"LIFT\": 0.0292,
-	\"UDLRTB\": [-1,-1,0,0,0,0],
-	\"TYPE\": 6
-}
-"
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_j73b5"]
 material = ExtResource("1_h7i0j")
@@ -25,7 +14,7 @@ material = ExtResource("2_6nojg")
 size = Vector3(0.5, 1, 0.1)
 
 [node name="Back_Cannard" type="Node3D"]
-script = SubResource("GDScript_be45v")
+script = ExtResource("1_lcqn8")
 metadata/NAME = "IR_Seeker"
 metadata/MASS = 5.0
 metadata/UDLRFB = [0, -1, 0, 0, 0, 0]

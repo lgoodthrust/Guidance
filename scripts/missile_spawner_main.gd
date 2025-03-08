@@ -38,31 +38,24 @@ func look_dir(node, look_vec):
 
 
 func get_player() -> Node:
-	var node: Node
-	for scene: Node in LAUCNHER_CHILD_SHARE_GET("scenes"):
-		if scene.name == "Player":
-			var cam:Camera3D = scene.get_node("Player_Camera")
-			node = cam
+	var node = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
+	if node == InstancePlaceholder:
+		return
+	else:
+		var cam:Camera3D = node.get_node("Player_Camera")
+		node = cam
 	return node
 
 
 func spawn_missile():
-	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0]["FILE_PATH"] # get save file path
-	var missile_instance: Node3D = loader_saver.load_assembly(path)
-	var seeker = missile_instance.get_node("MissileRoot/RigidBody3D/IR_Seeker")
-	var warhead = missile_instance.get_node("MissileRoot/RigidBody3D/Warhead")
-	var fin = missile_instance.get_node("MissileRoot/RigidBody3D/Fin")
+	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
+	var missile_instance: Node3D = loader_saver.load_assembly(path + ".tscn")
 	var missile_script = load("res://scripts/active_missile_main.gd")
-	var seeker_script = load("res://scripts/block_scripts/ir_seeker.gd")
-	var warhead_script = load("res://scripts/block_scripts/warhead.gd")
-	var fin_script = load("res://scripts/block_scripts/fin.gd")
+	
 	var world_root = get_tree().current_scene.get_node(".")
 	
-	# Assign scripts
-	seeker.set_script(seeker_script)
-	warhead.set_script(warhead_script)
-	fin.set_script(fin_script)
-	missile_instance.set_script(missile_script)
+	var msl_rigid = missile_instance.get_children()[0]
+	msl_rigid.set_script(missile_script)
 	
 	# Add to scene
 	world_root.add_child(missile_instance)
@@ -75,7 +68,11 @@ func spawn_missile():
 
 
 
-func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
+func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:
-		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[key]
+		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data
+
+func LAUCNHER_CHILD_SHARE_GET(scene, key): # FOR DATA SHARE
+	if launcher:
+		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key]
 		return data

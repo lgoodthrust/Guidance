@@ -3,7 +3,6 @@ extends Node3D
 @export var DATA = {
 	"NAME": "Warhead",
 	"MASS": 10,
-	"LIFT": 0.0,
 	"UDLRTB": [-1,-1,0,0,0,0],
 	"TYPE": 3
 }

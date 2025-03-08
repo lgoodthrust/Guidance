@@ -30,7 +30,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	launcher = get_node(".").get_parent() # FOR DATA SHARE
+	launcher = self.get_parent() # FOR DATA SHARE
 	hide()
 	Input_Build_Filename.text = Build_Filename
 	update_build_file(Input_Build_Filename.text)
@@ -56,56 +56,62 @@ func toggler(): # release mouse when menu active
 
 func update_build_file(filename: String):
 	var full_filename = str(build_file_path + filename)
-	LAUCNHER_CHILD_SHARE_SET("main_menu", [{"FILE_PATH":full_filename}])
+	LAUCNHER_CHILD_SHARE_SET("main_menu", "FILE_PATH", full_filename)
 
 
 func switch_to_tester():
-	for scene: Node in LAUCNHER_CHILD_SHARE_GET("scenes"):
-		if scene.name == "Builder":
-			var cam:Camera3D = scene.get_node("Builder_Camera")
-			cam.current = false
-			scene.hide()
-			scene.process_mode = Node.PROCESS_MODE_DISABLED
+	var scene1 = LAUCNHER_CHILD_SHARE_GET("scenes", "builder")
+	if scene1 == InstancePlaceholder:
+		return
+	var cam1:Camera3D = scene1.get_node("Builder_Camera")
+	cam1.current = false
+	scene1.hide()
+	scene1.process_mode = Node.PROCESS_MODE_DISABLED
 	
-		if scene.name == "World":
-			scene.show()
-			scene.process_mode = Node.PROCESS_MODE_INHERIT
+	var scene2 = LAUCNHER_CHILD_SHARE_GET("scenes", "world")
+	if scene2 == InstancePlaceholder:
+		return
+	scene2.show()
+	scene2.process_mode = Node.PROCESS_MODE_INHERIT
 	
-	for scene: Node in LAUCNHER_CHILD_SHARE_GET("scenes"):
-		if scene.name == "Player":
-			var cam:Camera3D = scene.get_node("Player_Camera")
-			cam.current = true
-			scene.show()
-			scene.process_mode = Node.PROCESS_MODE_INHERIT
-			
+	var scene3 = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
+	if scene3 == InstancePlaceholder:
+		return
+	var cam2:Camera3D = scene3.get_node("Player_Camera")
+	cam2.current = true
+	scene3.show()
+	scene3.process_mode = Node.PROCESS_MODE_INHERIT
+
 
 func switch_to_builder():
-	for scene: Node in LAUCNHER_CHILD_SHARE_GET("scenes"):
-		if scene.name == "Player":
-			var cam:Camera3D = scene.get_node("Player_Camera")
-			cam.current = false
-			scene.hide()
-			scene.process_mode = Node.PROCESS_MODE_DISABLED
+	var scene1 = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
+	if scene1 == InstancePlaceholder:
+		return
+	var cam1:Camera3D = scene1.get_node("Player_Camera")
+	cam1.current = false
+	scene1.hide()
+	scene1.process_mode = Node.PROCESS_MODE_DISABLED
 	
-		if scene.name == "World":
-			scene.hide()
-			scene.process_mode = Node.PROCESS_MODE_DISABLED
+	var scene2 = LAUCNHER_CHILD_SHARE_GET("scenes", "world")
+	if scene2 == InstancePlaceholder:
+		return
+	scene2.hide()
+	scene2.process_mode = Node.PROCESS_MODE_DISABLED
 	
-	for scene: Node in LAUCNHER_CHILD_SHARE_GET("scenes"):
-		if scene.name == "Builder":
-			var cam:Camera3D = scene.get_node("Builder_Camera")
-			cam.current = true
-			scene.show()
-			scene.process_mode = Node.PROCESS_MODE_INHERIT
+	var scene3 = LAUCNHER_CHILD_SHARE_GET("scenes", "builder")
+	if scene3 == InstancePlaceholder:
+		return
+	var cam2:Camera3D = scene3.get_node("Builder_Camera")
+	cam2.current = true
+	scene3.show()
+	scene3.process_mode = Node.PROCESS_MODE_INHERIT
 
 
-func LAUCNHER_CHILD_SHARE_SET(key, data): # FOR DATA SHARE
+func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:
-		launcher.LAUCNHER_CHILD_SHARED_DATA[key] = [data]
-		launcher.LAUCNHER_CHILD_SHARED_DATA_CALL()
+		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data
 
-
-func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
+func LAUCNHER_CHILD_SHARE_GET(scene, key): # FOR DATA SHARE
 	if launcher:
-		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[key]
+		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key]
 		return data

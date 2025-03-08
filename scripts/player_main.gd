@@ -23,6 +23,7 @@ extends CharacterBody3D
 @export var MOUSE_ACCEL := false
 @export var KEY_BIND_MOUSE_SENS := 0.005
 @export var KEY_BIND_MOUSE_ACCEL := 50
+@export var KEY_MOUSE_ZOOM := "key_b"
 
 @export_subgroup("Movement")
 @export var KEY_BIND_UP := "key_w"
@@ -41,6 +42,7 @@ var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var speed = SPEED
 var accel = ACCEL
 var noclip = false
+var zoom_tog = false
 
 var rotation_target_player : float
 var rotation_target : float
@@ -48,8 +50,9 @@ var start_pos : Vector3
 var launcher = Node # FOR DATA SHARE
 var Camera: Camera3D
 
+
 func _ready():
-	launcher = get_node(".").get_parent() # FOR DATA SHARE
+	launcher = self.get_parent() # FOR DATA SHARE
 	
 	Camera = $Player_Camera
 	
@@ -59,22 +62,30 @@ func _ready():
 	start_pos = Camera.position
 	
 
+
 func _physics_process(delta):
-	
 	if UPDATE_PLAYER_ON_PHYS_STEP:
 		move_player(delta)
 		rotate_player(delta)
 
-func _process(delta):
 
+func _process(delta):
 	if !UPDATE_PLAYER_ON_PHYS_STEP:
 		move_player(delta)
 		rotate_player(delta)
+	
+	if Input.is_action_just_pressed("key_b"):
+		zoom_tog =! zoom_tog
+	if zoom_tog:
+		Camera.fov = 15.0
+	else:
+		Camera.fov = 75.0
+
 
 func _input(event):
-
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED: # if mouse moving, rotate
 		set_rotation_target(event.relative)
+
 
 func set_rotation_target(mouse_motion : Vector2):
 	rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS
@@ -90,6 +101,7 @@ func rotate_player(delta):
 	else:
 		quaternion = Quaternion(Vector3.UP, rotation_target_player)
 		Camera.quaternion = Quaternion(Vector3.RIGHT, rotation_target)
+
 
 func move_player(delta):
 	var input_dir = Input.get_vector(KEY_BIND_LEFT, KEY_BIND_RIGHT, KEY_BIND_UP, KEY_BIND_DOWN)
@@ -139,7 +151,8 @@ func move_player(delta):
 		velocity.x = move_toward(velocity.x, direction.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, direction.z * speed, accel * delta)
 		move_and_slide()
-	LAUCNHER_CHILD_SHARE_SET("player", self.global_position)
+	LAUCNHER_CHILD_SHARE_SET("player", "POS", self.global_position)
+
 
 func toggle_noclip(enabled):
 	if enabled:
@@ -149,12 +162,13 @@ func toggle_noclip(enabled):
 		set_collision_layer_value(1, true)
 		set_collision_mask_value(1, true)
 
-func LAUCNHER_CHILD_SHARE_SET(key, data): # FOR DATA SHARE
-	if launcher:
-		launcher.LAUCNHER_CHILD_SHARED_DATA[key] = [data]
-		launcher.LAUCNHER_CHILD_SHARED_DATA_CALL()
 
-func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
+func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:
-		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[key]
+		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data
+
+
+func LAUCNHER_CHILD_SHARE_GET(scene, key): # FOR DATA SHARE
+	if launcher:
+		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key]
 		return data

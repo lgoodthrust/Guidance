@@ -1,0 +1,58 @@
+[gd_scene load_steps=7 format=3 uid="uid://rr5qapakh1bt"]
+
+[ext_resource type="Material" uid="uid://birgi3obt515n" path="res://textures/glow_green_1.tres" id="1_w6r8w"]
+
+[sub_resource type="GDScript" id="GDScript_7gry6"]
+script/source = "extends Node3D
+@export_subgroup(\"META_DATA\")
+@export var DATA = {
+	\"NAME\": \"CT_Marker\",
+	\"MASS\": 0,
+	\"LIFT\": 0.0,
+	\"UDLRTB\": [0,0,0,0,0,0],
+	\"TYPE\": 0
+}
+"
+
+[sub_resource type="SphereMesh" id="SphereMesh_j7brh"]
+material = ExtResource("1_w6r8w")
+radial_segments = 16
+rings = 16
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_usp8y"]
+material = ExtResource("1_w6r8w")
+top_radius = 0.01
+bottom_radius = 0.01
+height = 4.0
+radial_segments = 16
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_qymhy"]
+material = ExtResource("1_w6r8w")
+top_radius = 0.01
+bottom_radius = 0.01
+height = 4.0
+radial_segments = 16
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_jbtmr"]
+material = ExtResource("1_w6r8w")
+top_radius = 0.01
+bottom_radius = 0.01
+height = 4.0
+radial_segments = 16
+
+[node name="CT_Marker" type="Node3D"]
+script = SubResource("GDScript_7gry6")
+
+[node name="Model_Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_j7brh")
+
+[node name="Model_Mesh2" type="MeshInstance3D" parent="."]
+mesh = SubResource("CylinderMesh_usp8y")
+
+[node name="Model_Mesh3" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0)
+mesh = SubResource("CylinderMesh_qymhy")
+
+[node name="Model_Mesh4" type="MeshInstance3D" parent="."]
+transform = Transform3D(-4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_jbtmr")

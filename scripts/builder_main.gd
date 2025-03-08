@@ -9,6 +9,7 @@ extends Node3D
 @export var ghost_block_scene: PackedScene  # Ghost block preview
 @export var gc_block_scene: PackedScene  # CG block preview
 @export var cl_block_scene: PackedScene  # CL block preview
+@export var ct_block_scene: PackedScene  # CT block preview
 
 
 var grid: Dictionary = {}  # Stores placed blocks
@@ -16,6 +17,7 @@ var selected_position: Vector3i = Vector3i.ZERO  # Current selected grid cell
 var ghost_block: Node3D  # Ghost block instance
 var cg_block: Node3D  # CG block instance
 var cl_block: Node3D  # CL block instance
+var ct_block: Node3D  # CL block instance
 var launcher = Node  # FOR DATA SHARE
 var grid_mesh: MeshInstance3D  # The grid renderer
 var selected_block: PackedScene = null  # Currently selected block
@@ -26,7 +28,7 @@ var loader_saver
 
 
 func _ready():
-	launcher = get_node(".").get_parent() # FOR DATA SHARE
+	launcher = self.get_parent() # FOR DATA SHARE
 	
 	center_camera()
 	
@@ -49,6 +51,13 @@ func _ready():
 		add_child(cl_block)
 	else:
 		push_error("cl block scene not assigned!")
+	
+	if ct_block_scene:
+		ct_block = ct_block_scene.instantiate()
+		ct_block.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(ct_block)
+	else:
+		push_error("ct block scene not assigned!")
 	
 	#Ensure ghost block scene is assigned
 	if ghost_block_scene:
@@ -122,39 +131,40 @@ func is_valid_placement(pos: Vector3i, block):
 			continue  # Allow any connection
 		if block_connections[i] == 0 and grid.has(neighbors.values()[i]):
 			return false  # No connection allowed, but a block is present
-
+	
 	return true
 
 func place_block():
 	if selected_block == null:
 		return
-
+	
 	if grid.has(selected_position):
 		return  # Block already exists
-
+	
 	var block = selected_block.instantiate()
-
+	
 	#Ensure block is valid before placement
 	if not is_valid_placement(selected_position, block):
 		print("Invalid placement!")
 		block.queue_free()
 		return
-
+	
 	block.position = selected_position * cell_size
-
+	
 	#Read Metadata for Behavior
 	var block_name = block.DATA["NAME"]
 	var block_mass = block.DATA["MASS"]
 	var block_connections = block.DATA["UDLRTB"]
-
+	
 	print("Placing Block:", block_name)
 	print("Mass:", block_mass, "kg")
 	print("Connections:", block_connections)
-
+	
 	add_child(block)
 	grid[selected_position] = block
 	update_center_of_gravity()
 	update_center_of_lift()
+	update_center_of_thrust()
 
 func remove_block():
 	if grid.has(selected_position):
@@ -162,16 +172,17 @@ func remove_block():
 		grid.erase(selected_position)
 	update_center_of_gravity()
 	update_center_of_lift()
-
+	update_center_of_thrust()
+	
 func _draw_grid():
 	var im = grid_mesh.mesh as ImmediateMesh
 	var gs = cell_size / 2
 	im.clear_surfaces()
 	im.surface_begin(Mesh.PRIMITIVE_LINES)
-
+	
 	# Set grid color
 	var grid_color = Color(0.1, 0.8, 0.1, 0.5)
-
+	
 	# Draw horizontal lines (X-Z plane) at each Y level
 	for y in range(grid_size.y + 1):
 		var y_pos = y * cell_size
@@ -186,7 +197,7 @@ func _draw_grid():
 			im.surface_set_color(grid_color)
 			im.surface_add_vertex(Vector3(-gs, y_pos - gs, z_pos - gs))
 			im.surface_add_vertex(Vector3(grid_size.x * cell_size - gs, y_pos - gs, z_pos - gs))
-
+	
 	# Draw vertical lines (Y axis) at each X-Z position
 	for x in range(grid_size.x + 1):
 		var x_pos = x * cell_size
@@ -197,7 +208,7 @@ func _draw_grid():
 			im.surface_add_vertex(Vector3(x_pos - gs, grid_size.y * cell_size - gs, z_pos - gs))
 	
 	im.surface_end()
-
+	
 func update_center_of_gravity():
 	var total_mass = 0.0
 	var weighted_position = Vector3.ZERO
@@ -210,7 +221,7 @@ func update_center_of_gravity():
 			total_mass += part_mass
 			var block_pos = block_node.global_transform.origin
 			weighted_position += block_pos * part_mass
-
+	
 	if total_mass > 0.0:
 		var cog = weighted_position / total_mass
 		cg_block.global_position = cog
@@ -237,6 +248,26 @@ func update_center_of_lift():
 		cl_block.visible = true
 	else:
 		cl_block.visible = false
+
+
+func update_center_of_thrust():
+	var thrusting_position = Vector3.INF # >:)
+	
+	# grid is { position: block_node }
+	for pos in grid:
+		var block_node = grid[pos]
+		if block_node.DATA.has("TYPE"):
+			if  block_node.DATA["TYPE"] == 8:
+				var block_pos = block_node.global_transform.origin
+				thrusting_position += block_pos
+	
+	if thrusting_position == Vector3.INF:
+		ct_block.visible = false
+	else:
+		var cot = thrusting_position
+		ct_block.global_position = cot
+		ct_block.visible = true
+
 
 func select_block(block_path: String):
 	selected_block = load(block_path)
@@ -274,29 +305,29 @@ func create_block_button(block_path: String):
 
 		block_instance.queue_free()
 
-#LAUCNHER_CHILD_SHARE_SET("builder", [])
 
 func _SAVER():
-	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0]["FILE_PATH"] # get save file path
+	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
 	if grid:
 		loader_saver.save_vehicle(path)
 		loader_saver.save_assembly(path)
 	else:
 		print("Invalid Grid Data")
 
+
 func _LOADER():
-	var path = LAUCNHER_CHILD_SHARE_GET("main_menu")[0][0]["FILE_PATH"] # get save file path
+	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
 	loader_saver.load_vehicle(path)
 	update_center_of_gravity()
 	update_center_of_lift()
+	update_center_of_thrust()
 
 
-func LAUCNHER_CHILD_SHARE_SET(key, data): # FOR DATA SHARE
+func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:
-		launcher.LAUCNHER_CHILD_SHARED_DATA[key] = [data]
-		launcher.LAUCNHER_CHILD_SHARED_DATA_CALL()
+		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data
 
-func LAUCNHER_CHILD_SHARE_GET(key): # FOR DATA SHARE
+func LAUCNHER_CHILD_SHARE_GET(scene, key): # FOR DATA SHARE
 	if launcher:
-		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[key]
+		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key]
 		return data
