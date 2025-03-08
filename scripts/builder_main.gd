@@ -251,7 +251,7 @@ func update_center_of_lift():
 
 
 func update_center_of_thrust():
-	var thrusting_position = Vector3.INF # >:)
+	var thrusting_position = Vector3.ZERO # >:)
 	
 	# grid is { position: block_node }
 	for pos in grid:
