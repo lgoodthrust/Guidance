@@ -8,7 +8,7 @@ var launcher = Node # FOR DATA SHARE
 @export var air_density: float = 1.225
 @export var drag_coefficient: float = 0.05
 @export var fin_stability_factor: float = 0.5
-@export var cannard_stability_factor: float = 0.25
+@export var cannard_stability_factor: float = 0.5
 @export var min_effective_speed: float = 15.0
 
 @export_subgroup("MAIN")
@@ -95,7 +95,7 @@ func _ready():
 func _physics_process(delta: float) -> void:
 	msl_life += delta
 	if msl_life >= msl_lifetime:
-		LAUCNHER_CHILD_SHARE_SET("world", "missiles", Array().pop_front())
+		LAUCNHER_CHILD_SHARE_SET("world", "missiles", Array().pop_back())
 		queue_free()
 		return
 	

@@ -68,6 +68,11 @@ clear_button_enabled = true
 [node name="HSeparator4" type="HSeparator" parent="Control/V_Container_Tester"]
 layout_mode = 2
 
+[node name="Button_Target_Apply" type="Button" parent="Control/V_Container_Tester"]
+layout_mode = 2
+action_mode = 0
+text = "Apply"
+
 [node name="V_Container_Builder" type="VBoxContainer" parent="Control"]
 layout_mode = 1
 anchors_preset = 1
@@ -117,5 +122,8 @@ action_mode = 0
 text = "Builder"
 
 [connection signal="close_requested" from="." to="." method="toggler"]
+[connection signal="text_submitted" from="Control/V_Container_Tester/Line_Target_Speed" to="." method="update_target_speed"]
+[connection signal="text_submitted" from="Control/V_Container_Tester/Line_Target_Altitude" to="." method="update_target_altitude"]
+[connection signal="text_submitted" from="Control/V_Container_Tester/Line_Target_Distance" to="." method="update_target_distance"]
 [connection signal="pressed" from="Control/Misc/Button_Tester" to="." method="switch_to_tester"]
 [connection signal="pressed" from="Control/Misc/Button_Builder" to="." method="switch_to_builder"]

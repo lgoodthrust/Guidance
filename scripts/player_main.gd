@@ -162,28 +162,34 @@ func move_player(delta):
 		move_and_slide()
 	LAUCNHER_CHILD_SHARE_SET("player", "POS", self.global_position)
 
-
+var back_step = false
 func toggle_msl_follow(enabled: bool):
 	if launcher.LAUCNHER_CHILD_SHARED_DATA["world"].has("missiles"):
-		var msl = launcher.LAUCNHER_CHILD_SHARED_DATA["world"].get("missiles", [])  # Default to an empty array
+		var msl = launcher.LAUCNHER_CHILD_SHARED_DATA["world"].get("missiles", [])
 		
-		if msl is Array and not msl.is_empty() and enabled:
+		if msl is Array and not msl.is_empty():
 			var first_missile = msl[0]
 			
-			# Ensure first_missile has children
-			if first_missile.get_child_count() > 0:
+			if enabled:
+				print("enabled")
 				var rigid = first_missile.get_child(0)
+				global_position = rigid.global_position + Vector3(0,3,10)
 				
-				# Ensure child is a RigidBody3D
-				if rigid is RigidBody3D:
-					global_position = rigid.global_position + Vector3(0,3,10)
-			
 			else:
-				global_position = Vector3(0, 3, 10)
-		
+				if not back_step:
+					print("disabled")
+					global_position = Vector3(0, 3, 10)
+					back_step = true
+					noclip_tog = true
+			
 		else:
+			print("no missiles")
 			msl_follow_tog = false
+			back_step = false
 			noclip_tog = false
+	else:
+		print("no list")
+		back_step = true
 
 
 

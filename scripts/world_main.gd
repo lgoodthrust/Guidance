@@ -15,7 +15,9 @@ var launcher = Node # FOR DATA SHARE
 func _ready():
 	launcher = self.get_parent() # FOR DATA SHARE
 	_initialize_noise()
-	
+	LAUCNHER_CHILD_SHARE_SET("world", "TARGET", get_node("Active_Target"))
+
+
 func _initialize_noise():
 	noise = FastNoiseLite.new()
 	noise.seed = randi_range(1, 1000000)

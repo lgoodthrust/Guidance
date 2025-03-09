@@ -106,6 +106,7 @@ func update_selected_position():
 
 
 func center_camera():
+	@warning_ignore("integer_division")
 	var grid_center = Vector3(
 		grid_size.x / 2,
 		grid_size.y / 2,

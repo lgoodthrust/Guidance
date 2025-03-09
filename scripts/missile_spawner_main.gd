@@ -58,12 +58,12 @@ func spawn_missile():
 	
 	var msl_rigid = missile_instance.get_children()[0]
 	msl_rigid.set_script(missile_script)
+	missile_instance.name = "Active_Missile"
 	
 	# Add to scene
 	world_root.add_child(missile_instance)
 	missile_instance.owner = world_root
 	
-	missile_instance.name = "Active_Missile"
 	missile_instance.global_position = global_position
 	look_dir(missile_instance, Vector3.UP)
 	missile_instance.rotate_object_local(Vector3.LEFT, PI/2)

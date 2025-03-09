@@ -6,7 +6,7 @@ var noise: FastNoiseLite
 var chunkX: int
 var chunkZ: int
 var chunkSize: int
-var thread: Thread
+var thread: Thread = null  # Initialize as null to prevent issues
 var ground_material: Material
 
 func _init(noiseParam: FastNoiseLite, chunkXParam: int, chunkZParam: int, chunkSizeParam: int):
@@ -17,7 +17,9 @@ func _init(noiseParam: FastNoiseLite, chunkXParam: int, chunkZParam: int, chunkS
 
 func _ready():
 	thread = Thread.new()
-	thread.start(_threaded_generate_chunk)
+	var err = thread.start(_threaded_generate_chunk)
+	if err != OK:
+		push_error("Failed to start terrain generation thread")
 
 func _threaded_generate_chunk():
 	# Generate terrain in a separate thread
@@ -25,6 +27,14 @@ func _threaded_generate_chunk():
 	
 	# Transfer to main thread
 	call_deferred("_apply_mesh", mesh)
+
+	# Ensure thread cleanup
+	call_deferred("_cleanup_thread")
+
+func _cleanup_thread():
+	if thread:
+		thread.wait_to_finish()
+		thread = null  # Ensure thread is properly cleared
 
 func _generate_mesh() -> ArrayMesh:
 	var planeMesh = PlaneMesh.new()
@@ -43,7 +53,7 @@ func _generate_mesh() -> ArrayMesh:
 	# Generate heightmap in separate thread
 	for i in range(dataTool.get_vertex_count()):
 		var vertex = dataTool.get_vertex(i)
-		vertex.y = noise.get_noise_3d(vertex.x + chunkX, vertex.y, vertex.z + chunkZ) * 25
+		vertex.y = noise.get_noise_3d(vertex.x + chunkX, vertex.y, vertex.z + chunkZ) * 50
 		dataTool.set_vertex(i, vertex)
 
 	dataTool.commit_to_surface(surfaceTool.commit())
@@ -61,3 +71,9 @@ func _apply_mesh(mesh: ArrayMesh):
 		meshInstance.set_surface_override_material(0, ground_material)
 
 	add_child(meshInstance)
+
+func _exit_tree():
+	# Ensure thread cleanup before deletion
+	if thread and thread.is_alive():
+		thread.wait_to_finish()
+		thread = null
