@@ -1,18 +1,20 @@
 extends RigidBody3D  # Vector up = missile forward
 
+var papa: Node3D
+
 @export_subgroup("PHYSICS")
 @export var thrust_force: float = 3000.0
-@export var lift_coefficient: float = 1.2
 @export var air_density: float = 1.225
 @export var drag_coefficient: float = 0.125
-@export var stability_factor: float = 0.01
-@export var max_lateral_force: float = 150.0  # Limits guidance force
+@export var stability_factor: float = 0.5  # Increased for stronger correction
+@export var min_effective_speed: float = 15.0
 
 @export_subgroup("MAIN")
-@export var horizontal_fov: float = 30.0
-@export var vertical_fov: float = 30.0
-@export var max_range: float = 8000.0
-@export var msl_lifetime: float = 30.0
+@export var horizontal_fov: float = 45.0
+@export var vertical_fov: float = 45.0
+@export var max_range: float = 6000.0
+@export var msl_lifetime: float = 15.0
+@export var motor_delay: float = 0.125
 
 var COM: Vector3 = Vector3.ZERO
 var COL: Vector3 = Vector3.ZERO
@@ -20,22 +22,27 @@ var COT: Vector3 = Vector3.ZERO
 
 var blocks := []
 var fuel: int = 0
-var has_ir_seeker := false
+var has_ir_seeker: bool = true
 var TLA: float = 0.0
+var burn_time = 0.0
+
 
 var msl_life: float = 0.0
 var XY: Vector2 = Vector2.ZERO
 var TARGETING: bool = false
 var target_node: Node3D = null
 
-func _ready():
-	self.freeze = false
-	self.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	self.gravity_scale = 0.0#9.08665  
-	self.linear_damp = 1.0
-	self.angular_damp = 1.0
-	self.custom_integrator = false 
+var pidX
+var pidY
 
+func _ready():
+	papa = get_parent()
+	self.global_position = papa.global_position
+	self.freeze = false
+	self.gravity_scale = 0.0
+	self.linear_damp = 0.0
+	self.angular_damp = 0.0
+	
 	for block in get_children():
 		if block is Node3D and block.DATA.has("NAME"):
 			blocks.append(block)
@@ -43,126 +50,141 @@ func _ready():
 	var total_mass := 0.0
 	var lift_blocks: int = 0
 	var thrust_blocks: int = 0
-	var center: Vector3 = Vector3.ZERO
 	
 	for block:Node3D in blocks:
 		var block_pos = block.to_global(Vector3.ZERO)  
 		if block.DATA.has("TYPE"):
-			match block.DATA["TYPE"]:
-				1: has_ir_seeker = true
-				4, 5, 6:
-					COL += block_pos
-					lift_blocks += 1
-					TLA += block.DATA["LIFT"]
-				7: fuel += 1
-				8:
-					COT += block_pos
-					thrust_blocks += 1
+			if block.DATA["TYPE"] == 1:
+				has_ir_seeker = true
+			if block.DATA["TYPE"] == 4 or block.DATA["TYPE"] == 5 or block.DATA["TYPE"] == 6:
+				COL += block_pos
+				lift_blocks += 1
+				TLA += block.DATA["LIFT"]
+			if block.DATA["TYPE"] == 7:
+				fuel += 1
+			if block.DATA["TYPE"] == 8:
+				COT += block_pos
+				thrust_blocks += 1
 		
 		if block.DATA.has("MASS"):
 			COM += block_pos * block.DATA["MASS"]
 			total_mass += block.DATA["MASS"]
-			center = block.to_global(Vector3.ZERO)
 	
-	center /= len(blocks)
-	COM /= total_mass
+	COM /= max(1, total_mass)
 	COL /= max(1, lift_blocks)
 	COT /= max(1, thrust_blocks)
 	
 	self.mass = max(1.0, total_mass)
 	self.inertia = Vector3(self.mass / 5.0, self.mass, self.mass / 5.0)
-	self.center_of_mass = COM
+	
+	burn_time = 2.0 + (fuel * 3.0)
+	
+	pidX = PID.new()
+	pidY = PID.new()
 
 
 func _physics_process(delta: float) -> void:
 	msl_life += delta
 	if msl_life >= msl_lifetime:
-		queue_free()  
+		queue_free()
 		return
-
+	
 	var total_force = Vector3.ZERO
-	var total_torque = calculate_stability()
+	var total_torque = align_up_to_velocity()
+	var correction_force = align_velocity_to_up() * TLA
 
-	if msl_life < 2.0 + (fuel * 3.0):
+	# Apply thrust while the motor is burning
+	if msl_life < burn_time and msl_life > motor_delay:
 		total_force += calculate_thrust()
+	
+	# Apply aerodynamic drag
+	total_force += calculate_drag()
 
-	total_force += calculate_lift() + calculate_drag()
-
+	# Apply guidance forces if tracking a target
 	target_node = get_tree().current_scene.get_node_or_null("World/Active_Target")
 	if target_node and has_ir_seeker:
-		var tracking_force = calculate_guidance_force(target_node.global_transform.origin, delta)
-		total_force += tracking_force
+		var angles = get_relative_angles_to_target(target_node.global_position)
+		angles = Vector2(angles.y, -angles.x)
+		var P = 10.0
+		var I = 0.0
+		var D = 0.1
+		var ax = pidX.update(delta, angles.x, 0, P, I, D)
+		var ay = pidY.update(delta, angles.y, 0, P, I, D)
+		var tracking_force = Vector3(ax, ay, 0) * linear_velocity.length_squared() * TLA
+		total_torque += tracking_force
 	
-	self.apply_force(total_force, COM)
-	self.apply_torque_impulse(total_torque)
+	# Apply forces
+	apply_force(total_force + correction_force)  # Apply both thrust and correction force
+	apply_torque(total_torque)  # Apply torque for rotational stabilization
+
 
 # --------------------
 # THRUST, LIFT, DRAG
 # --------------------
-func calculate_thrust() -> Vector3:
-	var thrust_direction = transform.basis.y.normalized()
-	return thrust_direction * thrust_force
 
-func calculate_lift() -> Vector3:
-	var velocity = self.linear_velocity
-	var forward_speed = velocity.dot(transform.basis.y)
-	var lift_area = max(0.1, TLA)
-	var lift_magnitude = 0.5 * air_density * forward_speed ** 2 * lift_coefficient * lift_area
-	return transform.basis.y * lift_magnitude
+func calculate_thrust() -> Vector3:
+	var forces = (papa.transform.basis.y * thrust_force)
+	return forces
+
 
 func calculate_drag() -> Vector3:
-	var velocity = self.linear_velocity
+	var velocity = linear_velocity
 	if velocity.length() < 0.1:
 		return Vector3.ZERO
 	
-	var frontal_area = PI * 0.02  # Assume missile is roughly cylindrical
+	var frontal_area = PI
 	var drag_magnitude = 0.5 * air_density * velocity.length_squared() * drag_coefficient * frontal_area
 	return -velocity.normalized() * drag_magnitude
 
 # --------------------
-# STABILITY & GUIDANCE
-# --------------------
-func calculate_stability() -> Vector3:
-	var local_velocity = transform.basis.inverse() * self.linear_velocity
-	var pitch_torque = -local_velocity.z * stability_factor
-	var yaw_torque = local_velocity.x * stability_factor
-	return transform.basis.x * pitch_torque + transform.basis.z * yaw_torque
-
-func calculate_guidance_force(target_pos: Vector3, delta: float) -> Vector3:
-	var to_target = target_pos - global_transform.origin
-	var distance = to_target.length()
-
-	if distance > max_range:
-		return Vector3.ZERO  
-
-	var local_target = global_transform.basis.inverse() * to_target.normalized()
-
-	var yaw_error = rad_to_deg(atan2(local_target.x, local_target.y))
-	var pitch_error = rad_to_deg(atan2(local_target.z, local_target.y))
-
-	if abs(yaw_error) > horizontal_fov * 0.5 or abs(pitch_error) > vertical_fov * 0.5:
-		return Vector3.ZERO  
-
-	var guidance_strength = clamp(distance / max_range, 0.1, 1.0)  
-
-	var lateral_force = transform.basis.x * (-yaw_error * guidance_strength) + transform.basis.z * (-pitch_error * guidance_strength)
-	return lateral_force.clamp(Vector3(-max_lateral_force, -max_lateral_force, -max_lateral_force), Vector3(max_lateral_force, max_lateral_force, max_lateral_force))
-
-# --------------------
 # TARGET TRACKING
 # --------------------
+
 func get_relative_angles_to_target(target_global_position: Vector3) -> Vector2:
 	var to_target = target_global_position - global_transform.origin
 	var distance = to_target.length()
-
+	
 	if distance > max_range:
-		return Vector2.INF
-
+		return Vector2.ZERO
+	
 	var local_direction = global_transform.basis.inverse() * to_target.normalized()
 	var yaw_deg = rad_to_deg(atan2(local_direction.x, local_direction.y))
 	var pitch_deg = rad_to_deg(atan2(local_direction.z, local_direction.y))
-
+	
 	if abs(yaw_deg) <= horizontal_fov * 0.5 and abs(pitch_deg) <= vertical_fov * 0.5:
-		return Vector2(yaw_deg, pitch_deg)
+		return Vector2(yaw_deg/horizontal_fov, pitch_deg/vertical_fov)
 	else:
-		return Vector2.INF
+		return Vector2.ZERO
+
+
+func align_up_to_velocity() -> Vector3:
+	var velocity = linear_velocity
+	if velocity.length() < min_effective_speed:
+		return Vector3.ZERO
+	
+	var desired_up = velocity.normalized()  # The desired up vector (velocity direction)
+	var current_up = global_transform.basis.y  # Current up direction
+	
+	var rotation_axis = current_up.cross(desired_up)  # Axis of rotation
+	var angle = acos(clamp(current_up.dot(desired_up), -1, 1))  # Angle difference
+	
+	if angle > 0.01:  
+		var angular_correction = rotation_axis.normalized() * angle * stability_factor * mass * TLA
+		return angular_correction
+	else:
+		return Vector3.ZERO
+
+
+func align_velocity_to_up() -> Vector3:
+	var velocity = linear_velocity
+	if velocity.length() < min_effective_speed:
+		return Vector3.ZERO
+	
+	var missile_up = global_transform.basis.y  # Missile's up direction
+	var velocity_dir = velocity.normalized()
+	
+	# Compute the lateral correction force
+	var correction_axis = velocity_dir.cross(missile_up).normalized()  # Perpendicular axis
+	var correction_force = correction_axis.cross(velocity) * stability_factor * mass
+	
+	return correction_force

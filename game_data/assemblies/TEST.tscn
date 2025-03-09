@@ -1,19 +1,13 @@
-[gd_scene load_steps=17 format=3]
+[gd_scene load_steps=11 format=3 uid="uid://dfcpnnirrm4ol"]
 
-[ext_resource type="PackedScene" path="res://game_data/blocks/ir_seeker.tscn" id="1_4t1h2"]
-[ext_resource type="Script" path="res://scripts/block_scripts/ir_seeker.gd" id="2_c7dkq"]
-[ext_resource type="PackedScene" path="res://game_data/blocks/controller.tscn" id="3_4wgcm"]
-[ext_resource type="Script" path="res://scripts/block_scripts/controller.gd" id="4_bbc3h"]
-[ext_resource type="PackedScene" path="res://game_data/blocks/fin.tscn" id="5_jsynf"]
-[ext_resource type="Script" path="res://scripts/block_scripts/fin.gd" id="6_hl1kf"]
-[ext_resource type="PackedScene" path="res://game_data/blocks/front_cannard.tscn" id="7_ajp1a"]
-[ext_resource type="Script" path="res://scripts/block_scripts/front_cannard.gd" id="8_3f40h"]
-[ext_resource type="PackedScene" path="res://game_data/blocks/warhead.tscn" id="9_5spn8"]
-[ext_resource type="PackedScene" path="res://game_data/blocks/rocket_fuel.tscn" id="10_ejdov"]
-[ext_resource type="Script" path="res://scripts/block_scripts/rocket_fuel.gd" id="11_6laiv"]
-[ext_resource type="PackedScene" path="res://game_data/blocks/back_cannard.tscn" id="12_0y1ek"]
-[ext_resource type="Script" path="res://scripts/block_scripts/back_cannard.gd" id="13_ip0vw"]
-[ext_resource type="PackedScene" path="res://game_data/blocks/rocket_motor.tscn" id="14_1bs8s"]
+[ext_resource type="PackedScene" uid="uid://bcfmfjxa0ibt3" path="res://game_data/blocks/ir_seeker.tscn" id="1_va8v4"]
+[ext_resource type="PackedScene" uid="uid://yw4re2eruv0u" path="res://game_data/blocks/controller.tscn" id="3_jhu2r"]
+[ext_resource type="PackedScene" uid="uid://8tqnmisb1gkr" path="res://game_data/blocks/fin.tscn" id="5_j2jy3"]
+[ext_resource type="PackedScene" uid="uid://b8tp2s0vjnfi5" path="res://game_data/blocks/front_cannard.tscn" id="7_nfahy"]
+[ext_resource type="PackedScene" uid="uid://b6xprrcbpswax" path="res://game_data/blocks/warhead.tscn" id="9_2r8jp"]
+[ext_resource type="PackedScene" uid="uid://c6ikuns81cj1j" path="res://game_data/blocks/rocket_fuel.tscn" id="10_c1xb6"]
+[ext_resource type="PackedScene" uid="uid://c8y1d14qkdba8" path="res://game_data/blocks/back_cannard.tscn" id="12_hay1q"]
+[ext_resource type="PackedScene" uid="uid://jdpjcqkyj5ab" path="res://game_data/blocks/rocket_motor.tscn" id="14_bjalx"]
 
 [sub_resource type="GDScript" id="GDScript_qvbnp"]
 script/source = "extends Node3D
@@ -43,9 +37,8 @@ script/source = "extends Node3D
 
 [node name="RigidBody3D" type="RigidBody3D" parent="."]
 
-[node name="IR_Seeker" type="Node3D" parent="RigidBody3D" instance=ExtResource("1_4t1h2")]
+[node name="IR_Seeker" parent="RigidBody3D" instance=ExtResource("1_va8v4")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9, 0)
-script = ExtResource("2_c7dkq")
 DATA = {
 "LIFT": 0.0,
 "MASS": 10.0,
@@ -54,9 +47,8 @@ DATA = {
 "UDLRTB": [0.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Controller" type="Node3D" parent="RigidBody3D" instance=ExtResource("3_4wgcm")]
+[node name="Controller" parent="RigidBody3D" instance=ExtResource("3_jhu2r")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8, 0)
-script = ExtResource("4_bbc3h")
 DATA = {
 "MASS": 10.0,
 "NAME": "Controller",
@@ -64,9 +56,8 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Fin" type="Node3D" parent="RigidBody3D" instance=ExtResource("5_jsynf")]
+[node name="Fin" parent="RigidBody3D" instance=ExtResource("5_j2jy3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, 0)
-script = ExtResource("6_hl1kf")
 DATA = {
 "LIFT": 0.0437,
 "MASS": 5.0,
@@ -74,14 +65,9 @@ DATA = {
 "TYPE": 4.0,
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
-metadata/NAME = "IR_Seeker"
-metadata/MASS = 5.0
-metadata/UDLRFB = [0, -1, 0, 0, 0, 0]
-metadata/TYPE = 1
 
-[node name="Front_Cannard" type="Node3D" parent="RigidBody3D" instance=ExtResource("7_ajp1a")]
+[node name="Front_Cannard" parent="RigidBody3D" instance=ExtResource("7_nfahy")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, 0)
-script = ExtResource("8_3f40h")
 DATA = {
 "LIFT": 0.0292,
 "MASS": 7.5,
@@ -89,12 +75,8 @@ DATA = {
 "TYPE": 5.0,
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
-metadata/NAME = "IR_Seeker"
-metadata/MASS = 5.0
-metadata/UDLRFB = [0, -1, 0, 0, 0, 0]
-metadata/TYPE = 1
 
-[node name="Warhead" type="Node3D" parent="RigidBody3D" instance=ExtResource("9_5spn8")]
+[node name="Warhead" parent="RigidBody3D" instance=ExtResource("9_2r8jp")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 script = SubResource("GDScript_qvbnp")
 DATA = {
@@ -104,14 +86,9 @@ DATA = {
 "TYPE": 3.0,
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
-metadata/NAME = "IR_Seeker"
-metadata/MASS = 5.0
-metadata/UDLRFB = [0, -1, 0, 0, 0, 0]
-metadata/TYPE = 1
 
-[node name="Rocket_Fuel" type="Node3D" parent="RigidBody3D" instance=ExtResource("10_ejdov")]
+[node name="Rocket_Fuel" parent="RigidBody3D" instance=ExtResource("10_c1xb6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
-script = ExtResource("11_6laiv")
 DATA = {
 "LIFT": 0.0,
 "MASS": 15.0,
@@ -119,14 +96,9 @@ DATA = {
 "TYPE": 7.0,
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
-metadata/NAME = "IR_Seeker"
-metadata/MASS = 5.0
-metadata/UDLRFB = [0, -1, 0, 0, 0, 0]
-metadata/TYPE = 1
 
-[node name="@Node3D@138" type="Node3D" parent="RigidBody3D" instance=ExtResource("10_ejdov")]
+[node name="@Node3D@132" parent="RigidBody3D" instance=ExtResource("10_c1xb6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
-script = ExtResource("11_6laiv")
 DATA = {
 "LIFT": 0.0,
 "MASS": 15.0,
@@ -134,14 +106,9 @@ DATA = {
 "TYPE": 7.0,
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
-metadata/NAME = "IR_Seeker"
-metadata/MASS = 5.0
-metadata/UDLRFB = [0, -1, 0, 0, 0, 0]
-metadata/TYPE = 1
 
-[node name="@Node3D@140" type="Node3D" parent="RigidBody3D" instance=ExtResource("5_jsynf")]
+[node name="@Node3D@134" parent="RigidBody3D" instance=ExtResource("5_j2jy3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-script = ExtResource("6_hl1kf")
 DATA = {
 "LIFT": 0.0437,
 "MASS": 5.0,
@@ -149,14 +116,9 @@ DATA = {
 "TYPE": 4.0,
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
-metadata/NAME = "IR_Seeker"
-metadata/MASS = 5.0
-metadata/UDLRFB = [0, -1, 0, 0, 0, 0]
-metadata/TYPE = 1
 
-[node name="Back_Cannard" type="Node3D" parent="RigidBody3D" instance=ExtResource("12_0y1ek")]
+[node name="Back_Cannard" parent="RigidBody3D" instance=ExtResource("12_hay1q")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-script = ExtResource("13_ip0vw")
 DATA = {
 "LIFT": 0.0292,
 "MASS": 10.0,
@@ -164,12 +126,8 @@ DATA = {
 "TYPE": 6.0,
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
-metadata/NAME = "IR_Seeker"
-metadata/MASS = 5.0
-metadata/UDLRFB = [0, -1, 0, 0, 0, 0]
-metadata/TYPE = 1
 
-[node name="Rocket_Motor" type="Node3D" parent="RigidBody3D" instance=ExtResource("14_1bs8s")]
+[node name="Rocket_Motor" parent="RigidBody3D" instance=ExtResource("14_bjalx")]
 script = SubResource("GDScript_g7plg")
 DATA = {
 "LIFT": 0.0,
@@ -178,7 +136,3 @@ DATA = {
 "TYPE": 8.0,
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
-metadata/NAME = "IR_Seeker"
-metadata/MASS = 5.0
-metadata/UDLRFB = [0, -1, 0, 0, 0, 0]
-metadata/TYPE = 1
