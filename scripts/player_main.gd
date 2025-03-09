@@ -176,7 +176,7 @@ func toggle_msl_follow(enabled: bool):
 				
 				# Ensure child is a RigidBody3D
 				if rigid is RigidBody3D:
-					global_position = rigid.global_position
+					global_position = rigid.global_position + Vector3(0,3,10)
 			
 			else:
 				global_position = Vector3(0, 3, 10)
