@@ -34,6 +34,7 @@ extends CharacterBody3D
 @export var KEY_BIND_SPRINT := "key_r_shift"
 @export var KEY_BIND_CROUTCH := "key_r_ctrl"
 @export var KEY_BIND_NOCLIP := "key_z"
+@export var KEY_BIND_MSL := "key_1"
 
 @export_category("Advanced")
 @export var UPDATE_PLAYER_ON_PHYS_STEP := true
@@ -41,8 +42,9 @@ extends CharacterBody3D
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var speed = SPEED
 var accel = ACCEL
-var noclip = false
+var noclip_tog = false
 var zoom_tog = false
+var msl_follow_tog = false
 
 var rotation_target_player : float
 var rotation_target : float
@@ -65,12 +67,14 @@ func _ready():
 
 func _physics_process(delta):
 	if UPDATE_PLAYER_ON_PHYS_STEP:
+		toggle_msl_follow(msl_follow_tog)
 		move_player(delta)
 		rotate_player(delta)
 
 
 func _process(delta):
 	if !UPDATE_PLAYER_ON_PHYS_STEP:
+		toggle_msl_follow(msl_follow_tog)
 		move_player(delta)
 		rotate_player(delta)
 	
@@ -108,8 +112,8 @@ func move_player(delta):
 	var direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
 
 	if Input.is_action_just_pressed(KEY_BIND_NOCLIP):
-		noclip = !noclip
-		toggle_noclip(noclip)
+		noclip_tog = !noclip_tog
+		toggle_noclip(noclip_tog)
 	
 	if Input.is_action_pressed(KEY_BIND_CROUTCH):
 		$Player_Shape.shape.height = 1.0
@@ -120,8 +124,8 @@ func move_player(delta):
 		Camera.position.y = 2.0
 		$Player_Object/Player_Collider.shape.height = 2.0
 
-	if noclip:
-		# Noclip flying mode
+	if noclip_tog:
+		# noclip_tog flying mode
 		speed = IN_NOCLIP_SPEED * (2.0 if Input.is_action_pressed(KEY_BIND_SPRINT) else (0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1.0))
 		accel = IN_NOCLIP_ACCEL
 		# Get current camera rotation as a quaternion
@@ -135,7 +139,7 @@ func move_player(delta):
 			movement_dir = movement_dir.normalized()
 		# Apply movement using lerp for smooth acceleration
 		velocity = velocity.lerp(movement_dir * speed, accel * delta)
-		# Directly move the player in noclip (bypassing physics)
+		# Directly move the player in noclip_tog (bypassing physics)
 		global_transform.origin += velocity * delta
 	else:
 		# Regular movement with physics
@@ -150,8 +154,39 @@ func move_player(delta):
 			velocity.y -= gravity * delta
 		velocity.x = move_toward(velocity.x, direction.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, direction.z * speed, accel * delta)
+	
+		if Input.is_action_just_pressed(KEY_BIND_MSL):
+			msl_follow_tog =! msl_follow_tog
+			
+	
 		move_and_slide()
 	LAUCNHER_CHILD_SHARE_SET("player", "POS", self.global_position)
+
+
+func toggle_msl_follow(enabled: bool):
+	if launcher.LAUCNHER_CHILD_SHARED_DATA["world"].has("missiles"):
+		var msl = launcher.LAUCNHER_CHILD_SHARED_DATA["world"].get("missiles", [])  # Default to an empty array
+		
+		if msl is Array and not msl.is_empty() and enabled:
+			var first_missile = msl[0]
+			
+			# Ensure first_missile has children
+			if first_missile.get_child_count() > 0:
+				var rigid = first_missile.get_child(0)
+				
+				# Ensure child is a RigidBody3D
+				if rigid is RigidBody3D:
+					global_position = rigid.global_position
+			
+			else:
+				global_position = Vector3(0, 3, 10)
+		
+		else:
+			msl_follow_tog = false
+			noclip_tog = false
+
+
+
 
 
 func toggle_noclip(enabled):

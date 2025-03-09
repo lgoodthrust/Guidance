@@ -1,20 +1,25 @@
 extends RigidBody3D  # Vector up = missile forward
 
 var papa: Node3D
+var launcher = Node # FOR DATA SHARE
 
 @export_subgroup("PHYSICS")
-@export var thrust_force: float = 3000.0
+@export var thrust_force: float = 10000.0
 @export var air_density: float = 1.225
 @export var drag_coefficient: float = 0.125
-@export var stability_factor: float = 0.5  # Increased for stronger correction
+@export var fin_stability_factor: float = 0.75
+@export var cannard_stability_factor: float = 0.75
 @export var min_effective_speed: float = 15.0
 
 @export_subgroup("MAIN")
-@export var horizontal_fov: float = 45.0
-@export var vertical_fov: float = 45.0
+@export var horizontal_fov: float = 30.0
+@export var vertical_fov: float = 30.0
 @export var max_range: float = 6000.0
 @export var msl_lifetime: float = 15.0
 @export var motor_delay: float = 0.125
+@export var P = 5.0
+@export var I = 0.75
+@export var D = 0.5
 
 var COM: Vector3 = Vector3.ZERO
 var COL: Vector3 = Vector3.ZERO
@@ -37,11 +42,13 @@ var pidY
 
 func _ready():
 	papa = get_parent()
+	launcher = papa.get_parent() # FOR DATA SHARE
 	self.global_position = papa.global_position
 	self.freeze = false
-	self.gravity_scale = 0.0
+	self.gravity_scale = 1.0
 	self.linear_damp = 0.0
 	self.angular_damp = 0.0
+	self.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	
 	for block in get_children():
 		if block is Node3D and block.DATA.has("NAME"):
@@ -76,6 +83,7 @@ func _ready():
 	
 	self.mass = max(1.0, total_mass)
 	self.inertia = Vector3(self.mass / 5.0, self.mass, self.mass / 5.0)
+	self.center_of_mass = Vector3(0, -0.25, 0)
 	
 	burn_time = 2.0 + (fuel * 3.0)
 	
@@ -86,6 +94,7 @@ func _ready():
 func _physics_process(delta: float) -> void:
 	msl_life += delta
 	if msl_life >= msl_lifetime:
+		LAUCNHER_CHILD_SHARE_SET("world", "missiles", Array().pop_front())
 		queue_free()
 		return
 	
@@ -105,12 +114,10 @@ func _physics_process(delta: float) -> void:
 	if target_node and has_ir_seeker:
 		var angles = get_relative_angles_to_target(target_node.global_position)
 		angles = Vector2(angles.y, -angles.x)
-		var P = 10.0
-		var I = 0.0
-		var D = 0.1
 		var ax = pidX.update(delta, angles.x, 0, P, I, D)
 		var ay = pidY.update(delta, angles.y, 0, P, I, D)
-		var tracking_force = Vector3(ax, ay, 0) * linear_velocity.length_squared() * TLA
+		var tracking_force = Vector3(ax, ay, 0) * linear_velocity.length() * TLA
+		print(transform.basis.get_euler().z)
 		total_torque += tracking_force
 	
 	# Apply forces
@@ -169,7 +176,7 @@ func align_up_to_velocity() -> Vector3:
 	var angle = acos(clamp(current_up.dot(desired_up), -1, 1))  # Angle difference
 	
 	if angle > 0.01:  
-		var angular_correction = rotation_axis.normalized() * angle * stability_factor * mass * TLA
+		var angular_correction = rotation_axis.normalized() * angle * fin_stability_factor * mass * TLA
 		return angular_correction
 	else:
 		return Vector3.ZERO
@@ -185,6 +192,16 @@ func align_velocity_to_up() -> Vector3:
 	
 	# Compute the lateral correction force
 	var correction_axis = velocity_dir.cross(missile_up).normalized()  # Perpendicular axis
-	var correction_force = correction_axis.cross(velocity) * stability_factor * mass
+	var correction_force = correction_axis.cross(velocity) * cannard_stability_factor * mass
 	
 	return correction_force
+
+
+func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
+	if launcher:
+		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data
+
+func LAUCNHER_CHILD_SHARE_GET(scene, key): # FOR DATA SHARE
+	if launcher:
+		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key]
+		return data

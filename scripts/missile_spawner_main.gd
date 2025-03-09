@@ -8,14 +8,13 @@ var launcher: Node # FOR DATA SHARE
 var leader_node: Node3D  # The node to follow
 var loader_saver
 
-var Temp_Cam: Camera3D
+var list_o_msls:Array = []
 
 func _ready():
 	launcher = get_tree().root.get_node("Launcher") # FOR DATA SHARE
 	leader_node = get_player()
 	
 	loader_saver = Loader_Saver.new(self, {}, 1.0)
-
 
 func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("key_mouse_left"):
@@ -68,6 +67,8 @@ func spawn_missile():
 	missile_instance.global_position = global_position
 	look_dir(missile_instance, Vector3.UP)
 	missile_instance.rotate_object_local(Vector3.LEFT, PI/2)
+	list_o_msls.push_front(missile_instance)
+	LAUCNHER_CHILD_SHARE_SET("world", "missiles", list_o_msls)
 
 
 func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
