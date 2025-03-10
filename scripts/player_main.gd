@@ -34,7 +34,9 @@ extends CharacterBody3D
 @export var KEY_BIND_SPRINT := "key_r_shift"
 @export var KEY_BIND_CROUTCH := "key_r_ctrl"
 @export var KEY_BIND_NOCLIP := "key_z"
+@export var KEY_BIND_ZOOM := "key_b"
 @export var KEY_BIND_MSL := "key_1"
+@export var KEY_BIND_SLOMO := "key_`"
 
 @export_category("Advanced")
 @export var UPDATE_PLAYER_ON_PHYS_STEP := true
@@ -45,6 +47,7 @@ var accel = ACCEL
 var noclip_tog = false
 var zoom_tog = false
 var msl_follow_tog = false
+var slomo_tog = false
 
 var rotation_target_player : float
 var rotation_target : float
@@ -67,23 +70,29 @@ func _ready():
 
 func _physics_process(delta):
 	if UPDATE_PLAYER_ON_PHYS_STEP:
-		toggle_msl_follow(msl_follow_tog)
 		move_player(delta)
 		rotate_player(delta)
+		toggle_msl_follow(msl_follow_tog)
+		toggle_slomo(slomo_tog)
+		toggle_zoom(zoom_tog)
 
 
 func _process(delta):
 	if !UPDATE_PLAYER_ON_PHYS_STEP:
-		toggle_msl_follow(msl_follow_tog)
 		move_player(delta)
 		rotate_player(delta)
+		toggle_msl_follow(msl_follow_tog)
+		toggle_slomo(slomo_tog)
+		toggle_zoom(zoom_tog)
 	
-	if Input.is_action_just_pressed("key_b"):
+	if Input.is_action_just_pressed(KEY_BIND_MSL):
+		msl_follow_tog =! msl_follow_tog
+	
+	if Input.is_action_just_pressed(KEY_BIND_ZOOM):
 		zoom_tog =! zoom_tog
-	if zoom_tog:
-		Camera.fov = 15.0
-	else:
-		Camera.fov = 75.0
+	
+	if Input.is_action_just_pressed(KEY_BIND_SLOMO):
+		slomo_tog =! slomo_tog
 
 
 func _input(event):
@@ -154,45 +163,62 @@ func move_player(delta):
 			velocity.y -= gravity * delta
 		velocity.x = move_toward(velocity.x, direction.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, direction.z * speed, accel * delta)
-	
-		if Input.is_action_just_pressed(KEY_BIND_MSL):
-			msl_follow_tog =! msl_follow_tog
 			
 	
 		move_and_slide()
 	LAUCNHER_CHILD_SHARE_SET("player", "POS", self.global_position)
 
-var back_step = false
+func toggle_slomo(enable):
+	if enable and Engine.time_scale == 1.0:
+		Engine.time_scale = 0.25
+	elif not enable and Engine.time_scale == 0.25:
+		Engine.time_scale = 1.0
+
+func toggle_zoom(enable):
+	if enable and Camera.fov == 75.0:
+		Camera.fov = 15.0
+	if not enable and Camera.fov == 15.0:
+		enable.fov = 75.0
+	
+
+var back_step := false
 func toggle_msl_follow(enabled: bool):
-	if launcher.LAUCNHER_CHILD_SHARED_DATA["world"].has("missiles"):
-		var msl = launcher.LAUCNHER_CHILD_SHARED_DATA["world"].get("missiles", [])
-		
-		if msl is Array and not msl.is_empty():
-			var first_missile = msl[0]
-			
-			if enabled:
-				print("enabled")
-				var rigid = first_missile.get_child(0)
-				global_position = rigid.global_position + Vector3(0,3,10)
-				
+	if enabled:
+		if launcher.LAUCNHER_CHILD_SHARED_DATA.has("world") and launcher.LAUCNHER_CHILD_SHARED_DATA["world"].has("missiles"):
+			var msl = launcher.LAUCNHER_CHILD_SHARED_DATA["world"].get("missiles", [])
+
+			if msl is Array and not msl.is_empty():
+				var first_missile = msl[0]
+
+				if enabled:
+					var rigid = first_missile.get_child(0) if first_missile.get_child_count() > 0 else null
+					
+					if rigid:
+						global_position = rigid.global_position + Vector3(0, 3, 10)
+						msl_follow_tog = true
+						back_step = false
+						noclip_tog = false
+					else:
+						disable_follow()
+				else:
+					if not back_step:
+						reset_position()
 			else:
-				if not back_step:
-					print("disabled")
-					global_position = Vector3(0, 3, 10)
-					back_step = true
-					noclip_tog = true
-			
+				disable_follow()
 		else:
-			print("no missiles")
-			msl_follow_tog = false
-			back_step = false
-			noclip_tog = false
-	else:
-		print("no list")
-		back_step = true
+			disable_follow()
+			back_step = true
 
+func reset_position():
+	global_position = Vector3(0, 3, 10)
+	msl_follow_tog = false
+	back_step = true
+	noclip_tog = true
 
-
+func disable_follow():
+	msl_follow_tog = false
+	back_step = false
+	noclip_tog = false
 
 
 func toggle_noclip(enabled):

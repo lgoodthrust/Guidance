@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://dfcpnnirrm4ol"]
+[gd_scene load_steps=16 format=3 uid="uid://dfcpnnirrm4ol"]
 
 [ext_resource type="PackedScene" uid="uid://bcfmfjxa0ibt3" path="res://game_data/blocks/ir_seeker.tscn" id="1_va8v4"]
 [ext_resource type="PackedScene" uid="uid://yw4re2eruv0u" path="res://game_data/blocks/controller.tscn" id="3_jhu2r"]
@@ -32,6 +32,25 @@ script/source = "extends Node3D
 	\"TYPE\": 8
 }
 "
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_mbu0u"]
+gravity = Vector3(0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0nop4"]
+shading_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_w7cwd"]
+material = SubResource("StandardMaterial3D_0nop4")
+size = Vector3(0.2, 0.2, 0.2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yg2c5"]
+shading_mode = 2
+albedo_color = Color(1, 0, 0, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_o8msm"]
+material = SubResource("StandardMaterial3D_yg2c5")
+size = Vector3(0.2, 0.2, 0.2)
 
 [node name="MissileRoot" type="Node3D"]
 
@@ -136,3 +155,16 @@ DATA = {
 "TYPE": 8.0,
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="RigidBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+amount = 10000
+lifetime = 5.0
+process_material = SubResource("ParticleProcessMaterial_mbu0u")
+draw_pass_1 = SubResource("BoxMesh_w7cwd")
+
+[node name="GPUParticles3D2" type="GPUParticles3D" parent="RigidBody3D"]
+amount = 10000
+lifetime = 5.0
+process_material = SubResource("ParticleProcessMaterial_mbu0u")
+draw_pass_1 = SubResource("BoxMesh_o8msm")
