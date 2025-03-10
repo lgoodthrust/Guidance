@@ -15,13 +15,14 @@ extends CharacterBody3D
 
 @export_subgroup("Clamp Head Rotation")
 @export var CLAMP_HEAD_ROTATION := true
-@export var CLAMP_HEAD_ROTATION_MIN := -89.999
-@export var CLAMP_HEAD_ROTATION_MAX := 89.999
+@export var CLAMP_HEAD_ROTATION_MIN := -90.0
+@export var CLAMP_HEAD_ROTATION_MAX := 90.0
 
 @export_subgroup("Mouse")
 @export var CAPTURE_ON_START := true
 @export var MOUSE_ACCEL := false
 @export var KEY_BIND_MOUSE_SENS := 0.005
+@export var KEY_BIND_MOUSE_SENS_ZOOM := 0.001
 @export var KEY_BIND_MOUSE_ACCEL := 50
 @export var KEY_MOUSE_ZOOM := "key_b"
 
@@ -101,8 +102,12 @@ func _input(event):
 
 
 func set_rotation_target(mouse_motion : Vector2):
-	rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS
-	rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS
+	if zoom_tog:
+		rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS_ZOOM
+		rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS_ZOOM
+	else:
+		rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS
+		rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS
 	
 	if CLAMP_HEAD_ROTATION:
 		rotation_target = clamp(rotation_target, deg_to_rad(CLAMP_HEAD_ROTATION_MIN), deg_to_rad(CLAMP_HEAD_ROTATION_MAX))
@@ -176,8 +181,8 @@ func toggle_slomo(enable):
 
 func toggle_zoom(enable):
 	if enable and Camera.fov == 75.0:
-		Camera.fov = 15.0
-	if not enable and Camera.fov == 15.0:
+		Camera.fov = 10.0
+	if not enable and Camera.fov == 10.0:
 		Camera.fov = 75.0
 	
 
