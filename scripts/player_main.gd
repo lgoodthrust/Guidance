@@ -178,7 +178,7 @@ func toggle_zoom(enable):
 	if enable and Camera.fov == 75.0:
 		Camera.fov = 15.0
 	if not enable and Camera.fov == 15.0:
-		enable.fov = 75.0
+		Camera.fov = 75.0
 	
 
 var back_step := false
