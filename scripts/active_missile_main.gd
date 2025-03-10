@@ -4,18 +4,18 @@ var papa: Node3D
 var launcher = Node # FOR DATA SHARE
 
 @export_subgroup("PHYSICS")
-@export var thrust_force: float = 10000.0
+@export var thrust_force: float = 30000.0
 @export var air_density_sea_level: float = 1.225  # kg/m^3 at sea level
-@export var min_effective_speed: float = 15.0
+@export var min_effective_speed: float = 5.0
 @export var reference_area: float = 0.05  # m^2, frontal area
 
 # Aerodynamic coefficients
 @export_subgroup("AERODYNAMICS")
 @export var zero_lift_drag_coef: float = 0.04  # Cd0, drag at zero lift
 @export var induced_drag_factor: float = 0.1  # K, induced drag factor
-@export var lift_curve_slope: float = 3.0  # Cl_alpha, lift per angle of attack
-@export var max_lift_coef: float = 1.2  # Maximum lift coefficient
-@export var stall_angle: float = 15.0  # Degrees
+@export var lift_curve_slope: float = 1.5  # Cl_alpha, lift per angle of attack
+@export var max_lift_coef: float = 5.0  # Maximum lift coefficient
+@export var stall_angle: float = 10.0  # Degrees
 @export var form_factor: float = 1.1  # Shape factor for drag
 
 # Flight dynamics
@@ -36,7 +36,7 @@ var launcher = Node # FOR DATA SHARE
 @export var motor_delay: float = 0.0
 @export var P = 1.0
 @export var I = 0.0
-@export var D = 1.0
+@export var D = 0.01
 
 var COM: Vector3 = Vector3.ZERO  # Center of mass
 var CP: Vector3 = Vector3.ZERO   # Center of pressure
@@ -132,6 +132,72 @@ func _ready():
 	pidY = PID.new()
 
 
+func _physics_process(delta: float) -> void:
+	msl_life += delta
+	if msl_life >= msl_lifetime:
+		LAUCNHER_CHILD_SHARE_SET("world", "missiles", Array().pop_back())
+		queue_free()
+		return
+	
+	current_angular_velocity = self.angular_velocity
+	update_flight_conditions(delta)
+	
+	# Reset accumulated forces
+	accumulated_force = Vector3.ZERO
+	accumulated_torque = Vector3.ZERO
+	
+	# Apply thrust while the motor is burning
+	if burn_time > motor_delay and msl_lifetime > motor_delay:
+		if msl_life < burn_time:
+			accumulated_force += calculate_thrust()
+			print("thrusting")
+	
+	# Calculate aerodynamic forces
+	var aero_forces_torques = calculate_aerodynamic_forces_and_torques()
+	accumulated_force += aero_forces_torques.force
+	accumulated_torque += aero_forces_torques.torque
+	
+	# Apply guidance forces if tracking a target
+	target_node = get_tree().current_scene.get_node_or_null("World/Active_Target")
+	if target_node and has_ir_seeker:
+		var guidance_torque = calculate_guidance_torque(delta)
+		accumulated_torque += guidance_torque
+	
+	# Apply stabilizing roll damping
+	accumulated_torque += calculate_roll_stabilization()
+	
+	# Apply stabilizing point-2-forward™ correction technology
+	accumulated_torque += align_up_to_velocity()
+	
+	# Multi-step integration for improved accuracy
+	var substeps = 4
+	var _sub_step_size = delta / substeps
+	
+	for i in range(substeps):
+		self.apply_central_force(Vector3(0, -9.80665 * mass / substeps, 0))  # Gravity
+		
+		# Scale torque using proper inertia
+		var inverse_inertia = Vector3(
+			1.0 / max(0.01, self.inertia.x),
+			1.0 / max(0.01, self.inertia.y),
+			1.0 / max(0.01, self.inertia.z)
+		)
+		var scaled_torque = Vector3(
+			accumulated_torque.x * inverse_inertia.x,
+			accumulated_torque.y * inverse_inertia.y,
+			accumulated_torque.z * inverse_inertia.z
+		)
+		
+		var clamped_force = accumulated_force.limit_length(100000.0)
+		var clamped_torque = scaled_torque.limit_length(100000.0)
+		
+		# Apply accumulated force
+		self.apply_central_force(clamped_force / substeps)
+		self.apply_torque(clamped_torque / substeps)
+	
+	#print("Updated Velocity:", self.linear_velocity)
+
+
 # --------------------
 # THRUST
 # --------------------
@@ -140,7 +206,7 @@ func calculate_thrust() -> Vector3:
 	
 	# Ensure thrust_offset is valid
 	var thrust_offset = COT - COM
-	if thrust_offset.length_squared() < 0.0001:  
+	if thrust_offset.length_squared() < 0.01:  
 		thrust_offset = Vector3(0, 0.01, 0)  # Small offset to prevent zero division
 	
 	# Compute thrust torque (add to accumulated torque directly)
@@ -158,59 +224,14 @@ func calculate_thrust() -> Vector3:
 	elif normalized_burn_time >= 0.8:  # Ramp down
 		thrust_profile = 1.0 - (normalized_burn_time - 0.8) / 0.2
 	
-	var _thrust_force = thrust_dir * thrust_force * altitude_factor * thrust_profile
+	var thrust = thrust_dir * thrust_force * altitude_factor * thrust_profile
 	
-	#print("Thrust Force Applied:", _thrust_force)
-	
-	accumulated_force += _thrust_force
-	
-	return _thrust_force  # Return thrust for debugging
+	return thrust
 
 
 # --------------------
-# GUIDANCE
+# PHYSICS STUFF
 # --------------------
-func calculate_guidance_force(target_pos: Vector3, _delta: float) -> Vector3:
-	var to_target = target_pos - self.global_transform.origin
-	var distance = to_target.length()
-
-	if distance > max_range:
-		return Vector3.ZERO  
-
-	var local_target = self.global_transform.basis.inverse() * to_target.normalized()
-
-	var yaw_error = rad_to_deg(atan2(local_target.x, local_target.y))
-	var pitch_error = rad_to_deg(atan2(local_target.z, local_target.y))
-
-	if abs(yaw_error) > horizontal_fov * 0.5 or abs(pitch_error) > vertical_fov * 0.5:
-		return Vector3.ZERO
-
-	var guidance_strength = clamp(distance / max_range, 0.1, 1.0)
-
-	var lateral_force = self.transform.basis.x * (-yaw_error * guidance_strength) + transform.basis.z * (-pitch_error * guidance_strength)
-	return lateral_force.limit_length(100000.0)
-
-
-# --------------------
-# TARGET TRACKING
-# --------------------
-func get_relative_angles_to_target(target_global_position: Vector3) -> Vector2:
-	var to_target = target_global_position - self.global_transform.origin
-	var distance = to_target.length()
-
-	if distance > max_range:
-		return Vector2.INF
-
-	var local_direction = self.global_transform.basis.inverse() * to_target.normalized()
-	var yaw_deg = rad_to_deg(atan2(local_direction.x, local_direction.y))
-	var pitch_deg = rad_to_deg(atan2(local_direction.z, local_direction.y))
-
-	if abs(yaw_deg) <= horizontal_fov * 0.5 and abs(pitch_deg) <= vertical_fov * 0.5:
-		return Vector2(yaw_deg, pitch_deg)
-	else:
-		return Vector2.INF
-
-
 func update_flight_conditions(delta: float) -> void:
 	# Calculate acceleration for next step
 	current_acceleration = (linear_velocity - previous_velocity) / delta
@@ -255,19 +276,29 @@ func calculate_aerodynamic_forces_and_torques() -> Dictionary:
 	var angle_of_attack_deg = rad_to_deg(angle_of_attack_rad)
 
 	# Calculate sideslip angle
-	#var missile_right = self.global_transform.basis.x
-	#var side_component = velocity_dir.dot(missile_right)
-	#var sideslip_angle_rad = asin(clamp(side_component, -1.0, 1.0))
-	#var sideslip_angle_deg = rad_to_deg(sideslip_angle_rad)
+	var missile_right = self.global_transform.basis.x
+	var side_component = velocity_dir.dot(missile_right)
+	var sideslip_angle_rad = asin(clamp(side_component, -1.0, 1.0))
+	var sideslip_angle_deg = rad_to_deg(sideslip_angle_rad)
+	
+	print("aoa: ",angle_of_attack_deg)
+	print("aos: ",sideslip_angle_deg)
 
 	# Calculate lift coefficient with stall behavior
 	var lift_coef = 0.0
 	if angle_of_attack_deg < stall_angle:
-		lift_coef = lift_curve_slope * sin(angle_of_attack_rad)
+		lift_coef += lift_curve_slope * cos(angle_of_attack_rad)
 	else:
 		# Post-stall behavior (lift drops off)
 		var stall_factor = 1.0 - min(1.0, (angle_of_attack_deg - stall_angle) / 10.0)
-		lift_coef = max_lift_coef * stall_factor
+		lift_coef += max_lift_coef * stall_factor
+
+	if sideslip_angle_deg < stall_angle:
+		lift_coef += lift_curve_slope * cos(angle_of_attack_rad)
+	else:
+		# Post-stall behavior (lift drops off)
+		var stall_factor = 1.0 - min(1.0, (sideslip_angle_deg - stall_angle) / 10.0)
+		lift_coef += max_lift_coef * stall_factor
 
 	# ---- MACH-DEPENDENT DRAG MODEL ----
 	var wave_drag_coef = 0.0
@@ -334,88 +365,72 @@ func calculate_roll_stabilization() -> Vector3:
 	return roll_stabilization_torque
 
 
-func calculate_guidance_torque(delta: float) -> Vector3:
-	var angles = get_relative_angles_to_target(target_node.global_position)
-	angles = Vector2(angles.y, -angles.x)
+func align_up_to_velocity() -> Vector3:
+	var velocity = linear_velocity
+	if velocity.length() < min_effective_speed:
+		return Vector3.ZERO
 	
-	var ax = pidX.update(delta, angles.x, 0, P, I, D)
-	var ay = pidY.update(delta, angles.y, 0, P, I, D)
+	var desired_up = velocity.normalized()  # The desired up vector (velocity direction)
+	var current_up = self.global_transform.basis.y.normalized()  # Current up direction
 	
-	# Calculate current roll angle
-	var roll = (self.transform.basis.get_euler().z)/(PI/2.0) * 10.0
+	var rotation_axis = current_up.cross(desired_up)  # Axis of rotation
+	var angle = acos(clamp(current_up.dot(desired_up), -1, 1))  # Angle difference
 	
-	# Scale control forces based on dynamic pressure for more realistic handling
-	var control_effectiveness = clamp(current_dynamic_pressure / 500.0, 0.1, 2.0)
-	
-	return Vector3(ax, ay, -roll) * control_effectiveness * TLA
+	if angle > 0.01:  
+		var angular_correction = rotation_axis.normalized() * angle * 0.5 * mass * TLA
+		return angular_correction
+	else:
+		return Vector3.ZERO
 
 
-func _physics_process(delta: float) -> void:
-	msl_life += delta
-	if msl_life >= msl_lifetime:
-		LAUCNHER_CHILD_SHARE_SET("world", "missiles", Array().pop_back())
-		queue_free()
-		return
-	
-	current_angular_velocity = self.angular_velocity
-	update_flight_conditions(delta)
-	
-	# Reset accumulated forces
-	accumulated_force = Vector3.ZERO
-	accumulated_torque = Vector3.ZERO
-	
-	# Apply thrust while the motor is burning
-	if msl_life < burn_time and msl_life > motor_delay:
-		accumulated_force += calculate_thrust()
-	
-	# Calculate aerodynamic forces
-	var aero_forces_torques = calculate_aerodynamic_forces_and_torques()
-	accumulated_force += aero_forces_torques.force
-	accumulated_torque += aero_forces_torques.torque
-	
-	# Apply guidance forces if tracking a target
-	target_node = get_tree().current_scene.get_node_or_null("World/Active_Target")
-	if target_node and has_ir_seeker:
-		var guidance_torque = calculate_guidance_torque(delta)
-		accumulated_torque += guidance_torque
-	
-	# Apply stabilizing roll damping
-	accumulated_torque += calculate_roll_stabilization()
-	
-	# Multi-step integration for improved accuracy
-	var substeps = 4
-	var _sub_step_size = delta / substeps
-	
-	for i in range(substeps):
-		self.apply_central_force(Vector3(0, -9.80665 * mass / substeps, 0))  # Gravity
-		
-		# Scale torque using proper inertia
-		var inverse_inertia = Vector3(
-			1.0 / max(0.01, self.inertia.x),
-			1.0 / max(0.01, self.inertia.y),
-			1.0 / max(0.01, self.inertia.z)
-		)
-		var scaled_torque = Vector3(
-			accumulated_torque.x * inverse_inertia.x,
-			accumulated_torque.y * inverse_inertia.y,
-			accumulated_torque.z * inverse_inertia.z
-		)
-		
-		var clamped_force = accumulated_force.limit_length(100000.0)
-		var clamped_torque = scaled_torque.limit_length(100000.0)
-		
-		# Apply accumulated force
-		self.apply_central_force(clamped_force / substeps)
-		self.apply_torque(clamped_torque / substeps)
-	
-	#print("Updated Velocity:", self.linear_velocity)
+func calculate_guidance_torque(_delta: float) -> Vector3:
+	# Ensure a valid target exists.
+	if not target_node:
+		return Vector3.ZERO
+
+	# Only apply guidance when the missile has some velocity.
+	# At zero speed, aerodynamic and alignment corrections are not reliable.
+	var current_speed = linear_velocity.length()
+	if current_speed < 0.5:
+		return Vector3.ZERO
+
+	# Compute the desired direction from the missile to the target.
+	var desired_direction: Vector3 = (target_node.global_position - self.global_position).normalized()
+
+	# Our missile’s forward direction is its local up (Y axis)
+	var forward: Vector3 = self.global_transform.basis.y.normalized()
+
+	# Compute the angle between the current forward and the desired direction.
+	var dot_val: float = clamp(forward.dot(desired_direction), -1.0, 1.0)
+	var error_angle: float = acos(dot_val)  # This is in radians
+
+	# Determine the axis around which to rotate to align with the desired direction.
+	# This cross product gives an axis perpendicular to both vectors.
+	var error_axis: Vector3 = forward.cross(desired_direction)
+	if error_axis.length() < 0.001:
+		return Vector3.ZERO  # They are nearly aligned.
+
+	error_axis = error_axis.normalized()
+
+	# Optionally, you can incorporate a gain factor.
+	# Here, TLA or another constant can serve as the proportional gain.
+	var gain: float = TLA  # Adjust this as needed.
+	var guidance_torque: Vector3 = error_axis * (error_angle * gain)
+
+	# Optionally, if you wish to further modulate the torque by speed (corrections builds with velocity):
+	var speed_scale: float = clamp(current_speed / min_effective_speed, 0.0, 1.0)
+	guidance_torque *= speed_scale
+
+	return guidance_torque
 
 
 #var prev_rot = Vector3.ZERO
 #var prev_pos = Vector3.ZERO
 #func _process(_delta: float) -> void:
 	#var rot = self.global_rotation
-	#var pos = self.self.global_position
+	#var pos = self.global_position
+	#print("msl rot: ",rot)
+	#print("msl pos: ",pos)
 	#print("msl tick delta rot: ",prev_rot - rot)
 	#print("msl tick delta pos: ",prev_pos - pos)
 	#prev_rot = rot
