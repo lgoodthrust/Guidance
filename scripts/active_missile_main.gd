@@ -150,37 +150,37 @@ func _physics_process(delta: float) -> void:
 	if burn_time > motor_delay and msl_lifetime > motor_delay:
 		if msl_life < burn_time:
 			accumulated_force += calculate_thrust()
-			print("thrusting")
+			pass
 	
 	# Calculate aerodynamic forces
 	var aero_forces_torques = calculate_aerodynamic_forces_and_torques()
-	accumulated_force += aero_forces_torques.force
-	accumulated_torque += aero_forces_torques.torque
+	#accumulated_force += aero_forces_torques.force
+	#accumulated_torque += aero_forces_torques.torque
 	
 	# Apply guidance forces if tracking a target
 	target_node = get_tree().current_scene.get_node_or_null("World/Active_Target")
 	if target_node and has_ir_seeker:
 		var guidance_torque = calculate_guidance_torque(delta)
-		accumulated_torque += guidance_torque
+		#accumulated_torque += guidance_torque
 	
 	# Apply stabilizing roll damping
-	accumulated_torque += calculate_roll_stabilization()
+	#accumulated_torque += calculate_roll_stabilization()
 	
 	# Apply stabilizing point-2-forward™ correction technology
-	accumulated_torque += align_up_to_velocity()
+	#accumulated_torque += align_up_to_velocity()
 	
 	# Multi-step integration for improved accuracy
 	var substeps = 4
 	var _sub_step_size = delta / substeps
 	
 	for i in range(substeps):
-		self.apply_central_force(Vector3(0, -9.80665 * mass / substeps, 0))  # Gravity
+		accumulated_force += Vector3(0, 0 * mass / substeps, 0)  # Gravity
 		
 		# Scale torque using proper inertia
 		var inverse_inertia = Vector3(
-			1.0 / max(0.01, self.inertia.x),
-			1.0 / max(0.01, self.inertia.y),
-			1.0 / max(0.01, self.inertia.z)
+			1.0 / max(0.05, self.inertia.x),
+			1.0 / max(0.05, self.inertia.y),
+			1.0 / max(0.05, self.inertia.z)
 		)
 		var scaled_torque = Vector3(
 			accumulated_torque.x * inverse_inertia.x,
@@ -209,10 +209,6 @@ func calculate_thrust() -> Vector3:
 	if thrust_offset.length_squared() < 0.01:  
 		thrust_offset = Vector3(0, 0.01, 0)  # Small offset to prevent zero division
 	
-	# Compute thrust torque (add to accumulated torque directly)
-	var thrust_torque = thrust_offset.cross(thrust_dir * thrust_force)
-	accumulated_torque += thrust_torque
-	
 	# Reduce thrust with altitude (simplified model)
 	var altitude_factor = exp(-current_altitude / 15000.0)  # Thrust decreases with altitude
 	
@@ -234,11 +230,11 @@ func calculate_thrust() -> Vector3:
 # --------------------
 func update_flight_conditions(delta: float) -> void:
 	# Calculate acceleration for next step
-	current_acceleration = (linear_velocity - previous_velocity) / delta
-	previous_velocity = linear_velocity
+	current_acceleration = (self.linear_velocity - previous_velocity) / delta
+	previous_velocity = self.linear_velocity
 	
 	# Estimate current altitude based on y position (simplified)
-	current_altitude = max(0, self.global_position.y)
+	current_altitude = max(0, self.global_transform.origin.y)
 	
 	# Update air density based on altitude
 	var air_density = calculate_air_density(current_altitude)
@@ -391,27 +387,27 @@ func calculate_guidance_torque(_delta: float) -> Vector3:
 	# Only apply guidance when the missile has some velocity.
 	# At zero speed, aerodynamic and alignment corrections are not reliable.
 	var current_speed = linear_velocity.length()
-	if current_speed < 0.5:
-		return Vector3.ZERO
+	#if current_speed < 0.5:
+		#return Vector3.ZERO
 
 	# Compute the desired direction from the missile to the target.
-	var desired_direction: Vector3 = (target_node.global_position - self.global_position).normalized()
+	var desired_dir = (target_node.global_transform.origin - self.global_transform.origin).normalized()
 
 	# Our missile’s forward direction is its local up (Y axis)
 	var forward: Vector3 = self.global_transform.basis.y.normalized()
 
 	# Compute the angle between the current forward and the desired direction.
-	var dot_val: float = clamp(forward.dot(desired_direction), -1.0, 1.0)
+	var dot_val: float = clamp(forward.dot(desired_dir), -1.0, 1.0)
 	var error_angle: float = acos(dot_val)  # This is in radians
 
 	# Determine the axis around which to rotate to align with the desired direction.
 	# This cross product gives an axis perpendicular to both vectors.
-	var error_axis: Vector3 = forward.cross(desired_direction)
+	var error_axis: Vector3 = forward.cross(desired_dir)
 	if error_axis.length() < 0.001:
 		return Vector3.ZERO  # They are nearly aligned.
 
 	error_axis = error_axis.normalized()
-
+	
 	# Optionally, you can incorporate a gain factor.
 	# Here, TLA or another constant can serve as the proportional gain.
 	var gain: float = TLA  # Adjust this as needed.
@@ -419,7 +415,8 @@ func calculate_guidance_torque(_delta: float) -> Vector3:
 
 	# Optionally, if you wish to further modulate the torque by speed (corrections builds with velocity):
 	var speed_scale: float = clamp(current_speed / min_effective_speed, 0.0, 1.0)
-	guidance_torque *= speed_scale
+	#guidance_torque *= speed_scale
+	print(guidance_torque)
 
 	return guidance_torque
 
