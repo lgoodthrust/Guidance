@@ -38,6 +38,7 @@ func _ready() -> void:
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = centers["mass"]
 	
+	# Small impulse at spawn
 	apply_impulse(global_transform.basis.y.normalized() * 100.0)
 
 func load_missile_blocks() -> void:
@@ -51,7 +52,7 @@ func calculate_centers() -> void:
 	var thrust_blocks = 0
 	
 	for block:Node3D in blocks:
-		var block_pos = block.to_global(Vector3.ZERO)  
+		var block_pos = block.to_global(Vector3.ZERO)
 		if block.DATA.has("TYPE"):
 			if block.DATA["TYPE"] == 1:
 				properties["has_ir_seeker"] = true
@@ -94,19 +95,16 @@ func _physics_process(delta: float) -> void:
 	
 	var forward_dir = global_transform.basis.y.normalized()
 	
+	# Apply thrust if there's still "fuel" time
 	if properties["fuel"] > life:
 		apply_force(forward_dir * thrust_force, centers["thrust"])
+
+	# Apply weight force
 	apply_central_force(Vector3.DOWN * 9.81 * properties["mass"])
 	
+	# If moving faster than a certain speed, apply aerodynamic alignment
 	if linear_velocity.length() > min_speed:
-		var inv_vel_dir = linear_velocity.normalized()
-		var inv_axis = inv_vel_dir.cross(forward_dir)
-		var inv_angle = inv_vel_dir.angle_to(forward_dir)
-		if inv_axis.length() > 0.001 and inv_angle > 0.001:
-			inv_axis = inv_axis.normalized()
-			var inv_torque = inv_axis * inv_angle
-			apply_torque(inv_torque * linear_velocity.length_squared())
-		
+		# 1) Realign missile forward with velocity
 		var vel_dir = linear_velocity.normalized()
 		var axis = forward_dir.cross(vel_dir)
 		var angle = forward_dir.angle_to(vel_dir)
@@ -114,7 +112,9 @@ func _physics_process(delta: float) -> void:
 			axis = axis.normalized()
 			var torque = axis * angle
 			apply_torque(torque * linear_velocity.length_squared())
-			aim_and_torque_at_target()
+		
+		# 2) If we have a target in range, apply guidance
+		aim_and_torque_at_target()
 
 func aim_and_torque_at_target():
 	var target = get_tree().current_scene.get_node_or_null("World/Active_Target")
@@ -123,10 +123,65 @@ func aim_and_torque_at_target():
 	
 	var target_distance = global_transform.origin.distance_to(target.global_transform.origin)
 	
+	# If in range and we have IR seeker, we attempt to steer
 	if target_distance < max_range and properties.has_ir_seeker:
-		var forward_dir = global_transform.basis.y
-		var to_target = (target.global_transform.origin - global_transform.origin).normalized()
-		var rotation_axis = forward_dir.cross(to_target)
-		var angle = forward_dir.angle_to(to_target)
-		var point_2_target_torque = rotation_axis * angle
-		apply_torque(point_2_target_torque * linear_velocity.length_squared())
+		var input_angles = _get_target_angles_in_degrees(target)
+		var guidance_output = guidance_control_law(input_angles)
+		_apply_pitch_yaw_torque(guidance_output)
+
+# ----------------------------------------------------------
+#  CUSTOM GUIDANCE LAW - Currently forced to zero out pitch & yaw
+#  Input (deg): Vector2( horizontal_angle, vertical_angle )
+#  Output (deg): Vector2( pitch_cmd, yaw_cmd )
+# ----------------------------------------------------------
+func guidance_control_law(relative_angles: Vector2) -> Vector2:
+	# Return zero pitch and yaw to illustrate no manual control,
+	# but keep the missile stable thanks to the aerodynamic alignment code above.
+	var horizontal = 0
+	var vertical = 0
+	
+	var pitch_cmd = clamp(vertical, -45.0, 45.0)
+	var yaw_cmd   = clamp(horizontal, -45.0, 45.0)
+	
+	return Vector2(pitch_cmd, yaw_cmd)
+
+# ----------------------------------------------------------
+#   HELPER: Compute horizontal & vertical angles (in degrees)
+#   from missile forward direction to the target
+# ----------------------------------------------------------
+func _get_target_angles_in_degrees(target: Node3D) -> Vector2:
+	var forward_dir = global_transform.basis.y
+	var to_target = (target.global_transform.origin - global_transform.origin).normalized()
+	
+	# Horizontal angle (yaw-like):
+	var right_dir = global_transform.basis.x
+	var horizontal_angle_radians = atan2(
+		to_target.dot(right_dir),
+		to_target.dot(forward_dir)
+	)
+	var horizontal_angle_degrees = rad_to_deg(horizontal_angle_radians)
+	
+	# Vertical angle (pitch-like):
+	var up_dir = global_transform.basis.z
+	var vertical_angle_radians = atan2(
+		to_target.dot(up_dir),
+		to_target.dot(forward_dir)
+	)
+	var vertical_angle_degrees = rad_to_deg(vertical_angle_radians)
+	
+	return Vector2(horizontal_angle_degrees, vertical_angle_degrees)
+
+# ----------------------------------------------------------
+#   HELPER: Apply the pitch/yaw torque in degrees
+# ----------------------------------------------------------
+func _apply_pitch_yaw_torque(guidance_output: Vector2) -> void:
+	var pitch_rad = deg_to_rad(guidance_output.x)
+	var yaw_rad   = deg_to_rad(guidance_output.y)
+	
+	var local_x = global_transform.basis.x.normalized()
+	var local_z = global_transform.basis.z.normalized()
+	
+	var pitch_torque = local_x * pitch_rad
+	var yaw_torque   = local_z * yaw_rad
+	
+	apply_torque((pitch_torque + yaw_torque) * linear_velocity.length_squared())
