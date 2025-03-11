@@ -2,28 +2,28 @@ extends RigidBody3D  # Vector up = missile forward
 
 var launcher
 var blocks = []
+var msl_root
 
 # Configuration parameters grouped by function
 @export_group("Physics")
-@export var thrust_force: float = 50.0
+@export var thrust_force: float = 100.0
 @export var air_density_sea_level: float = 1.225
-@export var min_effective_speed: float = 15.0
+@export var min_effective_speed: float = 50.0
 @export var gravity: float = 9.80665
 
 @export_group("Aerodynamics")
-@export var max_lift_coef: float = 2.0
-@export var stall_angle: float = 15.0
+@export var max_lift_coef: float = 100.0
 
 @export_group("Structure")
-@export var static_margin: float = 0.125
+@export var static_margin: float = 0.05
 @export var roll_damping: float = 2.0
-@export var missile_length: float = 5.0
-@export var missile_diameter: float = 0.2
+@export var missile_length: float = 9.5
+@export var missile_diameter: float = 0.5
 
 @export_group("Guidance")
 @export var proximity_radius: float = 15.0
 @export var fov: Vector2 = Vector2(30.0, 30.0)  # horizontal, vertical
-@export var max_range: float = 2500.0
+@export var max_range: float = 3000.0
 @export var lifetime: float = 15.0
 @export var motor_delay: float = 0.1
 @export var pid_values: Vector3 = Vector3(1.0, 0.0, 0.01)  # P, I, D
@@ -55,6 +55,7 @@ var pidz
 
 
 func _ready():
+	msl_root = get_parent_node_3d()
 	launcher = get_parent().get_parent()
 	pidx = PID.new()
 	pidy = PID.new()
@@ -130,10 +131,11 @@ func calculate_centers():
 		centers.pressure = centers.mass + direction * missile_length * static_margin
 	
 	# Approximate burn time assuming 3s per fuel block
-	properties.burn_time = properties.fuel * 3.0
+	properties.burn_time = properties.fuel * 1.0
 
 
 func _physics_process(delta: float) -> void:
+	msl_root.transform.origin = global_transform.origin
 	properties.elapsed_time += delta
 	
 	# Check if missile lifetime exceeded
@@ -221,20 +223,28 @@ func calculate_roll_stabilization() -> Vector3:
 
 func align_to_velocity() -> Vector3:
 	var velocity = linear_velocity
-	if velocity.length() < min_effective_speed:
+	var speed = velocity.length()
+
+	if speed < min_effective_speed:
 		return Vector3.ZERO
 	
-	# returns scaled velocity as a vector
 	var desired_dir = velocity.normalized()
 	var current_dir = global_transform.basis.y.normalized()
-	
+
+	# Compute rotation axis
 	var rotation_axis = current_dir.cross(desired_dir)
-	var angle = acos(clamp(current_dir.dot(desired_dir), -1, 1))
-	
-	if angle > 0.01:  
-		return rotation_axis.normalized() * angle * 0.5 * mass * properties.total_lift
-	
-	return Vector3.ZERO
+	var angle = acos(clamp(current_dir.dot(desired_dir), -1.0, 1.0))
+
+	# Normalize and apply scaling
+	if rotation_axis.length() < 0.001 or angle < 0.01:
+		return Vector3.ZERO  # Already aligned or negligible angle
+
+	rotation_axis = rotation_axis.normalized()
+
+	# Scaling factor for torque: proportional to misalignment angle and missile agility
+	var torque_strength = angle * mass * properties.total_lift * 10.0  # Increase scale factor if needed
+
+	return rotation_axis * torque_strength
 
 
 func calculate_guidance_torque(_delta: float) -> Vector3:
@@ -261,10 +271,12 @@ func calculate_guidance_torque(_delta: float) -> Vector3:
 	error_axis = error_axis.normalized()
 	
 	# Calculate guidance torque based on speed and total lift authority
-	var gain = properties.total_lift
+	var gain = properties.total_lift * speed
 	var speed_scale = clamp(speed / min_effective_speed, 0.0, max_lift_coef)
 	
-	return error_axis * (error_angle * gain * speed_scale)
+	var oog = error_axis * (error_angle * gain * speed_scale)
+	
+	return oog
 
 
 func apply_physics_forces(forces, torques, delta):
@@ -278,32 +290,24 @@ func apply_physics_forces(forces, torques, delta):
 		# Combine all torques
 		var total_torque = torques.guidance + torques.stabilization + torques.alignment
 		
-		# Scale torque using proper inertia
+		# Scale torque using inertia tensor
 		var inverse_inertia = Vector3(
 			1.0 / max(0.05, inertia.x),
 			1.0 / max(0.05, inertia.y),
 			1.0 / max(0.05, inertia.z)
 		)
-		
-		var scaled_torque = Vector3(
-			total_torque.x * inverse_inertia.x,
-			total_torque.y * inverse_inertia.y,
-			total_torque.z * inverse_inertia.z
-		)
-		
+
+		var scaled_torque = total_torque * inverse_inertia * 20.0
+
 		# Apply limits to prevent instability
 		var clamped_force = total_force.limit_length(100000.0)
 		var clamped_torque = scaled_torque.limit_length(10000.0)
-		
+
+		print(total_force)
 		apply_force(clamped_force / substeps, centers["thrust"])
 		
-		var angles = get_aoa_aos()
-		var total_angle = rad_to_deg(angles.x) + rad_to_deg(angles.y)
-		
-		if total_angle > stall_angle:
-			apply_torque((clamped_torque / substeps) / total_angle)
-		else:
-			apply_torque((clamped_torque / substeps))
+		# Apply torque more aggressively
+		apply_torque(clamped_torque)
 
 
 func destroy_missile():
