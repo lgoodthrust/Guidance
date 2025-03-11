@@ -12,7 +12,6 @@ var forward_acceleration: float = 10.0
 # Yaw and pitch targets
 var rotation_target_yaw: float = PI
 var rotation_target_pitch: float = 0.0
-
 var curr_velocity: Vector3 = Vector3.ZERO
 
 

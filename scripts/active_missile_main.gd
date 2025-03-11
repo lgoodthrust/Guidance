@@ -9,14 +9,12 @@ var launcher
 var blocks = []
 var life := 0.0
 
-# Required centers dictionary for your unchanged code
 var centers = {
 	"mass": Vector3.ZERO,
 	"pressure": Vector3.ZERO,
 	"thrust": Vector3.ZERO
 }
 
-# Required properties dictionary for your unchanged code
 var properties = {
 	"fuel": 0,
 	"mass": 0.0,
