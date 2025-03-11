@@ -4,10 +4,14 @@ extends RigidBody3D  # Vector up = missile forward
 @export var min_speed: float = 50.0
 @export var lifetime: float = 10.0
 @export var max_range = 3000.0
+@export var seeker_fov = 30.0
+@export var motor_delay = 0.1
+@export var launch_charge_force = 100.0
 
 var launcher
 var blocks = []
 var life := 0.0
+var ao
 
 var centers = {
 	"mass": Vector3.ZERO,
@@ -21,6 +25,9 @@ var properties = {
 	"has_ir_seeker": false,
 	"total_lift": 0.0
 }
+
+@onready var pidx = PID.new()
+@onready var pidy = PID.new()
 
 func _ready() -> void:
 	launcher = get_parent().get_parent()
@@ -37,7 +44,7 @@ func _ready() -> void:
 	center_of_mass = centers["mass"]
 	
 	# Small impulse at spawn
-	apply_impulse(global_transform.basis.y.normalized() * 100.0)
+	apply_impulse(global_transform.basis.y.normalized() * launch_charge_force)
 
 func load_missile_blocks() -> void:
 	for child in get_children():
@@ -98,7 +105,7 @@ func _physics_process(delta: float) -> void:
 		apply_force(forward_dir * thrust_force, centers["thrust"])
 
 	# Apply weight force
-	apply_central_force(Vector3.DOWN * 9.81 * properties["mass"])
+	apply_central_force(Vector3.DOWN * 9.80665 * properties["mass"])
 	
 	# If moving faster than a certain speed, apply aerodynamic alignment
 	if linear_velocity.length() > min_speed:
@@ -107,14 +114,13 @@ func _physics_process(delta: float) -> void:
 		var axis = forward_dir.cross(vel_dir)
 		var angle = forward_dir.angle_to(vel_dir)
 		if axis.length() > 0.001 and angle > 0.001:
-			axis = axis.normalized()
-			var torque = axis * angle
+			var torque = axis.normalized() * angle
 			apply_torque(torque * linear_velocity.length_squared())
 		
 		# 2) If we have a target in range, apply guidance
-		aim_and_torque_at_target()
+		aim_and_torque_at_target(delta)
 
-func aim_and_torque_at_target():
+func aim_and_torque_at_target(delta):
 	var target = get_tree().current_scene.get_node_or_null("World/Active_Target")
 	if not target:
 		return
@@ -124,24 +130,28 @@ func aim_and_torque_at_target():
 	# If in range and we have IR seeker, we attempt to steer
 	if target_distance < max_range and properties.has_ir_seeker:
 		var input_angles = _get_target_angles_in_degrees(target)
-		var guidance_output = guidance_control_law(input_angles)
+		var guidance_output = guidance_control_law(input_angles, delta)
+		
 		_apply_pitch_yaw_torque(guidance_output)
 
 # ----------------------------------------------------------
-#  CUSTOM GUIDANCE LAW - Currently forced to zero out pitch & yaw
-#  Input (deg): Vector2( horizontal_angle, vertical_angle )
-#  Output (deg): Vector2( pitch_cmd, yaw_cmd )
+#  CUSTOM GUIDANCE LAW
 # ----------------------------------------------------------
-func guidance_control_law(relative_angles: Vector2) -> Vector2:
-	# Return zero pitch and yaw to illustrate no manual control,
-	# but keep the missile stable thanks to the aerodynamic alignment code above.
-	var horizontal = 0
-	var vertical = 0
+var prev_relative_angles = Vector2.ZERO
+func guidance_control_law(relative_angles: Vector2, delta) -> Vector2:
+	var kp = 1.0
+	var ki = 0.0
+	var kd = 0.0
 	
-	var pitch_cmd = clamp(vertical, -45.0, 45.0)
-	var yaw_cmd   = clamp(horizontal, -45.0, 45.0)
+	var horizontal = pidx.update(delta, -relative_angles.x, 0, kp, ki, kd)
+	var vertical = pidy.update(delta, relative_angles.y, 0, kp, ki, kd)
 	
-	return Vector2(pitch_cmd, yaw_cmd)
+	var pitch_cmd = clamp(vertical, -90, 90.0)
+	var yaw_cmd   = clamp(horizontal, -90.0, 90.0)
+	
+	var output = Vector2(pitch_cmd, yaw_cmd)
+	prev_relative_angles = output
+	return output
 
 # ----------------------------------------------------------
 #   HELPER: Compute horizontal & vertical angles (in degrees)
@@ -166,6 +176,11 @@ func _get_target_angles_in_degrees(target: Node3D) -> Vector2:
 		to_target.dot(forward_dir)
 	)
 	var vertical_angle_degrees = rad_to_deg(vertical_angle_radians)
+	
+	# if the missile can see the target, it can see the target
+	if vertical_angle_degrees > seeker_fov or horizontal_angle_degrees > seeker_fov:
+		vertical_angle_degrees = 0
+		horizontal_angle_degrees = 0
 	
 	return Vector2(horizontal_angle_degrees, vertical_angle_degrees)
 
