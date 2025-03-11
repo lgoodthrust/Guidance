@@ -6,6 +6,7 @@ extends RigidBody3D  # Vector up = missile forward
 @export var max_range = 3000.0
 @export var seeker_fov = 30.0
 @export var motor_delay = 0.1
+@export var fuel_block_duration = 2.0
 @export var launch_charge_force = 100.0
 
 var launcher
@@ -68,7 +69,7 @@ func calculate_centers() -> void:
 				properties["total_lift"] += block.DATA["LIFT"]
 	
 			if block.DATA["TYPE"] == 7:
-				properties["fuel"] += 1
+				properties["fuel"] += fuel_block_duration
 	
 			if block.DATA["TYPE"] == 8:
 				centers["thrust"] += block_pos
@@ -101,23 +102,32 @@ func _physics_process(delta: float) -> void:
 	var forward_dir = global_transform.basis.y.normalized()
 	
 	# Apply thrust if there's still "fuel" time
-	if properties["fuel"] > life:
+	if properties["fuel"] > life and lifetime > motor_delay:
 		apply_force(forward_dir * thrust_force, centers["thrust"])
 
 	# Apply weight force
 	apply_central_force(Vector3.DOWN * 9.80665 * properties["mass"])
 	
-	# If moving faster than a certain speed, apply aerodynamic alignment
+	# If moving faster than a certain speed
 	if linear_velocity.length() > min_speed:
-		# 1) Realign missile forward with velocity
+		# apply aerodynamic alignment (dir toward missile)
+		var inv_vel_dir = linear_velocity.normalized()
+		var inv_axis = inv_vel_dir.cross(forward_dir)
+		var inv_angle = inv_vel_dir.angle_to(forward_dir)
+		if inv_axis.length() > 0.001 and inv_angle > 0.001:
+			inv_axis = inv_axis.normalized()
+			var inv_torque = inv_axis * inv_angle
+			apply_torque(inv_torque * linear_velocity.length_squared())
+		
+		# apply aerodynamic alignment (missile toward dir)
 		var vel_dir = linear_velocity.normalized()
 		var axis = forward_dir.cross(vel_dir)
 		var angle = forward_dir.angle_to(vel_dir)
 		if axis.length() > 0.001 and angle > 0.001:
-			var torque = axis.normalized() * angle
+			axis = axis.normalized()
+			var torque = axis * angle
 			apply_torque(torque * linear_velocity.length_squared())
 		
-		# 2) If we have a target in range, apply guidance
 		aim_and_torque_at_target(delta)
 
 func aim_and_torque_at_target(delta):
@@ -139,16 +149,23 @@ func aim_and_torque_at_target(delta):
 # ----------------------------------------------------------
 var prev_relative_angles = Vector2.ZERO
 func guidance_control_law(relative_angles: Vector2, delta) -> Vector2:
+	var xval = -relative_angles.x # x angle of target
+	var yval = relative_angles.y # y angle of target
+	var xval_d = xval - prev_relative_angles.x # rate of x angle of target
+	var yval_d = yval - prev_relative_angles.y # rate of x angle of target
+	var vel = global_transform.basis.y.length() # forward velocity
+	
 	var kp = 1.0
 	var ki = 0.0
 	var kd = 0.0
 	
-	var horizontal = pidx.update(delta, -relative_angles.x, 0, kp, ki, kd)
-	var vertical = pidy.update(delta, relative_angles.y, 0, kp, ki, kd)
+	 # pid.update(delta time, target, current, kp, ki, kd)
+	var horizontal = pidx.update(delta, xval, xval_d, kp, ki, kd)
+	var vertical = pidy.update(delta, yval, yval_d, kp, ki, kd)
 	
+	# ignore
 	var pitch_cmd = clamp(vertical, -90, 90.0)
 	var yaw_cmd   = clamp(horizontal, -90.0, 90.0)
-	
 	var output = Vector2(pitch_cmd, yaw_cmd)
 	prev_relative_angles = output
 	return output

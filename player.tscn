@@ -7,7 +7,7 @@
 
 [node name="Player" type="CharacterBody3D"]
 rotation_edit_mode = 1
-floor_max_angle = 1.0472
+floor_max_angle = 0.872665
 script = ExtResource("1_y7sy4")
 
 [node name="Player_Shape" type="CollisionShape3D" parent="."]
