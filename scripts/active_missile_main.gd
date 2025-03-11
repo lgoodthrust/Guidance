@@ -1,112 +1,62 @@
 extends RigidBody3D  # Vector up = missile forward
 
-var launcher
+@export var thrust_force: float = 50.0
+@export var min_speed: float = 10.0
+
 var blocks = []
-var msl_root
 
-# Configuration parameters grouped by function
-@export_group("Physics")
-@export var thrust_force: float = 100.0
-@export var air_density_sea_level: float = 1.225
-@export var min_effective_speed: float = 50.0
-@export var gravity: float = 9.80665
-
-@export_group("Aerodynamics")
-@export var max_lift_coef: float = 100.0
-
-@export_group("Structure")
-@export var static_margin: float = 0.05
-@export var roll_damping: float = 2.0
-@export var missile_length: float = 9.5
-@export var missile_diameter: float = 0.5
-
-@export_group("Guidance")
-@export var proximity_radius: float = 15.0
-@export var fov: Vector2 = Vector2(30.0, 30.0)  # horizontal, vertical
-@export var max_range: float = 3000.0
-@export var lifetime: float = 15.0
-@export var motor_delay: float = 0.1
-@export var pid_values: Vector3 = Vector3(1.0, 0.0, 0.01)  # P, I, D
-
-# Missile properties
+# Required centers dictionary for your unchanged code
 var centers = {
-	"mass": Vector3.ZERO,    # Center of mass
-	"pressure": Vector3.ZERO,  # Center of pressure
-	"thrust": Vector3.ZERO    # Center of thrust
+	"mass": Vector3.ZERO,
+	"pressure": Vector3.ZERO,
+	"thrust": Vector3.ZERO
 }
 
+# Required properties dictionary for your unchanged code
 var properties = {
 	"fuel": 0,
 	"mass": 0.0,
 	"has_ir_seeker": false,
-	"total_lift": 0.0,
-	"burn_time": 0.0,
-	"elapsed_time": 0.0,
+	"total_lift": 0.0
 }
 
-var targeting = {
-	"active": false,
-	"target": null
-}
-
-var pidx
-var pidy
-var pidz
-
-
-func _ready():
-	msl_root = get_parent_node_3d()
-	launcher = get_parent().get_parent()
-	pidx = PID.new()
-	pidy = PID.new()
-	pidz = PID.new()
-	# Initialize missile
+func _ready() -> void:
+	# Load missile blocks and compute centers/mass
 	load_missile_blocks()
 	calculate_centers()
-	setup_physics()
 
-
-func setup_physics():
+	# Minimal physics setup
 	freeze = false
-	gravity_scale = 0
-	linear_damp = 0
-	angular_damp = 0
-	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	center_of_mass = centers["mass"]
-	
-	# Set physical properties
+	gravity_scale = 0.0
+	linear_damp = 0.0
+	angular_damp = 0.0
 	mass = max(1.0, properties["mass"])
-	
-	# Calculate realistic inertia tensor (for a missile treated as a cylinder)
-	var inertia_xx = mass * (3 * pow(missile_diameter/2, 2) + pow(missile_length, 2)) / 12
-	var inertia_yy = inertia_xx  # Same for symmetrical missile
-	var inertia_zz = mass * pow(missile_diameter/2, 2) / 2
-	
-	inertia = Vector3(inertia_xx, inertia_yy, inertia_zz)
 
+func load_missile_blocks() -> void:
+	for child in get_children():
+		if child.get_class() == "Node3D" and child.DATA.has("NAME"):
+			blocks.append(child)
 
-func load_missile_blocks():
-	for block in get_children():
-		if block.get_class() == "Node3D" and block.DATA.has("NAME"):
-			blocks.append(block)
-
-
-func calculate_centers():
+func calculate_centers() -> void:
 	var total_mass = 0.0
 	var lift_blocks = 0
 	var thrust_blocks = 0
 	
+	# ───── DO NOT CHANGE THIS BLOCK ─────
 	for block:Node3D in blocks:
 		var block_pos = block.to_global(Vector3.ZERO)  
 		if block.DATA.has("TYPE"):
 			if block.DATA["TYPE"] == 1:
 				properties["has_ir_seeker"] = true
+
 			if block.DATA["TYPE"] == 4 or block.DATA["TYPE"] == 5 or block.DATA["TYPE"] == 6:
-				centers["pressure"] += block_pos  # Now storing center of pressure
+				centers["pressure"] += block_pos
 				lift_blocks += 1
 				properties["total_lift"] += block.DATA["LIFT"]
+
 			if block.DATA["TYPE"] == 7:
 				properties["fuel"] += 1
+
 			if block.DATA["TYPE"] == 8:
 				centers["thrust"] += block_pos
 				thrust_blocks += 1
@@ -114,215 +64,33 @@ func calculate_centers():
 		if block.DATA.has("MASS"):
 			centers["mass"] += block_pos * block.DATA["MASS"]
 			total_mass += block.DATA["MASS"]
+	# ─────────────────────────────────────
 	
 	properties["mass"] = total_mass
 	
-	# Finalize centers
+	# Average out centers if needed
 	if total_mass > 0:
-		centers.mass /= total_mass
+		centers["mass"] /= total_mass
 	if lift_blocks > 0:
-		centers.pressure /= lift_blocks
+		centers["pressure"] /= lift_blocks
 	if thrust_blocks > 0:
-		centers.thrust /= thrust_blocks
-	
-	# Adjust center of pressure for stability
-	if lift_blocks > 0:
-		var direction = centers.mass.direction_to(centers.pressure)
-		centers.pressure = centers.mass + direction * missile_length * static_margin
-	
-	# Approximate burn time assuming 3s per fuel block
-	properties.burn_time = properties.fuel * 1.0
+		centers["thrust"] /= thrust_blocks
 
+func _physics_process(_delta: float) -> void:
+	# Simple forward thrust
+	var forward_dir = global_transform.basis.y
+	apply_force(forward_dir * thrust_force, centers["thrust"])
 
-func _physics_process(delta: float) -> void:
-	msl_root.transform.origin = global_transform.origin
-	properties.elapsed_time += delta
-	
-	# Check if missile lifetime exceeded
-	if properties.elapsed_time >= lifetime:
-		destroy_missile()
-		return
-	
-	# Calculate forces
-	var forces = {
-		"thrust": calculate_thrust(),
-		"aerodynamic": Vector3.ZERO,
-		"gravity": Vector3.DOWN * gravity
-	}
-	
-	var torques = {
-		"guidance": Vector3.ZERO,
-		"stabilization": calculate_roll_stabilization(),
-		"alignment": align_to_velocity()
-	}
-	
-	# Apply guidance if target exists
-	targeting.target = get_tree().current_scene.get_node_or_null("World/Active_Target")
-	if targeting.target and properties.has_ir_seeker:
-		torques.guidance = calculate_guidance_torque(delta)
-	
-	# Apply forces with multi-step integration for stability
-	apply_physics_forces(forces, torques, delta)
-
-
-func calculate_thrust() -> Vector3:
-	# No thrust before motor delay or after burn time
-	if properties.elapsed_time < motor_delay or properties.elapsed_time > properties.burn_time:
-		return Vector3.ZERO
-	
-	var thrust_dir = global_transform.basis.y.normalized()
-	
-	# Calculate thrust modifiers
-	var altitude_factor = exp(-get_altitude() / 15000.0)
-	
-	# Thrust profile (simplified bell curve)
-	var norm_burn_time = (properties.elapsed_time - motor_delay) / (properties.burn_time - motor_delay)
-	var thrust_profile = 1.0
-	
-	if norm_burn_time <= 0.2:  # Ramp up
-		thrust_profile = norm_burn_time / 0.2
-	elif norm_burn_time >= 0.8:  # Ramp down
-		thrust_profile = 1.0 - (norm_burn_time - 0.8) / 0.2
-	
-	var combined_force = thrust_dir * thrust_force * altitude_factor * thrust_profile
-	
-	return combined_force
-
-
-func get_altitude() -> float:
-	# Simple altitude estimation - could be improved with actual terrain data
-	return global_position.y
-
-
-func get_aoa_aos() -> Vector2:
-	var velocity = linear_velocity
-	var speed = velocity.length()
-	
-	if speed < min_effective_speed:
-		return Vector2.ZERO
-	
-	var missile_forward = global_transform.basis.y.normalized()
-	var velocity_dir = velocity.normalized()
-	
-	# Angle of attack (pitch)
-	var dot_product = missile_forward.dot(velocity_dir)
-	var aoa = acos(clamp(dot_product, -1.0, 1.0))
-	
-	# Angle of slip (yaw)
-	var missile_right = global_transform.basis.x.normalized()
-	var side_component = velocity_dir.dot(missile_right)
-	var aos = asin(clamp(side_component, -1.0, 1.0))
-	
-	return Vector2(aoa, aos)
-
-
-func calculate_roll_stabilization() -> Vector3:
-	var roll_rate = angular_velocity.z
-	return Vector3(0, 0, -roll_rate * roll_damping)
-
-
-func align_to_velocity() -> Vector3:
-	var velocity = linear_velocity
-	var speed = velocity.length()
-
-	if speed < min_effective_speed:
-		return Vector3.ZERO
-	
-	var desired_dir = velocity.normalized()
-	var current_dir = global_transform.basis.y.normalized()
-
-	# Compute rotation axis
-	var rotation_axis = current_dir.cross(desired_dir)
-	var angle = acos(clamp(current_dir.dot(desired_dir), -1.0, 1.0))
-
-	# Normalize and apply scaling
-	if rotation_axis.length() < 0.001 or angle < 0.01:
-		return Vector3.ZERO  # Already aligned or negligible angle
-
-	rotation_axis = rotation_axis.normalized()
-
-	# Scaling factor for torque: proportional to misalignment angle and missile agility
-	var torque_strength = angle * mass * properties.total_lift * 10.0  # Increase scale factor if needed
-
-	return rotation_axis * torque_strength
-
-
-func calculate_guidance_torque(_delta: float) -> Vector3:
-	if not targeting.target:
-		return Vector3.ZERO
-	
-	var speed = linear_velocity.length()
-	if speed < min_effective_speed:
-		return Vector3.ZERO
-	
-	# Calculate direction to target
-	var to_target = targeting.target.global_position - global_position
-	var desired_dir = to_target.normalized()
-	var current_dir = global_transform.basis.y.normalized()
-	
-	# Calculate error angle and axis
-	var dot_val = clamp(current_dir.dot(desired_dir), -1.0, 1.0)
-	var error_angle = acos(dot_val)
-	
-	var error_axis = current_dir.cross(desired_dir)
-	if error_axis.length() < 0.001:
-		return Vector3.ZERO  # Already aligned
-	
-	error_axis = error_axis.normalized()
-	
-	# Calculate guidance torque based on speed and total lift authority
-	var gain = properties.total_lift * speed
-	var speed_scale = clamp(speed / min_effective_speed, 0.0, max_lift_coef)
-	
-	var oog = error_axis * (error_angle * gain * speed_scale)
-	
-	return oog
-
-
-func apply_physics_forces(forces, torques, delta):
-	var substeps = 3
-	var _sub_delta = delta / substeps
-	
-	for _i in range(substeps):
-		# Combine all forces
-		var total_force = forces.thrust + forces.gravity
+	# Align the missile to its velocity
+	var vel = linear_velocity
+	var speed = vel.length()
+	if speed > min_speed:
+		var vel_dir = vel.normalized()
+		var axis = forward_dir.cross(vel_dir)
+		var angle = forward_dir.angle_to(vel_dir)
 		
-		# Combine all torques
-		var total_torque = torques.guidance + torques.stabilization + torques.alignment
-		
-		# Scale torque using inertia tensor
-		var inverse_inertia = Vector3(
-			1.0 / max(0.05, inertia.x),
-			1.0 / max(0.05, inertia.y),
-			1.0 / max(0.05, inertia.z)
-		)
-
-		var scaled_torque = total_torque * inverse_inertia * 20.0
-
-		# Apply limits to prevent instability
-		var clamped_force = total_force.limit_length(100000.0)
-		var clamped_torque = scaled_torque.limit_length(10000.0)
-
-		print(total_force)
-		apply_force(clamped_force / substeps, centers["thrust"])
-		
-		# Apply torque more aggressively
-		apply_torque(clamped_torque)
-
-
-func destroy_missile():
-	var missile_list = LAUCNHER_CHILD_SHARE_GET("world", "missiles")
-	if missile_list:
-		missile_list.pop_back()
-		LAUCNHER_CHILD_SHARE_SET("world", "missiles", missile_list)
-	queue_free()
-
-
-func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
-	if launcher:
-		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data
-
-func LAUCNHER_CHILD_SHARE_GET(scene, key): # FOR DATA SHARE
-	if launcher:
-		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key]
-		return data
+		if axis.length() > 0.001 and angle > 0.001:
+			axis = axis.normalized()
+			# Increase the multiplier if you need stronger torque
+			var torque = axis * angle * 1000.0
+			apply_torque(torque)
