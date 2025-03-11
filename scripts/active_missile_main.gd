@@ -1,6 +1,6 @@
 extends RigidBody3D  # Vector up = missile forward
 
-@export var thrust_force: float = 50.0
+@export var thrust_force: float = 3000.0
 @export var min_speed: float = 10.0
 
 var blocks = []
@@ -31,6 +31,8 @@ func _ready() -> void:
 	linear_damp = 0.0
 	angular_damp = 0.0
 	mass = max(1.0, properties["mass"])
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = centers["mass"]
 
 func load_missile_blocks() -> void:
 	for child in get_children():
@@ -42,7 +44,6 @@ func calculate_centers() -> void:
 	var lift_blocks = 0
 	var thrust_blocks = 0
 	
-	# ───── DO NOT CHANGE THIS BLOCK ─────
 	for block:Node3D in blocks:
 		var block_pos = block.to_global(Vector3.ZERO)  
 		if block.DATA.has("TYPE"):
@@ -64,7 +65,6 @@ func calculate_centers() -> void:
 		if block.DATA.has("MASS"):
 			centers["mass"] += block_pos * block.DATA["MASS"]
 			total_mass += block.DATA["MASS"]
-	# ─────────────────────────────────────
 	
 	properties["mass"] = total_mass
 	
@@ -80,6 +80,7 @@ func _physics_process(_delta: float) -> void:
 	# Simple forward thrust
 	var forward_dir = global_transform.basis.y
 	apply_force(forward_dir * thrust_force, centers["thrust"])
+	apply_central_force(Vector3.DOWN * 9.81 * properties["mass"])
 
 	# Align the missile to its velocity
 	var vel = linear_velocity
