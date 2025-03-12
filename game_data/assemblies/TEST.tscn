@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://dfcpnnirrm4ol"]
+[gd_scene load_steps=17 format=3 uid="uid://dfcpnnirrm4ol"]
 
 [ext_resource type="PackedScene" uid="uid://bcfmfjxa0ibt3" path="res://game_data/blocks/ir_seeker.tscn" id="1_va8v4"]
 [ext_resource type="PackedScene" uid="uid://yw4re2eruv0u" path="res://game_data/blocks/controller.tscn" id="3_jhu2r"]
@@ -51,6 +51,10 @@ albedo_color = Color(1, 0, 0, 1)
 [sub_resource type="BoxMesh" id="BoxMesh_o8msm"]
 material = SubResource("StandardMaterial3D_yg2c5")
 size = Vector3(0.2, 0.2, 0.2)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_m6jee"]
+margin = 0.05
+size = Vector3(1, 9, 1)
 
 [node name="MissileRoot" type="Node3D"]
 
@@ -170,3 +174,7 @@ amount = 10000
 lifetime = 5.0
 process_material = SubResource("ParticleProcessMaterial_mbu0u")
 draw_pass_1 = SubResource("BoxMesh_o8msm")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
+shape = SubResource("BoxShape3D_m6jee")
