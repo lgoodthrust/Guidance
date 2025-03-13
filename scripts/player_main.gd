@@ -12,7 +12,6 @@ extends CharacterBody3D
 @export var IN_NOCLIP_ACCEL := 50.0
 @export var JUMP_VELOCITY := 4.5
 
-
 @export_subgroup("Clamp Head Rotation")
 @export var CLAMP_HEAD_ROTATION := true
 @export var CLAMP_HEAD_ROTATION_MIN := -90.0
@@ -56,18 +55,15 @@ var start_pos : Vector3
 var launcher = Node # FOR DATA SHARE
 var Camera: Camera3D
 
-
 func _ready():
 	launcher = self.get_parent() # FOR DATA SHARE
 	
 	Camera = $Player_Camera
-	
+	LAUCNHER_CHILD_SHARE_SET("player", "camera", Camera)
 	if CAPTURE_ON_START:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	
 	start_pos = Camera.position
-	
-
 
 func _physics_process(delta):
 	if UPDATE_PLAYER_ON_PHYS_STEP:
@@ -76,7 +72,6 @@ func _physics_process(delta):
 		toggle_msl_follow(msl_follow_tog)
 		toggle_slomo(slomo_tog)
 		toggle_zoom(zoom_tog)
-
 
 func _process(delta):
 	if !UPDATE_PLAYER_ON_PHYS_STEP:
@@ -95,11 +90,9 @@ func _process(delta):
 	if Input.is_action_just_pressed(KEY_BIND_SLOMO):
 		slomo_tog =! slomo_tog
 
-
 func _input(event):
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED: # if mouse moving, rotate
 		set_rotation_target(event.relative)
-
 
 func set_rotation_target(mouse_motion : Vector2):
 	if zoom_tog:
@@ -111,7 +104,7 @@ func set_rotation_target(mouse_motion : Vector2):
 	
 	if CLAMP_HEAD_ROTATION:
 		rotation_target = clamp(rotation_target, deg_to_rad(CLAMP_HEAD_ROTATION_MIN), deg_to_rad(CLAMP_HEAD_ROTATION_MAX))
-	
+
 func rotate_player(delta):
 	if MOUSE_ACCEL:
 		quaternion = quaternion.slerp(Quaternion(Vector3.UP, rotation_target_player), KEY_BIND_MOUSE_ACCEL * delta)
@@ -119,7 +112,6 @@ func rotate_player(delta):
 	else:
 		quaternion = Quaternion(Vector3.UP, rotation_target_player)
 		Camera.quaternion = Quaternion(Vector3.RIGHT, rotation_target)
-
 
 func move_player(delta):
 	var input_dir = Input.get_vector(KEY_BIND_LEFT, KEY_BIND_RIGHT, KEY_BIND_UP, KEY_BIND_DOWN)
@@ -175,8 +167,8 @@ func move_player(delta):
 
 func toggle_slomo(enable):
 	if enable and Engine.time_scale == 1.0:
-		Engine.time_scale = 0.25
-	elif not enable and Engine.time_scale == 0.25:
+		Engine.time_scale = 0.125
+	elif not enable and Engine.time_scale == 0.125:
 		Engine.time_scale = 1.0
 
 func toggle_zoom(enable):
@@ -184,7 +176,7 @@ func toggle_zoom(enable):
 		Camera.fov = 10.0
 	if not enable and Camera.fov == 10.0:
 		Camera.fov = 75.0
-	
+
 
 var back_step := false
 func toggle_msl_follow(enabled: bool):

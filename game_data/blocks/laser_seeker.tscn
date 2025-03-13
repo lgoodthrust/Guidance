@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://b1q1lsdrk07ru"]
+
+[ext_resource type="Material" uid="uid://cj6l10iuw5mrx" path="res://textures/metal_2.tres" id="1_rrq20"]
+[ext_resource type="Script" path="res://scripts/block_scripts/laser_seeker.gd" id="1_u4l8o"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_1nlsl"]
+material = ExtResource("1_rrq20")
+height = 0.5
+radial_segments = 16
+rings = 16
+is_hemisphere = true
+
+[node name="Laser_Seeker" type="Node3D"]
+script = ExtResource("1_u4l8o")
+
+[node name="Model_Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+mesh = SubResource("SphereMesh_1nlsl")

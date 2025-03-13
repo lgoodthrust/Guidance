@@ -3,7 +3,6 @@ extends Node3D
 @export var intersection_distance: float = 3000.0  # Distance in front of leader node
 
 
-
 var launcher: Node # FOR DATA SHARE
 var leader_node: Node3D  # The node to follow
 var loader_saver
@@ -28,13 +27,13 @@ func _physics_process(_delta: float) -> void:
 func look_dir(node, look_vec):
 	if not leader_node:
 		return
-
+	
 	# Get leader node's forward direction (-Z in Godot)
 	var leader_forward = -leader_node.global_transform.basis.z
-
+	
 	# Compute the intersection point 1000m ahead in leader's forward direction
 	var target_position = leader_node.global_transform.origin + leader_forward * intersection_distance
-
+	
 	# Rotate this node to face the target position
 	node.look_at(target_position, look_vec)
 

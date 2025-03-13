@@ -7,8 +7,6 @@ extends Camera3D
 @export var SPEED := 100.0
 @export var ACCEL := 150.0
 
-
-
 @export_subgroup("Clamp Head Rotation")
 @export var CLAMP_HEAD_ROTATION := true
 @export var CLAMP_HEAD_ROTATION_MIN := -90.0
