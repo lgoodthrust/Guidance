@@ -6,7 +6,7 @@ var drift_rate: float = 0.05
 var current_drift: Vector2 = Vector2.ZERO
 var time: float = 0.0
 
-var forward_velocity: float = 25.0
+var forward_velocity: float = 50.0
 var forward_acceleration: float = 10.0
 
 # Yaw and pitch targets

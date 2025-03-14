@@ -108,6 +108,11 @@ func switch_to_tester():
 	if scene2 == InstancePlaceholder:
 		return
 	scene2.show()
+	LAUCNHER_CHILD_SHARE_GET("world", "SPAWNER").active_builder = false
+	var scene4 = LAUCNHER_CHILD_SHARE_GET("world", "TARGET")
+	if scene4 == InstancePlaceholder:
+		return
+	scene4.process_mode = Node.PROCESS_MODE_INHERIT
 	scene2.process_mode = Node.PROCESS_MODE_INHERIT
 	
 	var scene3 = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
@@ -132,6 +137,11 @@ func switch_to_builder():
 	if scene2 == InstancePlaceholder:
 		return
 	scene2.hide()
+	LAUCNHER_CHILD_SHARE_GET("world", "SPAWNER").active_builder = true
+	var scene4 = LAUCNHER_CHILD_SHARE_GET("world", "TARGET")
+	if scene4 == InstancePlaceholder:
+		return
+	scene4.process_mode = Node.PROCESS_MODE_DISABLED
 	scene2.process_mode = Node.PROCESS_MODE_DISABLED
 	
 	var scene3 = LAUCNHER_CHILD_SHARE_GET("scenes", "builder")

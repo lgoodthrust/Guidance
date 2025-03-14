@@ -1,0 +1,28 @@
+[gd_scene load_steps=5 format=3 uid="uid://6mfhdv1x06sq"]
+
+[ext_resource type="Script" path="res://scripts/block_scripts/radar_seeker.gd" id="1_xo6q8"]
+[ext_resource type="Material" uid="uid://bsp25tb57gxir" path="res://textures/metal_3.tres" id="2_nlixr"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_x0txt"]
+material = ExtResource("2_nlixr")
+height = 0.225
+radial_segments = 16
+rings = 16
+is_hemisphere = true
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_j0s7l"]
+material = ExtResource("2_nlixr")
+height = 0.8
+radial_segments = 16
+rings = 2
+
+[node name="Radar_Seeker" type="Node3D"]
+script = ExtResource("1_xo6q8")
+
+[node name="Model_Mesh" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.275, 0)
+mesh = SubResource("SphereMesh_x0txt")
+
+[node name="Model_Mesh2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.12141, 0)
+mesh = SubResource("CylinderMesh_j0s7l")

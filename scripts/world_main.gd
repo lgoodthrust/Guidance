@@ -16,6 +16,7 @@ func _ready():
 	launcher = self.get_parent() # FOR DATA SHARE
 	_initialize_noise()
 	LAUCNHER_CHILD_SHARE_SET("world", "TARGET", get_node("Active_Target"))
+	LAUCNHER_CHILD_SHARE_SET("world", "SPAWNER", get_node("Missile_Spawner"))
 
 
 func _initialize_noise():

@@ -16,6 +16,7 @@ var blocks = []
 var life := 0.0
 var target_distance
 
+
 var centers = {
 	"mass": Vector3.ZERO,
 	"pressure": Vector3.ZERO,
@@ -27,6 +28,7 @@ var properties = {
 	"mass": 0.0,
 	"total_lift": 0.0,
 	"has_seeker": false,
+	"seeker_type": 0, # 0 = non, 1 = ir, 2 = saclos, 3 = radar
 	"has_front_cannard": false,
 	"has_back_cannard": false,
 	"has_warhead": false,
@@ -34,6 +36,7 @@ var properties = {
 	"has_motor": false
 }
 
+@onready var adv_move = ADV_MOVE.new()
 @onready var pidx = PID.new()
 @onready var pidy = PID.new()
 
@@ -46,7 +49,7 @@ func _ready() -> void:
 	freeze = false
 	gravity_scale = 0.0
 	linear_damp = 0.001
-	angular_damp = 0.001
+	angular_damp = 2.0
 	mass = max(1.0, properties["mass"])
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = centers["mass"]
@@ -145,6 +148,12 @@ func calculate_centers() -> void:
 		if block.DATA.has("TYPE"):
 			if block.DATA["TYPE"] == 1:
 				properties["has_seeker"] = true
+				if block.DATA["NAME"] == "IR_Seeker":
+					properties["seeker_type"] = 1
+				if block.DATA["NAME"] == "Laser_Seeker":
+					properties["seeker_type"] = 2
+				if block.DATA["NAME"] == "Radar_Seeker":
+					properties["seeker_type"] = 3
 			
 			if block.DATA["TYPE"] == 3:
 				properties["has_warhead"] = true
@@ -235,17 +244,16 @@ func aim_and_torque_at_target(delta):
 		kaboom()
 	
 	# If in range and we have IR seeker, we attempt to steer
-	if target_distance < max_range and properties["has_seeker"] and properties["has_motor"]:
+	if target_distance < max_range and properties["has_seeker"]:
 		var input_angles = _get_target_angles_in_degrees(target)
-		var guidance_output = guidance_control_law(input_angles, delta)
-		
+		var guidance_output = guidance_control_law(input_angles, delta, properties["seeker_type"])
 		_apply_pitch_yaw_torque(guidance_output)
 
 # ----------------------------------------------------------
 #  CUSTOM GUIDANCE LAW
 # ----------------------------------------------------------
 var prev_angles = Vector2.ZERO  # store angles from previous frame
-var p_tick := 1
+var p_tick := 1000
 var p_tick_cur := 0
 @export_subgroup("Guidance")
 @export var YAW_KP = 1.0
@@ -255,34 +263,46 @@ var p_tick_cur := 0
 @export var PITCH_KI = 0.0
 @export var PITCH_KD = 0.1
 @export var N_FACTOR = 3.0
-func guidance_control_law(relative_angles: Vector2, delta: float) -> Vector2:
+func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> Vector2:
 	p_tick_cur += 1
 	# `relative_angles.x` => horizontal angle (degrees) from forward
 	# `relative_angles.y` => vertical angle (degrees) from forward
 	
-	# Convert to local variables, flipping sign if needed for your coordinate system
-	var xval = -relative_angles.x
-	var yval =  relative_angles.y
-
-	# Calculate LOS angle rates (deg/s)
-	var d_xval = (xval - prev_angles.x)
-	var d_yval = (yval - prev_angles.y)
-	
-	# Missile speed along forward axis (approx "closing speed" if target is in front).
+	var xval = 0
+	var yval = 0
 	var vel = linear_velocity.length()
+	var vel_sq = linear_velocity.length_squared()
+	var distance = target_distance
 	
-	# Compute LOS rate-based acceleration
-	var los_rate_x = d_xval  # Approximate LOS rate in horizontal direction
-	var los_rate_y = d_yval  # Approximate LOS rate in vertical direction
-	
-	# Proportional Navigation (PN) parameters
-	var _acc_x = N_FACTOR * vel * los_rate_x  # PN acceleration command (horizontal)
-	var _acc_y = N_FACTOR * vel * los_rate_y  # PN acceleration command (vertical)
+	if type == 1: # ir
+		xval = -relative_angles.x
+		yval =  relative_angles.y
+	elif type == 2: # SACLOS (beam-riding)
+		var target_position = Vector3()
+		var missile_speed = 1
+		var player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
+		if player:
+			var player_aim_dir = -player.global_transform.basis.z  # Player's forward direction
+			target_position = player.global_transform.origin + player_aim_dir * 10000.0
+		
+		var vec = -adv_move.force_to_forward(delta, self, Vector3.UP, target_position)
+		vec = vec * vel_sq * properties["mass"]
+		apply_force(vec)
+		print(vec)
+		
+		xval = 0
+		yval = 0
+	elif type == 3: # radar
+		xval = -relative_angles.x + (distance/vel)*prev_angles.x
+		yval =  relative_angles.y + (distance/vel)*prev_angles.y
+	else: # non
+		xval = 0
+		yval = 0
 
 	var leadx = xval
 	var leady = yval
 	
-	# PID update for smooth correction with clamping
+	# PID update
 	var cmd_x = pidx.update(delta, leadx, 0, YAW_KP, YAW_KI, YAW_KD)
 	var cmd_y = pidy.update(delta, leady, 0, PITCH_KP, PITCH_KI, PITCH_KD)
 	
@@ -332,13 +352,14 @@ func _get_target_angles_in_degrees(target: Node3D) -> Vector2:
 #   HELPER: Apply the pitch/yaw torque in degrees
 # ----------------------------------------------------------
 func _apply_pitch_yaw_torque(guidance_output: Vector2) -> void:
-	var pitch_rad = deg_to_rad(guidance_output.x)/PI
-	var yaw_rad   = deg_to_rad(guidance_output.y)/PI
+	var pitch_rad = deg_to_rad(guidance_output.x) / PI
+	var yaw_rad = deg_to_rad(guidance_output.y) / PI
 	
-	var local_x = global_transform.basis.x.normalized()
-	var local_z = global_transform.basis.z.normalized()
+	var local_x = global_transform.basis.x.normalized()  # Right direction
+	var local_z = global_transform.basis.z.normalized()  # "Fake" forward (since Y is real forward)
 	
-	var pitch_torque = local_x * pitch_rad
-	var yaw_torque   = local_z * yaw_rad
+	var pitch_torque = local_x * pitch_rad  # Control up/down rotation
+	var yaw_torque = local_z * yaw_rad  # Control left/right rotation
 	
-	apply_torque((pitch_torque + yaw_torque) * linear_velocity.length_squared())
+	# Apply torque (scaled by velocity to make control more responsive at higher speeds)
+	apply_torque((pitch_torque + yaw_torque) * linear_velocity.length_squared() * 1.2)

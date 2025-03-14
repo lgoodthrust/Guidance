@@ -6,6 +6,7 @@ extends Node3D
 var launcher: Node # FOR DATA SHARE
 var leader_node: Node3D  # The node to follow
 var loader_saver
+var active_builder := false
 
 var list_o_msls:Array = []
 
@@ -16,7 +17,7 @@ func _ready():
 	loader_saver = Loader_Saver.new(self, {}, 1.0)
 
 func _process(_delta: float) -> void:
-	if Input.is_action_just_pressed("key_mouse_left"):
+	if Input.is_action_just_pressed("key_mouse_left") and not active_builder:
 		spawn_missile()
 
 
