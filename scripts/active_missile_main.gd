@@ -1,20 +1,29 @@
 extends RigidBody3D  # Vector up = missile forward
 
 @export_subgroup("Main")
-@export var thrust_force: float = 500.0
-@export var min_effective_speed: float = 50.0
+@export var thrust_force: float = 300.0
+@export var min_effective_speed: float = 15.0
 @export var lifetime: float = 15.0
 @export var max_range = 3500.0
-@export var seeker_fov = 15
+@export var seeker_fov = 22.5
+@export var unlocked_detonation_delay = 1.5
 @export var motor_delay = 0.25
-@export var fuel_block_duration = 0.75
+@export var fuel_block_duration = 2.5
 @export var launch_charge_force = 3000.0
 @export var proximity_detonation_radius = 15.0
 
 var launcher
 var blocks = []
 var life := 0.0
-var target_distance
+var target_distance = 0.0
+var unlocked_life = 0.0
+
+
+var cur_accel: Vector3 = Vector3.ZERO
+var vel =  Vector3.ZERO
+var vel_sq =  Vector3.ZERO
+var vel_dir =  Vector3.ZERO
+var cur_dir =  Vector3.ZERO
 
 
 var centers = {
@@ -36,6 +45,7 @@ var properties = {
 	"has_motor": false
 }
 
+@onready var effects = gpu_particle_effects.new()
 @onready var adv_move = ADV_MOVE.new()
 @onready var pidx = PID.new()
 @onready var pidy = PID.new()
@@ -48,8 +58,8 @@ func _ready() -> void:
 	# Minimal physics setup
 	freeze = false
 	gravity_scale = 0.0
-	linear_damp = 0.001
-	angular_damp = 2.0
+	linear_damp = 0
+	angular_damp = 0
 	mass = max(1.0, properties["mass"])
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = centers["mass"]
@@ -58,78 +68,11 @@ var smoking = false
 func smoke():
 	if not smoking:
 		smoking = true
-		var color = Color8(128, 128, 128, 200)
-		var gpup = GPUParticles3D.new()
-		gpup.amount = 3000
-		gpup.one_shot = false
-		gpup.fixed_fps = 45.0
-		gpup.explosiveness = 0.125
-		gpup.lifetime = 3.0
-		var ppm = ParticleProcessMaterial.new()
-		ppm.gravity = Vector3.UP * 0.25
-		ppm.inherit_velocity_ratio = 0.25
-		gpup.process_material = ppm
-		gpup.draw_passes = 1
-		var bm = BoxMesh.new()
-		bm.size = Vector3(0.1, 0.1, 0.1)
-		var bmm = StandardMaterial3D.new()
-		bmm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
-		bmm.albedo_color = color
-		bmm.emission_enabled = true
-		bmm.emission = color
-		bmm.emission_energy_multiplier = 1.0
-		bm.material = bmm
-		gpup.draw_pass_1 = bm
-		self.add_child(gpup)
-
-func kaboom():
-	var c = Curve.new()
-	c.bake_resolution = 32
-	c.add_point(Vector2(0,1), 0, -1)
-	c.add_point(Vector2(1,0), -1, 0)
-	
-	var ct = CurveTexture.new()
-	ct.width = 32
-	ct.curve = c
-	
-	var ppm = ParticleProcessMaterial.new()
-	ppm.inherit_velocity_ratio = 0.01
-	ppm.initial_velocity_min = 200.0
-	ppm.initial_velocity_max = 500.0
-	ppm.spread = 180.0
-	ppm.gravity = Vector3.ZERO
-	ppm.scale_min = 0.5
-	ppm.scale_max = 1.0
-	ppm.scale_curve = ct
-	
-	var sm = StandardMaterial3D.new()
-	sm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	sm.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	sm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
-	sm.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	sm.disable_ambient_light = true
-	sm.emission_enabled = true
-	sm.emission = Color8(255,255,255,255)
-	
-	var bm = BoxMesh.new()
-	bm.size = Vector3(0.5,0.5,0.5)
-	bm.material = sm
-	
-	var gpup = GPUParticles3D.new()
-	gpup.amount = 100
-	gpup.one_shot = true
-	gpup.lifetime = 0.125
-	gpup.explosiveness = 1.0
-	gpup.fixed_fps = 15
-	gpup.process_material = ppm
-	gpup.draw_pass_1 = bm
-	get_parent().add_child(gpup)
-	gpup.global_position = self.global_position
-	remove()
+		#self.add_child(effects.smoke_01())
 
 func remove():
 	var missile_list = launcher.LAUCNHER_CHILD_SHARED_DATA["world"]["missiles"]
-	if missile_list:
+	if typeof(missile_list) == 28:
 		missile_list.pop_back()
 		launcher.LAUCNHER_CHILD_SHARED_DATA["world"]["missiles"] = missile_list
 	queue_free()
@@ -197,64 +140,102 @@ func calculate_centers() -> void:
 		centers["thrust"] /= thrust_blocks
 
 func _physics_process(delta: float) -> void:
+	vel = linear_velocity.length()
+	vel_sq = linear_velocity.length_squared()
+	vel_dir = linear_velocity.normalized()
+	cur_dir = global_transform.basis.y.normalized()
+	
+	#print("speed: ", vel)
+	#print("distance: ", target_distance)
+	#print("impact time: ", target_distance / vel)
+	
 	if life < 0.01:
 		# Small impulse at spawn
-		apply_impulse(global_transform.basis.y.normalized() * launch_charge_force)
+		apply_impulse(cur_dir * launch_charge_force)
 	
 	life += delta
 	
 	if life >= lifetime:
 		remove()
 	
-	var forward_dir = global_transform.basis.y.normalized()
+	if unlocked_life >= unlocked_detonation_delay:
+		var kaboom = effects.explotion_01()
+		var node = get_tree().current_scene.get_node_or_null(".")
+		node.add_child(kaboom)
+		kaboom.global_transform = global_transform
+		remove()
 	
 	# Apply thrust if there's still "fuel" time
 	if properties["fuel"] > life and life > motor_delay and properties["has_motor"]:
-		apply_force(forward_dir * thrust_force * properties["mass"], centers["thrust"])
+		apply_force(cur_dir * thrust_force * properties["mass"], centers["thrust"])
 		smoke()
 	
-	# Apply weight force
+	# Apply weight/gravity force
 	apply_central_force(Vector3.DOWN * 9.80665 * properties["mass"])
 	
 	# If moving faster than a certain speed
 	if linear_velocity.length() > min_effective_speed:
+		
+		var A = -0.25 # val > 0 = +aim -flight, val < 0 = -aim +flight
+		
 		# Apply aerodynamic alignment (forward flight toward missile's forward direction)
-		var vel_dir = linear_velocity.normalized()
-		var afd = (forward_dir - vel_dir).normalized()
-		var afm = forward_dir.angle_to(vel_dir) * linear_velocity.length_squared()
-		apply_central_force(afd * afm * 0.8)
+		var afd = (cur_dir - vel_dir).normalized()
+		var afm = cur_dir.angle_to(vel_dir) * linear_velocity.length_squared()
+		apply_central_force(afd * afm * (1.0-A))
+		
+		# counteract unwanted de-acceleration forces from alignment forces
+		var anti_drag = -cur_accel * 0.85
+		apply_central_force(anti_drag * cur_dir)
 		
 		# apply aerodynamic alignment (missile toward foward flight)
-		var axis = forward_dir.cross(vel_dir)
-		var angle = forward_dir.angle_to(vel_dir)
+		var axis = cur_dir.cross(vel_dir)
+		var angle = cur_dir.angle_to(vel_dir)
 		if axis.length() > 0.001 and angle > 0.001:
 			var torque = axis.normalized() * angle
-			apply_torque(torque * linear_velocity.length_squared() * 1.2)
+			apply_torque(torque * linear_velocity.length_squared() * (1.0+A))
 		
-		aim_and_torque_at_target(delta)
-
-func aim_and_torque_at_target(delta):
-	var target = get_tree().current_scene.get_node_or_null("World/Active_Target")
-	if not target:
-		return
-	
-	target_distance = global_transform.origin.distance_to(target.global_transform.origin)
-	
-	if target_distance <= proximity_detonation_radius and properties["has_warhead"]:
-		kaboom()
-	
-	# If in range and we have IR seeker, we attempt to steer
-	if target_distance < max_range and properties["has_seeker"]:
-		var input_angles = _get_target_angles_in_degrees(target)
-		var guidance_output = guidance_control_law(input_angles, delta, properties["seeker_type"])
-		_apply_pitch_yaw_torque(guidance_output)
+		# target exists
+		var target = get_tree().current_scene.get_node_or_null("World/Active_Target")
+		if not target:
+			return
+		else:
+			target_distance = global_transform.origin.distance_to(target.global_transform.origin)
+		
+		# proximity detination
+		if target_distance <= proximity_detonation_radius and properties["has_warhead"]:
+			var kaboom = effects.explotion_01()
+			var node = get_tree().current_scene.get_node_or_null(".")
+			node.add_child(kaboom)
+			kaboom.global_transform = global_transform
+			remove()
+		
+		# if ir or radar seeker
+		var input_angles = get_target_angles_in_degrees(target)
+		if not input_angles == Vector2.ZERO:
+			unlocked_life = 0
+			if properties["seeker_type"] == 1 or properties["seeker_type"] == 3:
+				# If in seeker range, we attempt to steer
+				if target_distance < max_range and properties["has_seeker"]:
+					
+					var guidance_output = guidance_control_law(input_angles, delta, properties["seeker_type"])
+					_apply_pitch_yaw_torque(guidance_output)
+			
+		# if laser seeker
+		if properties["seeker_type"] == 2:
+			if properties["has_seeker"]:
+				guidance_control_law(input_angles, delta, properties["seeker_type"])
+		
+		if input_angles == Vector2.ZERO and not properties["seeker_type"] == 2:
+			unlocked_life += delta
+		
+		cur_accel = linear_velocity - cur_accel
 
 # ----------------------------------------------------------
 #  CUSTOM GUIDANCE LAW
 # ----------------------------------------------------------
 var prev_angles = Vector2.ZERO  # store angles from previous frame
-var p_tick := 1000
-var p_tick_cur := 0
+var p_tick := 8 # for debig print interval
+var p_tick_cur := 0 # for debig print interval
 @export_subgroup("Guidance")
 @export var YAW_KP = 1.0
 @export var YAW_KI = 0.0
@@ -262,7 +243,7 @@ var p_tick_cur := 0
 @export var PITCH_KP = 1.0
 @export var PITCH_KI = 0.0
 @export var PITCH_KD = 0.1
-@export var N_FACTOR = 3.0
+@export var N_FACTOR = 5.0
 func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> Vector2:
 	p_tick_cur += 1
 	# `relative_angles.x` => horizontal angle (degrees) from forward
@@ -270,46 +251,61 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> 
 	
 	var xval = 0
 	var yval = 0
-	var vel = linear_velocity.length()
-	var vel_sq = linear_velocity.length_squared()
-	var distance = target_distance
+	var x_rate = (-relative_angles.x - prev_angles.x) * delta
+	var y_rate = (relative_angles.y - prev_angles.y) * delta
 	
 	if type == 1: # ir
 		xval = -relative_angles.x
 		yval =  relative_angles.y
-	elif type == 2: # SACLOS (beam-riding)
+	
+	elif type == 2: # SACLOS/laser (beam-riding)
 		var target_position = Vector3()
-		var missile_speed = 1
 		var player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
 		if player:
 			var player_aim_dir = -player.global_transform.basis.z  # Player's forward direction
 			target_position = player.global_transform.origin + player_aim_dir * 10000.0
 		
-		var vec = -adv_move.force_to_forward(delta, self, Vector3.UP, target_position)
-		vec = vec * vel_sq * properties["mass"]
-		apply_force(vec)
-		print(vec)
+		var vec = adv_move.force_to_forward(delta, self, Vector3.DOWN, target_position)
+		apply_force(vec * vel_sq * properties["mass"])
 		
 		xval = 0
 		yval = 0
-	elif type == 3: # radar
-		xval = -relative_angles.x + (distance/vel)*prev_angles.x
-		yval =  relative_angles.y + (distance/vel)*prev_angles.y
+	
+	elif type == 3: # radar / some intercept with leading
+		# Convert relative angles from degrees to radians.
+		# Here, relative_angles.x is yaw (ψ) and relative_angles.y is pitch (θ).
+		@warning_ignore("unused_variable")
+		var yaw_angle_rad = deg_to_rad(relative_angles.x)
+		var pitch_angle_rad = deg_to_rad(relative_angles.y)
+		
+		# Compute incremental turning commands in radians over the time step 'delta'
+		# Use the pitch angle (pitch_angle_rad) in the cosine factor for yaw.
+		var yaw_delta_rad = N_FACTOR * x_rate * cos(pitch_angle_rad) * delta
+		var pitch_delta_rad = N_FACTOR * y_rate * delta
+		
+		# Convert the incremental changes to degrees.
+		var yaw_command_deg = rad_to_deg(yaw_delta_rad)
+		var pitch_command_deg = rad_to_deg(pitch_delta_rad)
+		
+		# Assign the commands to the missile controls.
+		# (Assuming a negative yaw command means turning left.)
+		xval = -yaw_command_deg  # Yaw command (in degrees)
+		yval = pitch_command_deg # Pitch command (in degrees)
+	
 	else: # non
 		xval = 0
 		yval = 0
-
-	var leadx = xval
-	var leady = yval
 	
 	# PID update
-	var cmd_x = pidx.update(delta, leadx, 0, YAW_KP, YAW_KI, YAW_KD)
-	var cmd_y = pidy.update(delta, leady, 0, PITCH_KP, PITCH_KI, PITCH_KD)
+	var cmd_x = pidx.update(delta, 0, xval, YAW_KP, YAW_KI, YAW_KD)
+	var cmd_y = pidy.update(delta, 0, yval, PITCH_KP, PITCH_KI, PITCH_KD)
 	
 	if p_tick_cur >= p_tick:
 		print()
 		print("cmd yaw: ", cmd_x)
 		print("cmd pitch: ", cmd_y)
+		print("x rate: ", x_rate)
+		print("y rate: ", y_rate)
 		p_tick_cur = 0
 	
 	# Clamp commands and update prev_angles for next frame
@@ -322,24 +318,17 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> 
 #   HELPER: Compute horizontal & vertical angles (in degrees)
 #   from missile forward direction to the target
 # ----------------------------------------------------------
-func _get_target_angles_in_degrees(target: Node3D) -> Vector2:
-	var forward_dir = global_transform.basis.y
+func get_target_angles_in_degrees(target: Node3D) -> Vector2:
 	var to_target = (target.global_transform.origin - global_transform.origin).normalized()
 	
 	# Horizontal angle (yaw-like):
 	var right_dir = global_transform.basis.x
-	var horizontal_angle_radians = atan2(
-		to_target.dot(right_dir),
-		to_target.dot(forward_dir)
-	)
+	var horizontal_angle_radians = atan2(to_target.dot(right_dir), to_target.dot(cur_dir))
 	var horizontal_angle_degrees = rad_to_deg(horizontal_angle_radians)
 	
 	# Vertical angle (pitch-like):
 	var up_dir = global_transform.basis.z
-	var vertical_angle_radians = atan2(
-		to_target.dot(up_dir),
-		to_target.dot(forward_dir)
-	)
+	var vertical_angle_radians = atan2(to_target.dot(up_dir), to_target.dot(cur_dir))
 	var vertical_angle_degrees = rad_to_deg(vertical_angle_radians)
 	
 	# if the missile can see the target, it can see the target
@@ -357,9 +346,13 @@ func _apply_pitch_yaw_torque(guidance_output: Vector2) -> void:
 	
 	var local_x = global_transform.basis.x.normalized()  # Right direction
 	var local_z = global_transform.basis.z.normalized()  # "Fake" forward (since Y is real forward)
+	var local_y = global_transform.basis.y.normalized()  # anti roll formula
+	
+	var roll = -local_y.dot(Vector3.FORWARD) * local_x * 0.125  # anti roll formula
 	
 	var pitch_torque = local_x * pitch_rad  # Control up/down rotation
 	var yaw_torque = local_z * yaw_rad  # Control left/right rotation
+	var roll_torque = roll
 	
 	# Apply torque (scaled by velocity to make control more responsive at higher speeds)
-	apply_torque((pitch_torque + yaw_torque) * linear_velocity.length_squared() * 1.2)
+	apply_torque((pitch_torque + yaw_torque + roll_torque) * linear_velocity.length_squared())

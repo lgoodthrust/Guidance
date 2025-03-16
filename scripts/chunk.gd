@@ -6,7 +6,7 @@ var noise: FastNoiseLite
 var chunkX: int
 var chunkZ: int
 var chunkSize: int
-var thread: Thread = null  # Initialize as null to prevent issues
+var thread: Thread = null  # Initialized as null to prevent issues
 var ground_material: Material
 
 func _init(noiseParam: FastNoiseLite, chunkXParam: int, chunkZParam: int, chunkSizeParam: int):
@@ -27,7 +27,7 @@ func _threaded_generate_chunk():
 	
 	# Transfer to main thread
 	call_deferred("_apply_mesh", mesh)
-
+	
 	# Ensure thread cleanup
 	call_deferred("_cleanup_thread")
 
@@ -44,21 +44,26 @@ func _generate_mesh() -> ArrayMesh:
 	@warning_ignore("integer_division")
 	planeMesh.subdivide_width = chunkSize / 2
 
-	var surfaceTool = SurfaceTool.new()
-	surfaceTool.create_from(planeMesh, 0)
+	var st = SurfaceTool.new()
+	st.create_from(planeMesh, 0)
+	# Commit the initial mesh only once
+	var mesh = st.commit()
 
-	var dataTool = MeshDataTool.new()
-	dataTool.create_from_surface(surfaceTool.commit(), 0)
-
-	# Generate heightmap in separate thread
-	for i in range(dataTool.get_vertex_count()):
-		var vertex = dataTool.get_vertex(i)
+	var mdt = MeshDataTool.new()
+	mdt.create_from_surface(mesh, 0)
+	var vertex_count = mdt.get_vertex_count()
+	for i in range(vertex_count):
+		var vertex = mdt.get_vertex(i)
 		vertex.y = noise.get_noise_3d(vertex.x + chunkX, vertex.y, vertex.z + chunkZ) * 50
-		dataTool.set_vertex(i, vertex)
-
-	dataTool.commit_to_surface(surfaceTool.commit())
-	surfaceTool.generate_normals()
-	return surfaceTool.commit()
+		mdt.set_vertex(i, vertex)
+	mdt.commit_to_surface(mesh)
+	
+	# Reuse SurfaceTool to generate normals efficiently
+	st.clear()
+	st.create_from(mesh, 0)
+	st.generate_normals()
+	var final_mesh = st.commit()
+	return final_mesh
 
 func _apply_mesh(mesh: ArrayMesh):
 	meshInstance = MeshInstance3D.new()

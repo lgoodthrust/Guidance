@@ -109,6 +109,7 @@ func switch_to_tester():
 		return
 	scene2.show()
 	LAUCNHER_CHILD_SHARE_GET("world", "SPAWNER").active_builder = false
+	
 	var scene4 = LAUCNHER_CHILD_SHARE_GET("world", "TARGET")
 	if scene4 == InstancePlaceholder:
 		return
@@ -138,6 +139,7 @@ func switch_to_builder():
 		return
 	scene2.hide()
 	LAUCNHER_CHILD_SHARE_GET("world", "SPAWNER").active_builder = true
+	
 	var scene4 = LAUCNHER_CHILD_SHARE_GET("world", "TARGET")
 	if scene4 == InstancePlaceholder:
 		return

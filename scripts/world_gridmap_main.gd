@@ -32,7 +32,7 @@ func create_mesh_library():
 	# Create a material with a texture
 	var material = StandardMaterial3D.new()
 	material.albedo_texture = terrain_texture
-	material.uv1_scale = Vector3(30,30,30)  # Adjust to match grid scaling
+	material.uv1_scale = Vector3(30, 30, 30)  # Adjust to match grid scaling
 	material.roughness = 1.0  # Reduce shine
 	material.texture_repeat = StandardMaterial3D.TEXTURE_FILTER_LINEAR
 
@@ -49,34 +49,49 @@ func setup_noise():
 	noise.frequency = 0.01  # Lower frequency for larger terrain variation
 
 func generate_terrain():
+	# Precompute squared render distance to avoid square roots in every iteration.
+	var squared_render_distance = render_distance * render_distance
+
 	for x in range(-terrain_resolution, terrain_resolution):
 		for z in range(-terrain_resolution, terrain_resolution):
 			var world_x = x * tile_size
 			var world_z = z * tile_size
 			
-			# Only generate terrain within render distance
-			if Vector2(world_x, world_z).length() > render_distance:
+			# Use squared distance for efficiency
+			if (world_x * world_x + world_z * world_z) > squared_render_distance:
 				continue  # Skip tiles outside the render distance
 
-			var height = int((noise.get_noise_2d(x, z) + 1) * 0.5 * max_height)  # Normalize noise
-			height = clamp(height, tile_size, max_height)  # Ensure a minimum height
+			# Normalize noise value and clamp to ensure minimum tile height
+			var height = int((noise.get_noise_2d(x, z) + 1) * 0.5 * max_height)
+			height = clamp(height, tile_size, max_height)
 
-			for y in range(height / tile_size):
+			# Cache the number of vertical tiles needed
+			var y_tiles = height / tile_size
+			for y in range(y_tiles):
 				set_cell_item(Vector3i(x, y, z), 0)  # Place tile from MeshLibrary
 
 func generate_collision():
+	# Precompute half tile size and offsets to avoid recalculating them for each cell.
+	var half_tile = tile_size * 0.5
+	var offset0 = Vector3(-half_tile, 0, -half_tile)
+	var offset1 = Vector3(half_tile, 0, -half_tile)
+	var offset2 = Vector3(half_tile, 0, half_tile)
+	var offset3 = Vector3(-half_tile, 0, half_tile)
+
 	# Collect all vertex data for collision
 	var surface_tool = SurfaceTool.new()
 	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 
-	for cell in get_used_cells():
+	# Cache used cells to minimize repeated function calls
+	var used_cells = get_used_cells()
+	for cell in used_cells:
 		var world_pos = map_to_local(cell)
 
-		# Create quad faces for each tile
-		var v0 = world_pos + Vector3(-tile_size * 0.5, 0, -tile_size * 0.5)
-		var v1 = world_pos + Vector3(tile_size * 0.5, 0, -tile_size * 0.5)
-		var v2 = world_pos + Vector3(tile_size * 0.5, 0, tile_size * 0.5)
-		var v3 = world_pos + Vector3(-tile_size * 0.5, 0, tile_size * 0.5)
+		# Create quad faces for each tile using precomputed offsets
+		var v0 = world_pos + offset0
+		var v1 = world_pos + offset1
+		var v2 = world_pos + offset2
+		var v3 = world_pos + offset3
 
 		surface_tool.add_vertex(v0)
 		surface_tool.add_vertex(v1)
@@ -90,7 +105,7 @@ func generate_collision():
 	concave_shape = ConcavePolygonShape3D.new()
 	concave_shape.set_faces(mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX])
 
-	# Create a single `CollisionShape3D` for the terrain
+	# Create a single CollisionShape3D for the terrain collision
 	var col_shape = CollisionShape3D.new()
 	col_shape.shape = concave_shape
 	static_node.add_child(col_shape)

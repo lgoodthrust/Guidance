@@ -1,19 +1,8 @@
 [gd_scene load_steps=6 format=3 uid="uid://jdpjcqkyj5ab"]
 
 [ext_resource type="Material" uid="uid://bsp25tb57gxir" path="res://textures/metal_3.tres" id="1_6c147"]
+[ext_resource type="Script" path="res://scripts/block_scripts/rocket_motor.gd" id="1_k3htn"]
 [ext_resource type="Material" uid="uid://cj6l10iuw5mrx" path="res://textures/metal_2.tres" id="2_dosjh"]
-
-[sub_resource type="GDScript" id="GDScript_g7plg"]
-script/source = "extends Node3D
-@export_subgroup(\"META_DATA\")
-@export var DATA = {
-	\"NAME\": \"Rocket_Motor\",
-	\"MASS\": 5,
-	\"LIFT\": 0.0,
-	\"UDLRTB\": [-1,-1,0,0,0,0],
-	\"TYPE\": 8
-}
-"
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_wioo0"]
 material = ExtResource("1_6c147")
@@ -27,7 +16,7 @@ rings = 46
 ring_segments = 16
 
 [node name="Rocket_Motor" type="Node3D"]
-script = SubResource("GDScript_g7plg")
+script = ExtResource("1_k3htn")
 metadata/NAME = "IR_Seeker"
 metadata/MASS = 5.0
 metadata/UDLRFB = [0, -1, 0, 0, 0, 0]
