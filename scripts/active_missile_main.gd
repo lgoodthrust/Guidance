@@ -2,15 +2,15 @@ extends RigidBody3D  # Vector up = missile forward
 
 @export_subgroup("Main")
 @export var thrust_force: float = 300.0
-@export var min_effective_speed: float = 15.0
-@export var lifetime: float = 15.0
+@export var min_effective_speed: float = 50.0
+@export var lifetime: float = 10.0
 @export var max_range = 3500.0
-@export var seeker_fov = 22.5
+@export var seeker_fov = 15.0
 @export var unlocked_detonation_delay = 1.5
-@export var motor_delay = 0.25
-@export var fuel_block_duration = 2.5
+@export var motor_delay = 0.35
+@export var fuel_block_duration = 1.0
 @export var launch_charge_force = 3000.0
-@export var proximity_detonation_radius = 15.0
+@export var proximity_detonation_radius = 10.0
 
 var launcher
 var blocks = []
@@ -63,12 +63,24 @@ func _ready() -> void:
 	mass = max(1.0, properties["mass"])
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = centers["mass"]
+	
+	launch()
 
 var smoking = false
 func smoke():
 	if not smoking:
 		smoking = true
 		#self.add_child(effects.smoke_01())
+
+func launch():
+	var asp = AudioStreamPlayer3D.new()
+	asp.stream = load("res://game_data/sound/missile_01.mp3")
+	asp.volume_db = 0.0
+	asp.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
+	asp.max_distance = 3000.0
+	asp.doppler_tracking = true
+	add_child(asp)
+	asp.play()
 
 func remove():
 	var missile_list = launcher.LAUCNHER_CHILD_SHARED_DATA["world"]["missiles"]
@@ -143,7 +155,7 @@ func _physics_process(delta: float) -> void:
 	vel = linear_velocity.length()
 	vel_sq = linear_velocity.length_squared()
 	vel_dir = linear_velocity.normalized()
-	cur_dir = global_transform.basis.y.normalized()
+	cur_dir = global_transform.basis.y
 	
 	#print("speed: ", vel)
 	#print("distance: ", target_distance)
@@ -176,7 +188,7 @@ func _physics_process(delta: float) -> void:
 	# If moving faster than a certain speed
 	if linear_velocity.length() > min_effective_speed:
 		
-		var A = -0.25 # val > 0 = +aim -flight, val < 0 = -aim +flight
+		var A = -0.0 # val > 0 = +aim -flight, val < 0 = -aim +flight
 		
 		# Apply aerodynamic alignment (forward flight toward missile's forward direction)
 		var afd = (cur_dir - vel_dir).normalized()
@@ -239,10 +251,10 @@ var p_tick_cur := 0 # for debig print interval
 @export_subgroup("Guidance")
 @export var YAW_KP = 1.0
 @export var YAW_KI = 0.0
-@export var YAW_KD = 0.1
+@export var YAW_KD = 0.01
 @export var PITCH_KP = 1.0
 @export var PITCH_KI = 0.0
-@export var PITCH_KD = 0.1
+@export var PITCH_KD = 0.01
 @export var N_FACTOR = 5.0
 func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> Vector2:
 	p_tick_cur += 1
@@ -271,26 +283,8 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> 
 		xval = 0
 		yval = 0
 	
-	elif type == 3: # radar / some intercept with leading
-		# Convert relative angles from degrees to radians.
-		# Here, relative_angles.x is yaw (ψ) and relative_angles.y is pitch (θ).
-		@warning_ignore("unused_variable")
-		var yaw_angle_rad = deg_to_rad(relative_angles.x)
-		var pitch_angle_rad = deg_to_rad(relative_angles.y)
+	elif type == 3:
 		
-		# Compute incremental turning commands in radians over the time step 'delta'
-		# Use the pitch angle (pitch_angle_rad) in the cosine factor for yaw.
-		var yaw_delta_rad = N_FACTOR * x_rate * cos(pitch_angle_rad) * delta
-		var pitch_delta_rad = N_FACTOR * y_rate * delta
-		
-		# Convert the incremental changes to degrees.
-		var yaw_command_deg = rad_to_deg(yaw_delta_rad)
-		var pitch_command_deg = rad_to_deg(pitch_delta_rad)
-		
-		# Assign the commands to the missile controls.
-		# (Assuming a negative yaw command means turning left.)
-		xval = -yaw_command_deg  # Yaw command (in degrees)
-		yval = pitch_command_deg # Pitch command (in degrees)
 	
 	else: # non
 		xval = 0
@@ -344,9 +338,9 @@ func _apply_pitch_yaw_torque(guidance_output: Vector2) -> void:
 	var pitch_rad = deg_to_rad(guidance_output.x) / PI
 	var yaw_rad = deg_to_rad(guidance_output.y) / PI
 	
-	var local_x = global_transform.basis.x.normalized()  # Right direction
-	var local_z = global_transform.basis.z.normalized()  # "Fake" forward (since Y is real forward)
-	var local_y = global_transform.basis.y.normalized()  # anti roll formula
+	var local_x = global_transform.basis.x  # Right direction
+	var local_z = global_transform.basis.z  # "Fake" forward (since Y is real forward)
+	var local_y = global_transform.basis.y  # anti roll formula
 	
 	var roll = -local_y.dot(Vector3.FORWARD) * local_x * 0.125  # anti roll formula
 	
@@ -356,3 +350,34 @@ func _apply_pitch_yaw_torque(guidance_output: Vector2) -> void:
 	
 	# Apply torque (scaled by velocity to make control more responsive at higher speeds)
 	apply_torque((pitch_torque + yaw_torque + roll_torque) * linear_velocity.length_squared())
+
+# the algorithm
+var prev_msl_target_rel_rot := 0.0  # Store previous target-relative rotation
+func guidance_pn_cbdr(
+	delta: float,              # Delta time (seconds)
+	msl_forward_vel: float,    # Missile's velocity in its forward direction
+	msl_abs_rot: float,        # Missile's absolute rotation in world
+	msl_target_rel_rot: float, # Angle from missile heading to target
+	target_dis: float,         # Distance to target
+	nav_gain: float = 3.0      # Navigation gain (N factor)
+) -> float:
+	# Wrap the target-relative rotation to [-PI, PI]
+	var wrapped_target_rel_rot = wrapf(msl_target_rel_rot, -PI, PI)
+	
+	# Calculate Line-of-Sight (LOS) rate using finite difference
+	var los_rate = (wrapped_target_rel_rot - prev_msl_target_rel_rot) / delta
+	prev_msl_target_rel_rot = wrapped_target_rel_rot  # Store for next frame
+	
+	# Apply Proportional Navigation Law: a_n = N * Vc * LOS_rate
+	var lateral_accel = nav_gain * msl_forward_vel * los_rate
+	
+	# Convert acceleration to a rotational torque
+	var torque = lateral_accel
+	
+	# (optional) scale torque with distance
+	torque /= max(target_dis, 1.0)
+	
+	# Limit torque to prevent unrealistic movements
+	torque = clamp(torque, -10.0, 10.0)
+	
+	return torque  # Rotational torque for missile control

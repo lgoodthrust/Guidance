@@ -5,7 +5,6 @@ var camera: Camera3D
 var target: Node
 
 var FOV
-var tick = 0
 
 var w_size = DisplayServer.window_get_size()
 var v_size: Vector2 = DisplayServer.screen_get_size()
@@ -27,11 +26,7 @@ func _process(_delta: float) -> void:
 		target = get_tree().current_scene.get_tree().root.get_node_or_null("./Launcher/World/Active_Target")
 		return
 	
-	tick += 1
-	
-	if tick > 3:
-		tick = 0
-		queue_redraw()
+	queue_redraw()
 
 # Function to draw the target on screen
 func _draw() -> void:
@@ -53,4 +48,5 @@ func _draw() -> void:
 		# Draw the target indicator
 		var r_size = Vector2(radius, radius)
 		var r_shape = Rect2(screen_pos - (r_size / 2.0), r_size)
-		draw_rect(r_shape, color, filled, thickness, aa)
+		if not camera.is_position_behind(target.global_transform.origin):
+			draw_rect(r_shape, color, filled, thickness, aa)

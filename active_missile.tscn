@@ -1,8 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://chi0umgtsn28l"]
-
-[ext_resource type="Script" path="res://scripts/active_missile_main.gd" id="1_cnkyx"]
-
-[node name="Active_Missile" type="Node3D"]
-script = ExtResource("1_cnkyx")
-thrust_force = 0.0
-min_effective_speed = 5.0
