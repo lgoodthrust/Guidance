@@ -1,0 +1,19 @@
+[gd_scene load_steps=4 format=3 uid="uid://bqsxcyysx4jxh"]
+
+[ext_resource type="BoxMesh" uid="uid://bsifbucv4ggsy" path="res://gfdgdfgdfgdfgdfgdgdfgdfg.tres" id="1_behgl"]
+[ext_resource type="BoxMesh" uid="uid://s7nw073nc1vb" path="res://gfdgdfgdfgdfgdfgdgdfgdfg2.tres" id="2_40hdr"]
+[ext_resource type="BoxMesh" uid="uid://bbwn0l4yqlmmf" path="res://gfdgdfgdfgdfgdfgdgdfgdfg3.tres" id="3_8p4gr"]
+
+[node name="Node3D" type="Node3D"]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1)
+mesh = ExtResource("1_behgl")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 1, 0)
+mesh = ExtResource("2_40hdr")
+
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="."]
+transform = Transform3D(-4.37114e-08, 0, 1, 0, 1, 0, -1, 0, -4.37114e-08, 1, 0, 0)
+mesh = ExtResource("3_8p4gr")

@@ -2,13 +2,13 @@ extends RigidBody3D  # Vector up = missile forward
 
 @export_subgroup("Main")
 @export var thrust_force: float = 300.0
-@export var min_effective_speed: float = 50.0
-@export var lifetime: float = 10.0
+@export var min_effective_speed: float = 75.0
+@export var lifetime: float = 15.0
 @export var max_range = 3500.0
-@export var seeker_fov = 15.0
+@export var seeker_fov = 45.0
 @export var unlocked_detonation_delay = 1.5
 @export var motor_delay = 0.35
-@export var fuel_block_duration = 1.0
+@export var fuel_block_duration = 2.5
 @export var launch_charge_force = 3000.0
 @export var proximity_detonation_radius = 10.0
 
@@ -21,6 +21,7 @@ var unlocked_life = 0.0
 
 var cur_accel: Vector3 = Vector3.ZERO
 var vel =  Vector3.ZERO
+var vel_forward =  Vector3.ZERO
 var vel_sq =  Vector3.ZERO
 var vel_dir =  Vector3.ZERO
 var cur_dir =  Vector3.ZERO
@@ -156,6 +157,7 @@ func _physics_process(delta: float) -> void:
 	vel_sq = linear_velocity.length_squared()
 	vel_dir = linear_velocity.normalized()
 	cur_dir = global_transform.basis.y
+	vel_forward = cur_dir.dot(vel_dir)
 	
 	#print("speed: ", vel)
 	#print("distance: ", target_distance)
@@ -188,7 +190,7 @@ func _physics_process(delta: float) -> void:
 	# If moving faster than a certain speed
 	if linear_velocity.length() > min_effective_speed:
 		
-		var A = -0.0 # val > 0 = +aim -flight, val < 0 = -aim +flight
+		var A = 0.0 # val > 0 = +aim -flight, val < 0 = -aim +flight
 		
 		# Apply aerodynamic alignment (forward flight toward missile's forward direction)
 		var afd = (cur_dir - vel_dir).normalized()
@@ -196,7 +198,7 @@ func _physics_process(delta: float) -> void:
 		apply_central_force(afd * afm * (1.0-A))
 		
 		# counteract unwanted de-acceleration forces from alignment forces
-		var anti_drag = -cur_accel * 0.85
+		var anti_drag = -cur_accel * 0.95
 		apply_central_force(anti_drag * cur_dir)
 		
 		# apply aerodynamic alignment (missile toward foward flight)
@@ -250,12 +252,12 @@ var p_tick := 8 # for debig print interval
 var p_tick_cur := 0 # for debig print interval
 @export_subgroup("Guidance")
 @export var YAW_KP = 1.0
-@export var YAW_KI = 0.0
-@export var YAW_KD = 0.01
+@export var YAW_KI = 5.0
+@export var YAW_KD = 0.25
 @export var PITCH_KP = 1.0
-@export var PITCH_KI = 0.0
-@export var PITCH_KD = 0.01
-@export var N_FACTOR = 5.0
+@export var PITCH_KI = 5.0
+@export var PITCH_KD = 0.25
+@export var N_FACTOR = 1.0
 func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> Vector2:
 	p_tick_cur += 1
 	# `relative_angles.x` => horizontal angle (degrees) from forward
@@ -283,8 +285,11 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> 
 		xval = 0
 		yval = 0
 	
-	elif type == 3:
-		
+	elif type == 3: # radar
+		var rad_ang = Vector2(-relative_angles.x, relative_angles.y)
+		var stuff = guidance_pn_cbdr(delta, vel_forward, cur_dir, rad_ang, target_distance, N_FACTOR)
+		xval = stuff.x
+		yval = stuff.y
 	
 	else: # non
 		xval = 0
@@ -296,15 +301,15 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> 
 	
 	if p_tick_cur >= p_tick:
 		print()
-		print("cmd yaw: ", cmd_x)
-		print("cmd pitch: ", cmd_y)
-		print("x rate: ", x_rate)
-		print("y rate: ", y_rate)
+		print("cmd yaw: ", floor(cmd_x*10000)/10000)
+		print("cmd pitch: ", floor(cmd_y*10000)/10000)
+		#print("x rate: ", x_rate)
+		#print("y rate: ", y_rate)
 		p_tick_cur = 0
 	
 	# Clamp commands and update prev_angles for next frame
 	cmd_x = clamp(cmd_x, -seeker_fov, seeker_fov)
-	cmd_y   = clamp(cmd_y,   -seeker_fov, seeker_fov)
+	cmd_y   = clamp(cmd_y, -seeker_fov, seeker_fov)
 	prev_angles = Vector2(xval, yval)
 	return Vector2(cmd_y, cmd_x)
 
@@ -318,31 +323,29 @@ func get_target_angles_in_degrees(target: Node3D) -> Vector2:
 	# Horizontal angle (yaw-like):
 	var right_dir = global_transform.basis.x
 	var horizontal_angle_radians = atan2(to_target.dot(right_dir), to_target.dot(cur_dir))
-	var horizontal_angle_degrees = rad_to_deg(horizontal_angle_radians)
 	
 	# Vertical angle (pitch-like):
 	var up_dir = global_transform.basis.z
 	var vertical_angle_radians = atan2(to_target.dot(up_dir), to_target.dot(cur_dir))
-	var vertical_angle_degrees = rad_to_deg(vertical_angle_radians)
 	
 	# if the missile can see the target, it can see the target
-	if abs(vertical_angle_degrees) > seeker_fov or abs(horizontal_angle_degrees) > seeker_fov:
+	if abs(vertical_angle_radians) > seeker_fov or abs(horizontal_angle_radians) > seeker_fov:
 		return Vector2.ZERO
 	
-	return Vector2(horizontal_angle_degrees, vertical_angle_degrees)
+	return Vector2(horizontal_angle_radians, vertical_angle_radians)
 
 # ----------------------------------------------------------
 #   HELPER: Apply the pitch/yaw torque in degrees
 # ----------------------------------------------------------
 func _apply_pitch_yaw_torque(guidance_output: Vector2) -> void:
-	var pitch_rad = deg_to_rad(guidance_output.x) / PI
-	var yaw_rad = deg_to_rad(guidance_output.y) / PI
+	var pitch_rad = guidance_output.x / PI
+	var yaw_rad = guidance_output.y / PI
 	
 	var local_x = global_transform.basis.x  # Right direction
 	var local_z = global_transform.basis.z  # "Fake" forward (since Y is real forward)
 	var local_y = global_transform.basis.y  # anti roll formula
 	
-	var roll = -local_y.dot(Vector3.FORWARD) * local_x * 0.125  # anti roll formula
+	var roll = -local_x.dot(local_y) * local_y * 0.25  # anti roll formula
 	
 	var pitch_torque = local_x * pitch_rad  # Control up/down rotation
 	var yaw_torque = local_z * yaw_rad  # Control left/right rotation
@@ -351,33 +354,40 @@ func _apply_pitch_yaw_torque(guidance_output: Vector2) -> void:
 	# Apply torque (scaled by velocity to make control more responsive at higher speeds)
 	apply_torque((pitch_torque + yaw_torque + roll_torque) * linear_velocity.length_squared())
 
+
 # the algorithm
-var prev_msl_target_rel_rot := 0.0  # Store previous target-relative rotation
+var prev_msl_target_rel_rot = Vector2.ZERO  # Store previous yaw/pitch angles
+var prev_range = 0.0
 func guidance_pn_cbdr(
-	delta: float,              # Delta time (seconds)
-	msl_forward_vel: float,    # Missile's velocity in its forward direction
-	msl_abs_rot: float,        # Missile's absolute rotation in world
-	msl_target_rel_rot: float, # Angle from missile heading to target
-	target_dis: float,         # Distance to target
-	nav_gain: float = 3.0      # Navigation gain (N factor)
-) -> float:
-	# Wrap the target-relative rotation to [-PI, PI]
-	var wrapped_target_rel_rot = wrapf(msl_target_rel_rot, -PI, PI)
+	delta: float,             # Delta time (seconds)
+	msl_forward_vel: float,   # Missile velocity in forward direction
+	msl_abs_rot: Vector3,     # (unused in this snippet, but kept for clarity)
+	msl_target_rel_rot: Vector2,  # Relative yaw/pitch to target
+	target_dis: float,        # Distance to target
+	nav_gain: float
+) -> Vector2:
+	# Wrap each angle in [-PI, PI]
+	var wrapped_target_rel_rot = Vector2(
+		wrapf(msl_target_rel_rot.x, -PI, PI),
+		wrapf(msl_target_rel_rot.y, -PI, PI)
+	)
 	
-	# Calculate Line-of-Sight (LOS) rate using finite difference
+	# Compute LOS rate in 2D via finite difference
+	var range_rate = (prev_range - target_dis) / delta
+	prev_range = target_dis
 	var los_rate = (wrapped_target_rel_rot - prev_msl_target_rel_rot) / delta
-	prev_msl_target_rel_rot = wrapped_target_rel_rot  # Store for next frame
+	prev_msl_target_rel_rot = wrapped_target_rel_rot
 	
-	# Apply Proportional Navigation Law: a_n = N * Vc * LOS_rate
+	# Apply PN law per axis:
+	# a_n = nav_gain * forward_vel * LOS_rate
 	var lateral_accel = nav_gain * msl_forward_vel * los_rate
 	
-	# Convert acceleration to a rotational torque
-	var torque = lateral_accel
+	# Convert acceleration to "torque" or steering demand
+	var torque = lateral_accel #/ max(target_dis, 1.0)
 	
-	# (optional) scale torque with distance
-	torque /= max(target_dis, 1.0)
+	# Clamp each component to avoid extremes
+	# Alternatively, you could clamp the *length* of the vector.
+	torque.x = clamp(torque.x, -PI, PI)
+	torque.y = clamp(torque.y, -PI, PI)
 	
-	# Limit torque to prevent unrealistic movements
-	torque = clamp(torque, -10.0, 10.0)
-	
-	return torque  # Rotational torque for missile control
+	return torque

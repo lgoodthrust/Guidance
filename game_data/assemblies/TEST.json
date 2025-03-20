@@ -27,33 +27,6 @@
 	},
 	{
 		"DATA": {
-			"LIFT": 0,
-			"MASS": 10,
-			"NAME": "Warhead",
-			"TYPE": 3,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/warhead.tscn",
-		"position": {
-			"x": 0,
-			"y": 7,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
 			"LIFT": 0.0437,
 			"MASS": 5,
 			"NAME": "Fin",
@@ -245,7 +218,34 @@
 		"DATA": {
 			"LIFT": 0,
 			"MASS": 10,
-			"NAME": "IR_Seeker",
+			"NAME": "Warhead",
+			"TYPE": 3,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/warhead.tscn",
+		"position": {
+			"x": 0,
+			"y": 7,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"LIFT": 0,
+			"MASS": 15,
+			"NAME": "Radar_Seeker",
 			"TYPE": 1,
 			"UDLRTB": [
 				0,
@@ -256,7 +256,7 @@
 				0
 			]
 		},
-		"path": "res://game_data/blocks/ir_seeker.tscn",
+		"path": "res://game_data/blocks/radar_seeker.tscn",
 		"position": {
 			"x": 0,
 			"y": 9,
