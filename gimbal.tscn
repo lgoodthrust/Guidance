@@ -1,10 +1,12 @@
-[gd_scene load_steps=4 format=3 uid="uid://bqsxcyysx4jxh"]
+[gd_scene load_steps=5 format=3 uid="uid://bqsxcyysx4jxh"]
 
 [ext_resource type="BoxMesh" uid="uid://bsifbucv4ggsy" path="res://gfdgdfgdfgdfgdfgdgdfgdfg.tres" id="1_behgl"]
+[ext_resource type="Script" path="res://scripts/block_scripts/ghost.gd" id="1_fcol6"]
 [ext_resource type="BoxMesh" uid="uid://s7nw073nc1vb" path="res://gfdgdfgdfgdfgdfgdgdfgdfg2.tres" id="2_40hdr"]
 [ext_resource type="BoxMesh" uid="uid://bbwn0l4yqlmmf" path="res://gfdgdfgdfgdfgdfgdgdfgdfg3.tres" id="3_8p4gr"]
 
 [node name="Node3D" type="Node3D"]
+script = ExtResource("1_fcol6")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1)

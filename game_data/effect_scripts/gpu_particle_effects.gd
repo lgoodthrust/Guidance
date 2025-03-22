@@ -63,12 +63,12 @@ func smoke_01() -> GPUParticles3D:
 	
 	var ppm = ParticleProcessMaterial.new()
 	ppm.gravity = Vector3.UP * 0.25
-	ppm.inherit_velocity_ratio = 0.5
+	ppm.inherit_velocity_ratio = 0.0
 	
 	var gpup = GPUParticles3D.new()
-	gpup.amount = 5000
+	gpup.amount = 500
 	gpup.one_shot = false
-	gpup.fixed_fps = 20
+	gpup.fixed_fps = 45
 	gpup.explosiveness = 0.0
 	gpup.lifetime = 3.0
 	gpup.process_material = ppm

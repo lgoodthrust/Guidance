@@ -5,7 +5,7 @@ extends RigidBody3D  # Vector up = missile forward
 @export var min_effective_speed: float = 75.0
 @export var lifetime: float = 15.0
 @export var max_range = 3500.0
-@export var seeker_fov = 45.0
+@export var seeker_fov = 30.0
 @export var unlocked_detonation_delay = 1.5
 @export var motor_delay = 0.35
 @export var fuel_block_duration = 2.5
@@ -71,7 +71,7 @@ var smoking = false
 func smoke():
 	if not smoking:
 		smoking = true
-		#self.add_child(effects.smoke_01())
+		self.add_child(effects.smoke_01())
 
 func launch():
 	var asp = AudioStreamPlayer3D.new()
@@ -157,11 +157,12 @@ func _physics_process(delta: float) -> void:
 	vel_sq = linear_velocity.length_squared()
 	vel_dir = linear_velocity.normalized()
 	cur_dir = global_transform.basis.y
-	vel_forward = cur_dir.dot(vel_dir)
+	vel_forward = (cur_dir * vel_dir * vel).length()
 	
 	#print("speed: ", vel)
 	#print("distance: ", target_distance)
 	#print("impact time: ", target_distance / vel)
+	#print("forward vel: ", vel_forward)
 	
 	if life < 0.01:
 		# Small impulse at spawn
@@ -224,20 +225,20 @@ func _physics_process(delta: float) -> void:
 			remove()
 		
 		# if ir or radar seeker
-		var input_angles = get_target_angles_in_degrees(target)
+		var input_angles = get_target_angles(target)
 		if not input_angles == Vector2.ZERO:
 			unlocked_life = 0
 			if properties["seeker_type"] == 1 or properties["seeker_type"] == 3:
 				# If in seeker range, we attempt to steer
 				if target_distance < max_range and properties["has_seeker"]:
 					
-					var guidance_output = guidance_control_law(input_angles, delta, properties["seeker_type"])
+					var guidance_output = guidance_control_law(input_angles, delta)
 					_apply_pitch_yaw_torque(guidance_output)
 			
 		# if laser seeker
 		if properties["seeker_type"] == 2:
 			if properties["has_seeker"]:
-				guidance_control_law(input_angles, delta, properties["seeker_type"])
+				guidance_control_law(input_angles, delta)
 		
 		if input_angles == Vector2.ZERO and not properties["seeker_type"] == 2:
 			unlocked_life += delta
@@ -245,31 +246,53 @@ func _physics_process(delta: float) -> void:
 		cur_accel = linear_velocity - cur_accel
 
 # ----------------------------------------------------------
+#   HELPER: Compute horizontal & vertical angles (in degrees)
+#   from missile forward direction to the target
+# ----------------------------------------------------------
+func get_target_angles(target: Node3D) -> Vector2:
+	var to_target = (target.global_transform.origin - global_transform.origin).normalized()
+	
+	# Horizontal angle (yaw-like):
+	var right_dir = -global_transform.basis.x
+	var horizontal_angle_radians = atan2(to_target.dot(right_dir), to_target.dot(cur_dir))
+	
+	# Vertical angle (pitch-like):
+	var up_dir = global_transform.basis.z
+	var vertical_angle_radians = atan2(to_target.dot(up_dir), to_target.dot(cur_dir))
+	
+	var max = deg_to_rad(seeker_fov)
+	
+	# if the missile can see the target, it can see the target
+	if abs(vertical_angle_radians) > max or abs(horizontal_angle_radians) > max:
+		return Vector2.ZERO
+	
+	return Vector2(horizontal_angle_radians, vertical_angle_radians)
+
+# ----------------------------------------------------------
 #  CUSTOM GUIDANCE LAW
 # ----------------------------------------------------------
 var prev_angles = Vector2.ZERO  # store angles from previous frame
-var p_tick := 8 # for debig print interval
+var p_tick := 2 # for debig print interval
 var p_tick_cur := 0 # for debig print interval
 @export_subgroup("Guidance")
 @export var YAW_KP = 1.0
-@export var YAW_KI = 5.0
-@export var YAW_KD = 0.25
+@export var YAW_KI = 0.0
+@export var YAW_KD = 1.0
 @export var PITCH_KP = 1.0
-@export var PITCH_KI = 5.0
-@export var PITCH_KD = 0.25
-@export var N_FACTOR = 1.0
-func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> Vector2:
+@export var PITCH_KI = 0.0
+@export var PITCH_KD = 1.0
+@export var N_FACTOR = 1.5
+func guidance_control_law(relative_angles: Vector2, delta: float) -> Vector2:
+	var type = properties["seeker_type"]
 	p_tick_cur += 1
 	# `relative_angles.x` => horizontal angle (degrees) from forward
 	# `relative_angles.y` => vertical angle (degrees) from forward
 	
 	var xval = 0
 	var yval = 0
-	var x_rate = (-relative_angles.x - prev_angles.x) * delta
-	var y_rate = (relative_angles.y - prev_angles.y) * delta
 	
 	if type == 1: # ir
-		xval = -relative_angles.x
+		xval = relative_angles.x
 		yval =  relative_angles.y
 	
 	elif type == 2: # SACLOS/laser (beam-riding)
@@ -287,7 +310,7 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> 
 	
 	elif type == 3: # radar
 		var rad_ang = Vector2(-relative_angles.x, relative_angles.y)
-		var stuff = guidance_pn_cbdr(delta, vel_forward, cur_dir, rad_ang, target_distance, N_FACTOR)
+		var stuff = guidance_pn_cbdr(delta, vel_forward, rad_ang, target_distance, N_FACTOR)
 		xval = stuff.x
 		yval = stuff.y
 	
@@ -300,93 +323,71 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: int) -> 
 	var cmd_y = pidy.update(delta, 0, yval, PITCH_KP, PITCH_KI, PITCH_KD)
 	
 	if p_tick_cur >= p_tick:
-		print()
-		print("cmd yaw: ", floor(cmd_x*10000)/10000)
-		print("cmd pitch: ", floor(cmd_y*10000)/10000)
+		#print()
+		#print("cmd yaw: ", floor(cmd_x*10000)/10000)
+		#print("cmd pitch: ", floor(cmd_y*10000)/10000)
 		#print("x rate: ", x_rate)
 		#print("y rate: ", y_rate)
 		p_tick_cur = 0
 	
 	# Clamp commands and update prev_angles for next frame
-	cmd_x = clamp(cmd_x, -seeker_fov, seeker_fov)
-	cmd_y   = clamp(cmd_y, -seeker_fov, seeker_fov)
+	cmd_x = clamp(cmd_x, -deg_to_rad(seeker_fov), deg_to_rad(seeker_fov))
+	cmd_y   = clamp(cmd_y, -deg_to_rad(seeker_fov), deg_to_rad(seeker_fov))
 	prev_angles = Vector2(xval, yval)
 	return Vector2(cmd_y, cmd_x)
 
 # ----------------------------------------------------------
-#   HELPER: Compute horizontal & vertical angles (in degrees)
-#   from missile forward direction to the target
-# ----------------------------------------------------------
-func get_target_angles_in_degrees(target: Node3D) -> Vector2:
-	var to_target = (target.global_transform.origin - global_transform.origin).normalized()
-	
-	# Horizontal angle (yaw-like):
-	var right_dir = global_transform.basis.x
-	var horizontal_angle_radians = atan2(to_target.dot(right_dir), to_target.dot(cur_dir))
-	
-	# Vertical angle (pitch-like):
-	var up_dir = global_transform.basis.z
-	var vertical_angle_radians = atan2(to_target.dot(up_dir), to_target.dot(cur_dir))
-	
-	# if the missile can see the target, it can see the target
-	if abs(vertical_angle_radians) > seeker_fov or abs(horizontal_angle_radians) > seeker_fov:
-		return Vector2.ZERO
-	
-	return Vector2(horizontal_angle_radians, vertical_angle_radians)
-
-# ----------------------------------------------------------
-#   HELPER: Apply the pitch/yaw torque in degrees
+#   HELPER: Apply the pitch/yaw torque
 # ----------------------------------------------------------
 func _apply_pitch_yaw_torque(guidance_output: Vector2) -> void:
-	var pitch_rad = guidance_output.x / PI
-	var yaw_rad = guidance_output.y / PI
+	var pitch_rad = guidance_output.x
+	var yaw_rad = guidance_output.y
 	
 	var local_x = global_transform.basis.x  # Right direction
 	var local_z = global_transform.basis.z  # "Fake" forward (since Y is real forward)
 	var local_y = global_transform.basis.y  # anti roll formula
 	
-	var roll = -local_x.dot(local_y) * local_y * 0.25  # anti roll formula
-	
-	var pitch_torque = local_x * pitch_rad  # Control up/down rotation
-	var yaw_torque = local_z * yaw_rad  # Control left/right rotation
-	var roll_torque = roll
+	var pitch_torque = (local_y.cross(local_z) * pitch_rad).normalized()
+	var yaw_torque = (local_y.cross(local_x) * yaw_rad).normalized()
+	var roll_torque = -local_y.cross(local_z) * 0
 	
 	# Apply torque (scaled by velocity to make control more responsive at higher speeds)
 	apply_torque((pitch_torque + yaw_torque + roll_torque) * linear_velocity.length_squared())
 
-
 # the algorithm
-var prev_msl_target_rel_rot = Vector2.ZERO  # Store previous yaw/pitch angles
+# Global or outer scope variables to remember previous values
+var prev_msl_target_rel_rot = Vector2.ZERO
 var prev_range = 0.0
 func guidance_pn_cbdr(
 	delta: float,             # Delta time (seconds)
-	msl_forward_vel: float,   # Missile velocity in forward direction
-	msl_abs_rot: Vector3,     # (unused in this snippet, but kept for clarity)
+	msl_forward_vel: float,   # Missile velocity (forward)
 	msl_target_rel_rot: Vector2,  # Relative yaw/pitch to target
-	target_dis: float,        # Distance to target
+	target_dis: float,        # Current distance to target
 	nav_gain: float
 ) -> Vector2:
-	# Wrap each angle in [-PI, PI]
+	# 1) Wrap angles into [-PI, PI] to ensure continuity
 	var wrapped_target_rel_rot = Vector2(
 		wrapf(msl_target_rel_rot.x, -PI, PI),
 		wrapf(msl_target_rel_rot.y, -PI, PI)
 	)
 	
-	# Compute LOS rate in 2D via finite difference
-	var range_rate = (prev_range - target_dis) / delta
+	# 2) Compute finite-difference rates
+	#    range_rate = positive if distance decreased since last frame
+	var range_rate = (target_dis - prev_range) / delta
 	prev_range = target_dis
+	
 	var los_rate = (wrapped_target_rel_rot - prev_msl_target_rel_rot) / delta
 	prev_msl_target_rel_rot = wrapped_target_rel_rot
 	
-	# Apply PN law per axis:
-	# a_n = nav_gain * forward_vel * LOS_rate
-	var lateral_accel = nav_gain * msl_forward_vel * los_rate
+	# 3) los rate calculations
+	var los_dir = (los_rate * nav_gain)
 	
-	# Convert acceleration to "torque" or steering demand
-	var torque = lateral_accel #/ max(target_dis, 1.0)
+	# 4) los rate calculations
+	var factor = ((range_rate)/(target_dis))
 	
-	# Clamp each component to avoid extremes
-	# Alternatively, you could clamp the *length* of the vector.
+	var torque = los_dir
+	
+	# 5) Clamp each component (optional)
 	torque.x = clamp(torque.x, -PI, PI)
 	torque.y = clamp(torque.y, -PI, PI)
 	

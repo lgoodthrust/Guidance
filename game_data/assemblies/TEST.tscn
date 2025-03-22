@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://dfcpnnirrm4ol"]
+[gd_scene load_steps=10 format=3 uid="uid://dfcpnnirrm4ol"]
 
 [ext_resource type="PackedScene" uid="uid://yw4re2eruv0u" path="res://game_data/blocks/controller.tscn" id="1_g0v4s"]
 [ext_resource type="PackedScene" uid="uid://8tqnmisb1gkr" path="res://game_data/blocks/fin.tscn" id="3_fa0u5"]
@@ -7,7 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://bqsxcyysx4jxh" path="res://gimbal.tscn" id="8_xewm3"]
 [ext_resource type="PackedScene" uid="uid://jdpjcqkyj5ab" path="res://game_data/blocks/rocket_motor.tscn" id="9_470bq"]
 [ext_resource type="PackedScene" uid="uid://b6xprrcbpswax" path="res://game_data/blocks/warhead.tscn" id="11_2xkh7"]
-[ext_resource type="PackedScene" uid="uid://6mfhdv1x06sq" path="res://game_data/blocks/radar_seeker.tscn" id="12_5cjo2"]
+[ext_resource type="PackedScene" uid="uid://6mfhdv1x06sq" path="res://game_data/blocks/radar_seeker.tscn" id="12_s0qiq"]
 
 [sub_resource type="GDScript" id="GDScript_qvbnp"]
 script/source = "extends Node3D
@@ -18,18 +18,6 @@ script/source = "extends Node3D
 	\"LIFT\": 0.0,
 	\"UDLRTB\": [-1,-1,0,0,0,0],
 	\"TYPE\": 3
-}
-"
-
-[sub_resource type="GDScript" id="GDScript_1k86u"]
-script/source = "extends Node3D
-
-@export_subgroup(\"META_DATA\")
-@export var DATA = {
-	\"NAME\": \"fuckoff\",
-	\"MASS\": 0,
-	\"UDLRTB\": [0, 0, 0, 0, 0, 0],
-	\"TYPE\": 0
 }
 "
 
@@ -66,7 +54,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="@Node3D@132" parent="RigidBody3D" instance=ExtResource("5_x8ufb")]
+[node name="@Node3D@125" parent="RigidBody3D" instance=ExtResource("5_x8ufb")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 DATA = {
 "LIFT": 0.0,
@@ -76,7 +64,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="@Node3D@134" parent="RigidBody3D" instance=ExtResource("5_x8ufb")]
+[node name="@Node3D@127" parent="RigidBody3D" instance=ExtResource("5_x8ufb")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
 DATA = {
 "LIFT": 0.0,
@@ -86,7 +74,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="@Node3D@136" parent="RigidBody3D" instance=ExtResource("5_x8ufb")]
+[node name="@Node3D@129" parent="RigidBody3D" instance=ExtResource("5_x8ufb")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 DATA = {
 "LIFT": 0.0,
@@ -126,7 +114,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Radar_Seeker" parent="RigidBody3D" instance=ExtResource("12_5cjo2")]
+[node name="Radar_Seeker" parent="RigidBody3D" instance=ExtResource("12_s0qiq")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9, 0)
 DATA = {
 "LIFT": 0.0,
@@ -137,5 +125,4 @@ DATA = {
 }
 
 [node name="Node3D" parent="RigidBody3D" instance=ExtResource("8_xewm3")]
-transform = Transform3D(4.0534, 0, 0, 0, 4.0534, 0, 0, 0, 4.0534, 0, 5.41703, 0)
-script = SubResource("GDScript_1k86u")
+transform = Transform3D(5.70973, 0, 0, 0, 5.70973, 0, 0, 0, 5.70973, 0, 0, 0)
