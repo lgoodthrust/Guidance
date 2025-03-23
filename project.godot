@@ -13,6 +13,7 @@ config_version=5
 config/name="Guidance"
 run/main_scene="res://launcher.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
+run/max_fps=200
 config/icon="res://icon.svg"
 
 [display]
@@ -447,12 +448,19 @@ limits/tcp/connect_timeout_seconds=10
 
 [physics]
 
+common/physics_jitter_fix=0.0
 3d/physics_engine="JoltPhysics3D"
+jolt_3d/limits/max_linear_velocity=3430.0
+jolt_3d/limits/max_angular_velocity=720.0
 
 [rendering]
 
+occlusion_culling/bvh_build_quality=1
 driver/depth_prepass/enable=false
 environment/ssao/quality=1
+anti_aliasing/screen_space_roughness_limiter/limit=0.25
+occlusion_culling/occlusion_rays_per_thread=256
 environment/glow/upscale_mode=0
 global_illumination/sdfgi/frames_to_converge=0
 anti_aliasing/quality/screen_space_aa=1
+mesh_lod/lod_change/threshold_pixels=0.0
