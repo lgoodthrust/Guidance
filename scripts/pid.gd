@@ -15,7 +15,7 @@ func reset():
 	_integral = 0.0
 
 func update(delta: float, target: float, current: float, p: float, i: float, d: float) -> float:
-	var error = current - target
+	var error = target - current
 	
 	# Proportional term
 	var p_term = p * error

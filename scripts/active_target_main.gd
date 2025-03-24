@@ -1,14 +1,14 @@
 extends Node3D
 
 var yaw_drift: float = 90.0
-var pitch_drift: float = 5.0
-var drift_rate: float = 0.2
+var pitch_drift: float = 10.0
+var drift_rate: float = 0.5
 var current_drift: Vector2 = Vector2.ZERO
 var time: float = 0.0
-var radius: float = 1000.0
+var radius: float = 10.0
 
 var forward_velocity: float = 50.0
-var forward_acceleration: float = 10.0
+var forward_acceleration: float = 15.0
 
 # Yaw and pitch targets
 var rotation_target_yaw: float = PI
@@ -18,7 +18,7 @@ var curr_velocity: Vector3 = Vector3.ZERO
 
 func _process(delta: float) -> void:
 	time += delta * drift_rate
-	current_drift.x = deg_to_rad(yaw_drift) + (time/radius)*PI
+	current_drift.x = deg_to_rad(yaw_drift) + (time*PI/radius)*PI
 	current_drift.y = deg_to_rad(pitch_drift) * cos(time*PI)
 
 
