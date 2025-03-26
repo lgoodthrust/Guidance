@@ -119,18 +119,20 @@ func switch_to_tester():
 	var scene3 = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
 	if scene3 == InstancePlaceholder:
 		return
-	var cam2:Camera3D = scene3.get_node("Player_Camera")
-	cam2.current = true
+	var hud:Control = scene3.get_node("Player_Camera/Player_Camera_GUI")
+	hud.buildering = false
+	hud.queue_redraw()
 	scene3.show()
 	scene3.process_mode = Node.PROCESS_MODE_INHERIT
 
 
 func switch_to_builder():
-	var scene1 = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
+	var scene1:Node3D = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
 	if scene1 == InstancePlaceholder:
 		return
-	var cam1:Camera3D = scene1.get_node("Player_Camera")
-	cam1.current = false
+	var hud:Control = scene1.get_node("Player_Camera/Player_Camera_GUI")
+	hud.buildering = true
+	hud.queue_redraw()
 	scene1.hide()
 	scene1.process_mode = Node.PROCESS_MODE_DISABLED
 	

@@ -3,6 +3,7 @@ extends Control
 # Declare necessary variables
 var camera: Camera3D
 var target: Node
+var buildering: bool = false
 
 var FOV
 
@@ -30,7 +31,7 @@ func _process(_delta: float) -> void:
 
 # Function to draw the target on screen
 func _draw() -> void:
-	if target and camera:
+	if target and camera and not buildering:
 		# Convert world position to screen position
 		var screen_pos = camera.unproject_position(target.global_transform.origin)
 		
