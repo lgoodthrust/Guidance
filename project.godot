@@ -448,7 +448,11 @@ limits/tcp/connect_timeout_seconds=10
 
 [physics]
 
+common/physics_ticks_per_second=64
+common/max_physics_steps_per_frame=32
+common/physics_jitter_fix=0.75
 3d/physics_engine="JoltPhysics3D"
+jolt_3d/collisions/areas_detect_static_bodies=true
 jolt_3d/limits/max_linear_velocity=3430.0
 jolt_3d/limits/max_angular_velocity=720.0
 

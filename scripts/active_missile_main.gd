@@ -5,7 +5,7 @@ extends RigidBody3D
 @export var lifetime: float = 25.0
 @export var launch_charge_force: float = 25.0
 @export var motor_delay: float = 0.15
-@export var fuel_duration: float = 1.5  # How long thrust lasts
+@export var fuel_duration: float = 10.0  # How long thrust lasts
 @export var proximity_detonation_radius: float = 10.0
 
 # Seeker parameters
@@ -15,15 +15,15 @@ extends RigidBody3D
 
 # Guidance PID gains
 @export var YAW_KP: float = 1.0
-@export var YAW_KI: float = 0
+@export var YAW_KI: float = 0.0
 @export var YAW_KD: float = 0.75
 @export var PITCH_KP: float = 1.0
-@export var PITCH_KI: float = 0
+@export var PITCH_KI: float = 0.0
 @export var PITCH_KD: float = 0.75
 
 @export var GAIN_0: float = 1.0
-@export var GAIN_1: float = 1.0
-@export var GAIN_2: float = 0.01
+@export var GAIN_1: float = -0.1
+@export var GAIN_2: float = 25.0
 
 # Flags (set these as desired in the Inspector)
 var centers = {
@@ -33,6 +33,7 @@ var centers = {
 }
 
 var properties = {
+	"seeker_type": "",
 	"fuel": 0,
 	"mass": 0.0,
 	"total_lift": 0.0,
@@ -53,16 +54,19 @@ var unlocked_life: float = 0.0
 var smoking: bool = false
 var dist = 100.0
 var target: Node3D
+var target_position
+var player
 
 # PID controllers for yaw and pitch
-@onready var pidx = PID.new()
-@onready var pidy = PID.new()
-@onready var pidx1 = PID.new()
-@onready var pidy1 = PID.new()
-@onready var pidx2 = PID.new()
-@onready var pidy2 = PID.new()
+@onready var pidx0 = PID.new()
+@onready var pidy0 = PID.new()
+
+@onready var adv_move = ADV_MOVE.new()
 
 func _ready() -> void:
+	target_position = Vector3()
+	player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
+	
 	# add missile blocks to list
 	load_missile_blocks()
 	
@@ -73,8 +77,9 @@ func _ready() -> void:
 	freeze = false
 	gravity_scale = 0.0
 	linear_damp = 0.005
-	angular_damp = 0.01
+	angular_damp = 0.5
 	mass = max(1.0, properties["mass"])
+	inertia = Vector3(1, 1, 1) * mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = centers["mass"]
 	
@@ -97,6 +102,7 @@ func calculate_centers() -> void:
 		if block.DATA.has("TYPE"):
 			if block.DATA["TYPE"] == 1:
 				properties["has_ir_seeker"] = true
+				properties["seeker_type"] = block.DATA["NAME"]
 			
 			if block.DATA["TYPE"] == 2:
 				properties["has_controller"] = true
@@ -163,8 +169,8 @@ func _physics_process(delta: float) -> void:
 	
 	# Apply aerodynamic alignment (forward flight toward missile's forward direction)
 	var afd = (global_transform.basis.y - linear_velocity.normalized()).normalized()
-	var afm = global_transform.basis.y.angle_to(linear_velocity.normalized()) * linear_velocity.length()
-	apply_central_force(afd * afm * (1.0-A))
+	var afm = global_transform.basis.y.angle_to(linear_velocity.normalized())
+	apply_central_force(10.0 * afd * afm * (1.0-A))
 	
 	# counteract unwanted de-acceleration forces from alignment forces
 	var cur_accel = linear_velocity - prev_vel
@@ -176,7 +182,7 @@ func _physics_process(delta: float) -> void:
 	var angle = global_transform.basis.y.angle_to(linear_velocity.normalized())
 	if axis.length() > 0.005 and angle > 0.005:
 		var torque = axis.normalized() * angle
-		#apply_torque(torque * clamp(linear_velocity.length(), 1.0, 30.0) * (1.0+A))
+		apply_torque(10.0 * torque * linear_velocity.length()/10.0 * (1.0+A))
 	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
@@ -184,7 +190,7 @@ func _physics_process(delta: float) -> void:
 	# Guidance: If a seeker is active, steer toward the target.
 	if properties["has_ir_seeker"]:
 			# Proximity detonation: Explode if too close.
-			if dist <= proximity_detonation_radius and properties["has_"]:
+			if dist <= proximity_detonation_radius and properties["has_warhead"]:
 				_explode_and_remove()
 				return
 			
@@ -192,7 +198,7 @@ func _physics_process(delta: float) -> void:
 			if dist < max_range:
 				var angles = _get_target_angles(target)
 				if angles != Vector2.ZERO:
-					var pid_output = _pid_steering(angles, delta)
+					var pid_output = guidance_control_law(angles, delta, properties["seeker_type"])
 					_apply_pitch_yaw_torque(pid_output)
 	
 	prev_vel = linear_velocity
@@ -208,6 +214,7 @@ func _explode_and_remove() -> void:
 # Helpers – using only the RigidBody's orientation.
 #------------------------------------------------------------------
 # Get the angles (yaw and pitch) between our forward direction and the target.
+var prev_ang: Vector2 = Vector2.ZERO
 func _get_target_angles(target_node: Node3D) -> Vector2:
 	var forward = global_transform.basis.y
 	var to_target = (target_node.global_transform.origin - global_transform.origin).normalized()
@@ -220,53 +227,93 @@ func _get_target_angles(target_node: Node3D) -> Vector2:
 	var up = global_basis.z
 	var pitch_angle = atan2(to_target.dot(up), to_target.dot(forward))
 	
+	var ang = Vector2(yaw_angle, pitch_angle)
+	
 	# If the angles exceed the seeker field-of-view, return ZERO (lock lost).
 	var limit = deg_to_rad(seeker_fov)
 	if abs(yaw_angle) > limit or abs(pitch_angle) > limit:
-		return Vector2.ZERO
+		return prev_ang
+	else:
+		prev_ang = ang
 	
-	return Vector2(yaw_angle, pitch_angle)
+	return ang
+
+# ----------------------------------------------------------
+#  CUSTOM GUIDANCE LAW
+# ----------------------------------------------------------
+func guidance_control_law(relative_angles: Vector2, delta: float, type: String) -> Vector2:
+	# `relative_angles.x` => horizontal angle (degrees) from forward
+	# `relative_angles.y` => vertical angle (degrees) from forward
+	
+	var xval = 0
+	var yval = 0
+	
+	if type == "IR_Seeker": # ir
+		xval = relative_angles.x
+		yval =  relative_angles.y
+	
+	elif type == "Laser_Seeker": # SACLOS/laser (beam-riding)
+		if player:
+			var player_aim_dir = -player.global_transform.basis.z  # Player's forward direction
+			target_position = player.global_transform.origin + player_aim_dir * 10000.0
+		
+		var vec = adv_move.force_to_forward(delta, self, Vector3.DOWN, target_position)
+		apply_force(vec * linear_velocity * properties["mass"])
+		
+		xval = 0
+		yval = 0
+		
+	elif type == "Radar_Seeker": # radar
+		var stuff = _radar_steering(relative_angles, delta)
+		var dist = (target.global_transform.origin - global_transform.origin).length()
+		var c_dist = dist / max(1,(linear_velocity * global_transform.basis.y).length())
+		xval = stuff.x * c_dist
+		yval = stuff.y * c_dist
+	
+	else: # non
+		xval = 0
+		yval = 0
+	
+	return Vector2(xval, yval)
 
 # Simple PID-based steering.
 # New and improved CB/DR guidance now with LR accel
 var prev_angles = Vector2.ZERO
 var prev_rate_angles = Vector2.ZERO
-func _pid_steering(angles: Vector2, delta: float) -> Vector2:
-	print()
-	angles *= GAIN_0
-	print("raw: ", angles)
-	
+func _radar_steering(angles: Vector2, delta: float) -> Vector2:
 	# First derivative: angular rate (LOS rate)
-	var rate_angles = (angles - prev_angles) / delta
-	rate_angles *= GAIN_1
-	print("rate: ", rate_angles)
+	var rate_angles = -(angles - prev_angles)
 	
 	# Second derivative: angular acceleration (LOS jerk)
-	var jerk_angles = (rate_angles - prev_rate_angles) / delta
-	jerk_angles *= GAIN_2
-	print("jerk: ", jerk_angles)
+	var jerk_angles = -(rate_angles - prev_rate_angles)
 
 	# Apply PID using LOS jerk as the 'error' input
-	var yc0 = pidx.update(delta, 0.0, angles.x, YAW_KP, YAW_KI, YAW_KD)
-	var pc0 = pidy.update(delta, 0.0, -angles.y, PITCH_KP, PITCH_KI, PITCH_KD)
+	print()
 	
-	var yc1 = pidx1.update(delta, 0.0, rate_angles.x, YAW_KP, YAW_KI, YAW_KD)
-	var pc1 = pidy1.update(delta, 0.0, -rate_angles.y, PITCH_KP, PITCH_KI, PITCH_KD)
+	var yc0 =  angles.x * GAIN_0
+	var pc0 = -angles.y * GAIN_0
+	print("raw: ", yc0, ", ", pc0)
 	
-	var yc2 = pidx2.update(delta, 0.0, rate_angles.x, YAW_KP, YAW_KI, YAW_KD)
-	var pc2 = pidy2.update(delta, 0.0, -rate_angles.y, PITCH_KP, PITCH_KI, PITCH_KD)
+	var yc1 = rate_angles.x * GAIN_1
+	var pc1 = -rate_angles.y * GAIN_1
+	print("rate: ", yc1, ", ", pc1)
+	
+	var yc2 = jerk_angles.x * GAIN_2
+	var pc2 = -jerk_angles.y * GAIN_2
+	print("jerk: ", yc2, ", ", pc2)
 
-	# Clamp to seeker FOV
-	var yaw_cmd = clamp(yc1, -1, 1)
-	var pitch_cmd = clamp(pc1, -1, 1)
+	# Clamp based on speed
+	var speed = max(1, (linear_velocity.length() * global_transform.basis.y).length())
+	var yaw_cmd = clamp(yc0+yc1+yc2, -speed, speed)
+	var pitch_cmd = clamp(pc0+pc1+pc2, -speed, speed)
 
 	# Update state history
 	prev_angles = angles
 	prev_rate_angles = rate_angles
 
 	# Output is final command vector
+	print("out: ", Vector2(yaw_cmd, pitch_cmd))
 	return Vector2(yaw_cmd, pitch_cmd)
-
 
 # Apply torque based on PID output.
 # We interpret cmd.x as yaw and cmd.y as pitch.
@@ -280,9 +327,10 @@ func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
 	var yaw_torque = up * yaw_rad
 	var anti_roll_torque = -forward.cross(right)
 	
-	# Scale the torque by the square of the speed (clamped) for responsiveness.
-	var speed = clamp(linear_velocity.length(), 1.0, 30.0)
+	# Scale the torque by the speed (clamped) for responsiveness.
+	var speed = max(1,linear_velocity.length())
 	
 	# Combine torque vectors and apply it as force
 	var forces = ((pitch_torque + yaw_torque) * speed)
+	print("forces: ", forces)
 	apply_torque(forces)

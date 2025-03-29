@@ -1,5 +1,9 @@
 extends Control
 
+@onready var ftps: Label = $FTPS
+@onready var tps: Label = $TPS
+@onready var fps: Label = $FPS
+
 # Declare necessary variables
 var camera: Camera3D
 var target: Node
@@ -20,8 +24,16 @@ func _ready() -> void:
 		print("Warning: Parent is not a Camera3D!")
 	FOV = camera.fov
 
+func _physics_process(_delta: float) -> void:
+	if ftps:
+		ftps.text = "FTPS: " + str(1/_delta)
+
 # Process function to control redrawing
 func _process(_delta: float) -> void:
+	if tps and fps:
+		tps.text = "TPS: " + str(1/_delta)
+		fps.text = "FPS: " + str(Engine.get_frames_per_second())
+	
 	FOV = camera.fov
 	if not target:
 		target = get_tree().current_scene.get_tree().root.get_node_or_null("./Launcher/World/Active_Target")

@@ -101,6 +101,8 @@ func switch_to_tester():
 		return
 	var cam1:Camera3D = scene1.get_node("Builder_Camera")
 	cam1.current = false
+	var cam1_gui = cam1.get_node("GUI")
+	cam1_gui.hide()
 	scene1.hide()
 	scene1.process_mode = Node.PROCESS_MODE_DISABLED
 	
@@ -153,6 +155,8 @@ func switch_to_builder():
 		return
 	var cam2:Camera3D = scene3.get_node("Builder_Camera")
 	cam2.current = true
+	var cam2_gui = cam2.get_node("GUI")
+	cam2_gui.show()
 	scene3.show()
 	scene3.process_mode = Node.PROCESS_MODE_INHERIT
 
