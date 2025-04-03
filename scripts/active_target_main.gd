@@ -7,7 +7,7 @@ var current_drift: Vector2 = Vector2.ZERO
 var time: float = 0.0
 var radius: float = 10.0
 
-var forward_velocity: float = 50.0
+var forward_velocity: float = 10.0
 var forward_acceleration: float = 15.0
 
 # Yaw and pitch targets
@@ -18,7 +18,7 @@ var curr_velocity: Vector3 = Vector3.ZERO
 
 func _process(delta: float) -> void:
 	time += delta * drift_rate
-	current_drift.x = deg_to_rad(yaw_drift) + (time*PI/radius)*PI
+	current_drift.x = deg_to_rad(yaw_drift) + (time*PI/radius)*PI * curr_velocity.length()/radius
 	current_drift.y = deg_to_rad(pitch_drift) * cos(time*PI)
 
 

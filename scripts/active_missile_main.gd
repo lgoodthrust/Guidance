@@ -1,11 +1,11 @@
 extends RigidBody3D
 
 # Main missile parameters
-@export var thrust_force: float = 30.0
+@export var thrust_force: float = 300.0
 @export var lifetime: float = 25.0
 @export var launch_charge_force: float = 25.0
 @export var motor_delay: float = 0.15
-@export var fuel_duration: float = 10.0  # How long thrust lasts
+@export var fuel_duration: float = 2.0
 @export var proximity_detonation_radius: float = 10.0
 
 # Seeker parameters
@@ -21,9 +21,13 @@ extends RigidBody3D
 @export var PITCH_KI: float = 0.0
 @export var PITCH_KD: float = 0.75
 
-@export var GAIN_0: float = 1.0
-@export var GAIN_1: float = -0.1
-@export var GAIN_2: float = 25.0
+@export var GAIN_0: float = 0.0
+@export var GAIN_1: float = 300.0
+@export var GAIN_2: float = 0.0
+
+# Seeker (on / off) duration
+@export var seek_timer_on: float = 0.01
+@export var seek_timer_off: float = 0.01
 
 # Flags (set these as desired in the Inspector)
 var centers = {
@@ -53,6 +57,8 @@ var life: float = 0.0
 var unlocked_life: float = 0.0
 var smoking: bool = false
 var dist = 100.0
+var seek_tog_cur: float = 0.0
+var seek_toggled: bool = true
 var target: Node3D
 var target_position
 var player
@@ -77,7 +83,7 @@ func _ready() -> void:
 	freeze = false
 	gravity_scale = 0.0
 	linear_damp = 0.005
-	angular_damp = 0.5
+	angular_damp = 0.01
 	mass = max(1.0, properties["mass"])
 	inertia = Vector3(1, 1, 1) * mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
@@ -155,6 +161,9 @@ func _physics_process(delta: float) -> void:
 		_remove_missile()
 		return
 	
+	# Update seeker pulsing system
+	pulser(delta)
+	
 	# Thrust: Apply force along forward direction if within fuel duration.
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
 		apply_central_force(global_transform.basis.y * thrust_force * mass)
@@ -163,7 +172,7 @@ func _physics_process(delta: float) -> void:
 			smoking = true
 	
 	# Gravity: Apply a downward force.
-	#apply_central_force(Vector3.DOWN * 9.80665 * mass)
+	apply_central_force(Vector3.DOWN * 9.80665 * mass)
 	
 	var A = 0.0 # val > 0 = +aim -flight, val < 0 = -aim +flight
 	
@@ -210,6 +219,14 @@ func _explode_and_remove() -> void:
 	# Optionally instantiate explosion effects here.
 	queue_free()
 
+func pulser(delta:float):
+	seek_tog_cur += delta
+	if seek_tog_cur >= seek_timer_off:
+		seek_toggled = true
+		if (seek_tog_cur - seek_timer_off) >= seek_timer_on:
+			seek_tog_cur = 0.0
+			seek_toggled = false
+
 #------------------------------------------------------------------
 # Helpers – using only the RigidBody's orientation.
 #------------------------------------------------------------------
@@ -229,7 +246,7 @@ func _get_target_angles(target_node: Node3D) -> Vector2:
 	
 	var ang = Vector2(yaw_angle, pitch_angle)
 	
-	# If the angles exceed the seeker field-of-view, return ZERO (lock lost).
+	# If the angles exceed FOV, return previous angle of lock.
 	var limit = deg_to_rad(seeker_fov)
 	if abs(yaw_angle) > limit or abs(pitch_angle) > limit:
 		return prev_ang
@@ -264,11 +281,9 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: String) 
 		yval = 0
 		
 	elif type == "Radar_Seeker": # radar
-		var stuff = _radar_steering(relative_angles, delta)
-		var dist = (target.global_transform.origin - global_transform.origin).length()
-		var c_dist = dist / max(1,(linear_velocity * global_transform.basis.y).length())
-		xval = stuff.x * c_dist
-		yval = stuff.y * c_dist
+		var stuff = _radar_steering(relative_angles)
+		xval = stuff.x
+		yval = stuff.y
 	
 	else: # non
 		xval = 0
@@ -280,30 +295,43 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: String) 
 # New and improved CB/DR guidance now with LR accel
 var prev_angles = Vector2.ZERO
 var prev_rate_angles = Vector2.ZERO
-func _radar_steering(angles: Vector2, delta: float) -> Vector2:
+var first: bool = true
+func _radar_steering(angles: Vector2) -> Vector2:
 	# First derivative: angular rate (LOS rate)
-	var rate_angles = -(angles - prev_angles)
+	var rate_angles = Vector2.ZERO
+	
+	# If first tick, equalize values to prevent launching jerk
+	if first:
+		prev_angles = angles
+	
+	# Does a thing
+	first = false
+	
+	# wait a small delay between checking angle (prevents lock angle locking)
+	# imported as it allows a resonable delta to accumulate
+	if seek_toggled == true:
+		rate_angles = -(angles - prev_angles)
 	
 	# Second derivative: angular acceleration (LOS jerk)
 	var jerk_angles = -(rate_angles - prev_rate_angles)
 
 	# Apply PID using LOS jerk as the 'error' input
-	print()
+	#print()
 	
 	var yc0 =  angles.x * GAIN_0
 	var pc0 = -angles.y * GAIN_0
-	print("raw: ", yc0, ", ", pc0)
+	#print("raw: ", yc0, ", ", pc0)
 	
 	var yc1 = rate_angles.x * GAIN_1
 	var pc1 = -rate_angles.y * GAIN_1
-	print("rate: ", yc1, ", ", pc1)
+	#print("rate: ", yc1, ", ", pc1)
 	
 	var yc2 = jerk_angles.x * GAIN_2
 	var pc2 = -jerk_angles.y * GAIN_2
-	print("jerk: ", yc2, ", ", pc2)
+	#print("jerk: ", yc2, ", ", pc2)
 
 	# Clamp based on speed
-	var speed = max(1, (linear_velocity.length() * global_transform.basis.y).length())
+	var speed = dist / max(1, linear_velocity.dot(global_transform.basis.y))
 	var yaw_cmd = clamp(yc0+yc1+yc2, -speed, speed)
 	var pitch_cmd = clamp(pc0+pc1+pc2, -speed, speed)
 
@@ -312,7 +340,7 @@ func _radar_steering(angles: Vector2, delta: float) -> Vector2:
 	prev_rate_angles = rate_angles
 
 	# Output is final command vector
-	print("out: ", Vector2(yaw_cmd, pitch_cmd))
+	#print("out: ", Vector2(yaw_cmd, pitch_cmd))
 	return Vector2(yaw_cmd, pitch_cmd)
 
 # Apply torque based on PID output.
@@ -328,9 +356,8 @@ func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
 	var anti_roll_torque = -forward.cross(right)
 	
 	# Scale the torque by the speed (clamped) for responsiveness.
-	var speed = max(1,linear_velocity.length())
+	var speed = max(1, linear_velocity.dot(global_transform.basis.y))
 	
 	# Combine torque vectors and apply it as force
 	var forces = ((pitch_torque + yaw_torque) * speed)
-	print("forces: ", forces)
 	apply_torque(forces)
