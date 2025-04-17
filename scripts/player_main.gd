@@ -44,10 +44,10 @@ extends CharacterBody3D
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var speed = SPEED
 var accel = ACCEL
-var noclip_tog = false
-var zoom_tog = false
-var msl_follow_tog = false
-var slomo_tog = false
+var noclip_tog := false
+var zoom_tog := false
+var msl_follow_tog := false
+var slomo_tog := false
 
 var rotation_target_player : float
 var rotation_target : float
@@ -95,15 +95,16 @@ func _input(event):
 		set_rotation_target(event.relative)
 
 func set_rotation_target(mouse_motion : Vector2):
-	if zoom_tog:
-		rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS_ZOOM
-		rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS_ZOOM
-	else:
-		rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS
-		rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS
-	
-	if CLAMP_HEAD_ROTATION:
-		rotation_target = clamp(rotation_target, deg_to_rad(CLAMP_HEAD_ROTATION_MIN), deg_to_rad(CLAMP_HEAD_ROTATION_MAX))
+	if not msl_follow_tog:
+		if zoom_tog:
+			rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS_ZOOM
+			rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS_ZOOM
+		else:
+			rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS
+			rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS
+		
+		if CLAMP_HEAD_ROTATION:
+			rotation_target = clamp(rotation_target, deg_to_rad(CLAMP_HEAD_ROTATION_MIN), deg_to_rad(CLAMP_HEAD_ROTATION_MAX))
 
 func rotate_player(delta):
 	if MOUSE_ACCEL:
@@ -174,49 +175,60 @@ func toggle_slomo(enable):
 func toggle_zoom(enable):
 	if enable and Camera.fov == 75.0:
 		Camera.fov = 10.0
-	if not enable and Camera.fov == 10.0:
+	if not enable and Camera.fov == 15.0:
 		Camera.fov = 75.0
 
 
-var back_step := false
+var back_step1 := false
+#var back_step2 := false
+#var back_step3 := false
 func toggle_msl_follow(enabled: bool):
 	if enabled:
 		if launcher.LAUCNHER_CHILD_SHARED_DATA.has("world") and launcher.LAUCNHER_CHILD_SHARED_DATA["world"].has("missiles"):
 			var msl = launcher.LAUCNHER_CHILD_SHARED_DATA["world"].get("missiles", [])
-
+			
 			if msl is Array and not msl.is_empty():
 				var first_missile = msl[0]
+				var rigid: RigidBody3D = first_missile.get_child(0) if first_missile.get_child_count() > 0 else null
 
-				if enabled:
-					var rigid = first_missile.get_child(0) if first_missile.get_child_count() > 0 else null
+				if is_instance_valid(rigid):
+					# Position follow
+					global_transform.origin = rigid.global_transform.origin
 					
-					if rigid:
-						global_position = rigid.global_position + Vector3(0, 3, 10)
-						msl_follow_tog = true
-						back_step = false
-						noclip_tog = false
-					else:
-						disable_follow()
+					# Orientation follow
+					var forward = -rigid.global_basis.y.normalized()
+					var up = -rigid.global_basis.z.normalized()
+					var right = -rigid.global_basis.x.normalized()
+					up = right.cross(forward).normalized()
+
+					global_transform.basis = Basis(right, up, forward).orthonormalized()
+
+					# Set flags
+					msl_follow_tog = true
+					back_step1 = false
+					noclip_tog = false
 				else:
-					if not back_step:
-						reset_position()
+					disable_follow()
 			else:
 				disable_follow()
 		else:
 			disable_follow()
-			back_step = true
+			back_step1 = true
+	else:
+		if not back_step1:
+			reset_position()
 
 func reset_position():
 	global_position = Vector3(0, 3, 10)
+	global_basis = Basis(Vector3.LEFT, Vector3.DOWN, Vector3.BACK)
 	msl_follow_tog = false
-	back_step = true
+	back_step1 = true
 	noclip_tog = true
 
 func disable_follow():
 	msl_follow_tog = false
-	back_step = false
+	back_step1 = false
 	noclip_tog = false
-
 
 func toggle_noclip(enabled):
 	if enabled:

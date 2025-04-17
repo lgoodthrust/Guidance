@@ -1,12 +1,12 @@
 [gd_scene load_steps=9 format=3 uid="uid://dfcpnnirrm4ol"]
 
-[ext_resource type="PackedScene" uid="uid://yw4re2eruv0u" path="res://game_data/blocks/controller.tscn" id="1_1wx7h"]
-[ext_resource type="PackedScene" uid="uid://8tqnmisb1gkr" path="res://game_data/blocks/fin.tscn" id="3_gmm0q"]
-[ext_resource type="PackedScene" uid="uid://c6ikuns81cj1j" path="res://game_data/blocks/rocket_fuel.tscn" id="5_447ey"]
-[ext_resource type="PackedScene" uid="uid://c8y1d14qkdba8" path="res://game_data/blocks/back_cannard.tscn" id="7_uoygn"]
-[ext_resource type="PackedScene" uid="uid://jdpjcqkyj5ab" path="res://game_data/blocks/rocket_motor.tscn" id="9_73vof"]
-[ext_resource type="PackedScene" uid="uid://b6xprrcbpswax" path="res://game_data/blocks/warhead.tscn" id="11_824ap"]
-[ext_resource type="PackedScene" uid="uid://6mfhdv1x06sq" path="res://game_data/blocks/radar_seeker.tscn" id="12_yfe1c"]
+[ext_resource type="PackedScene" uid="uid://yw4re2eruv0u" path="res://game_data/blocks/controller.tscn" id="1_g1gfc"]
+[ext_resource type="PackedScene" uid="uid://8tqnmisb1gkr" path="res://game_data/blocks/fin.tscn" id="3_4btip"]
+[ext_resource type="PackedScene" uid="uid://c6ikuns81cj1j" path="res://game_data/blocks/rocket_fuel.tscn" id="5_0r0oc"]
+[ext_resource type="PackedScene" uid="uid://c8y1d14qkdba8" path="res://game_data/blocks/back_cannard.tscn" id="7_r1kab"]
+[ext_resource type="PackedScene" uid="uid://jdpjcqkyj5ab" path="res://game_data/blocks/rocket_motor.tscn" id="9_lnxx7"]
+[ext_resource type="PackedScene" uid="uid://b6xprrcbpswax" path="res://game_data/blocks/warhead.tscn" id="11_ac401"]
+[ext_resource type="PackedScene" uid="uid://6mfhdv1x06sq" path="res://game_data/blocks/radar_seeker.tscn" id="12_07oag"]
 
 [sub_resource type="GDScript" id="GDScript_qvbnp"]
 script/source = "extends Node3D
@@ -24,7 +24,7 @@ script/source = "extends Node3D
 
 [node name="RigidBody3D" type="RigidBody3D" parent="."]
 
-[node name="Controller" parent="RigidBody3D" instance=ExtResource("1_1wx7h")]
+[node name="Controller" parent="RigidBody3D" instance=ExtResource("1_g1gfc")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8, 0)
 DATA = {
 "MASS": 10.0,
@@ -33,7 +33,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Fin" parent="RigidBody3D" instance=ExtResource("3_gmm0q")]
+[node name="Fin" parent="RigidBody3D" instance=ExtResource("3_4btip")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, 0)
 DATA = {
 "LIFT": 0.0437,
@@ -43,7 +43,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Rocket_Fuel" parent="RigidBody3D" instance=ExtResource("5_447ey")]
+[node name="Rocket_Fuel" parent="RigidBody3D" instance=ExtResource("5_0r0oc")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 DATA = {
 "LIFT": 0.0,
@@ -53,7 +53,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="@Node3D@118" parent="RigidBody3D" instance=ExtResource("5_447ey")]
+[node name="@Node3D@169" parent="RigidBody3D" instance=ExtResource("5_0r0oc")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 DATA = {
 "LIFT": 0.0,
@@ -63,7 +63,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="@Node3D@120" parent="RigidBody3D" instance=ExtResource("5_447ey")]
+[node name="@Node3D@171" parent="RigidBody3D" instance=ExtResource("5_0r0oc")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
 DATA = {
 "LIFT": 0.0,
@@ -73,7 +73,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="@Node3D@122" parent="RigidBody3D" instance=ExtResource("5_447ey")]
+[node name="@Node3D@173" parent="RigidBody3D" instance=ExtResource("5_0r0oc")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 DATA = {
 "LIFT": 0.0,
@@ -83,7 +83,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Back_Cannard" parent="RigidBody3D" instance=ExtResource("7_uoygn")]
+[node name="Back_Cannard" parent="RigidBody3D" instance=ExtResource("7_r1kab")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 DATA = {
 "LIFT": 0.0292,
@@ -93,7 +93,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Rocket_Motor" parent="RigidBody3D" instance=ExtResource("9_73vof")]
+[node name="Rocket_Motor" parent="RigidBody3D" instance=ExtResource("9_lnxx7")]
 DATA = {
 "LIFT": 0.0,
 "MASS": 5.0,
@@ -102,7 +102,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Warhead" parent="RigidBody3D" instance=ExtResource("11_824ap")]
+[node name="Warhead" parent="RigidBody3D" instance=ExtResource("11_ac401")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, 0)
 script = SubResource("GDScript_qvbnp")
 DATA = {
@@ -113,7 +113,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Radar_Seeker" parent="RigidBody3D" instance=ExtResource("12_yfe1c")]
+[node name="Radar_Seeker" parent="RigidBody3D" instance=ExtResource("12_07oag")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9, 0)
 DATA = {
 "LIFT": 0.0,
