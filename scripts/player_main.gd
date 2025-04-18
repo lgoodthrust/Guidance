@@ -20,10 +20,9 @@ extends CharacterBody3D
 @export_subgroup("Mouse")
 @export var CAPTURE_ON_START := true
 @export var MOUSE_ACCEL := false
-@export var KEY_BIND_MOUSE_SENS := 0.005
+@export var KEY_BIND_MOUSE_SENS := 0.003
 @export var KEY_BIND_MOUSE_SENS_ZOOM := 0.001
 @export var KEY_BIND_MOUSE_ACCEL := 50
-@export var KEY_MOUSE_ZOOM := "key_b"
 
 @export_subgroup("Movement")
 @export var KEY_BIND_UP := "key_w"
@@ -120,7 +119,6 @@ func move_player(delta):
 
 	if Input.is_action_just_pressed(KEY_BIND_NOCLIP):
 		noclip_tog = !noclip_tog
-		toggle_noclip(noclip_tog)
 	
 	if Input.is_action_pressed(KEY_BIND_CROUTCH):
 		$Player_Shape.shape.height = 1.0
@@ -132,6 +130,8 @@ func move_player(delta):
 		$Player_Object/Player_Collider.shape.height = 2.0
 
 	if noclip_tog:
+		set_collision_layer_value(1, false)
+		set_collision_mask_value(1, false)
 		# noclip_tog flying mode
 		speed = IN_NOCLIP_SPEED * (2.0 if Input.is_action_pressed(KEY_BIND_SPRINT) else (0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1.0))
 		accel = IN_NOCLIP_ACCEL
@@ -149,6 +149,8 @@ func move_player(delta):
 		# Directly move the player in noclip_tog (bypassing physics)
 		global_transform.origin += velocity * delta
 	else:
+		set_collision_layer_value(1, true)
+		set_collision_mask_value(1, true)
 		# Regular movement with physics
 		if is_on_floor():
 			speed = SPEED * (2.0 if Input.is_action_pressed(KEY_BIND_SPRINT) else (0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1.0))
@@ -162,8 +164,8 @@ func move_player(delta):
 		velocity.x = move_toward(velocity.x, direction.x * speed, accel * delta)
 		velocity.z = move_toward(velocity.z, direction.z * speed, accel * delta)
 			
-	
 		move_and_slide()
+	
 	LAUCNHER_CHILD_SHARE_SET("player", "POS", self.global_position)
 
 func toggle_slomo(enable):
@@ -174,7 +176,7 @@ func toggle_slomo(enable):
 
 func toggle_zoom(enable):
 	if enable and Camera.fov == 75.0:
-		Camera.fov = 10.0
+		Camera.fov = 15.0
 	if not enable and Camera.fov == 15.0:
 		Camera.fov = 75.0
 
@@ -197,9 +199,9 @@ func toggle_msl_follow(enabled: bool):
 					
 					# Orientation follow
 					var forward = -rigid.global_basis.y.normalized()
-					var up = -rigid.global_basis.z.normalized()
+					var up = rigid.global_basis.z.normalized()
 					var right = -rigid.global_basis.x.normalized()
-					up = right.cross(forward).normalized()
+					#up = right.cross(forward).normalized()
 
 					global_transform.basis = Basis(right, up, forward).orthonormalized()
 
@@ -223,21 +225,11 @@ func reset_position():
 	global_basis = Basis(Vector3.LEFT, Vector3.DOWN, Vector3.BACK)
 	msl_follow_tog = false
 	back_step1 = true
-	noclip_tog = true
 
 func disable_follow():
 	msl_follow_tog = false
 	back_step1 = false
 	noclip_tog = false
-
-func toggle_noclip(enabled):
-	if enabled:
-		set_collision_layer_value(1, false)
-		set_collision_mask_value(1, false)
-	else:
-		set_collision_layer_value(1, true)
-		set_collision_mask_value(1, true)
-
 
 func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:

@@ -1,11 +1,11 @@
 extends RigidBody3D
 
 # Main missile parameters
-@export var thrust_force: float = 400.0
+@export var thrust_force: float = 0.0
 @export var lifetime: float = 25.0
-@export var launch_charge_force: float = 25.0
+@export var launch_charge_force: float = .0
 @export var motor_delay: float = 0.15
-@export var fuel_duration: float = 2.0
+@export var fuel_duration: float = 1.5
 @export var proximity_detonation_radius: float = 10.0
 
 # Seeker parameters
@@ -22,7 +22,7 @@ extends RigidBody3D
 @export var PITCH_KD: float = 0.75
 
 @export var GAIN_0: float = 0.0
-@export var GAIN_1: float = 1000.0
+@export var GAIN_1: float = 50.0
 @export var GAIN_2: float = 0.0
 
 # Flags (set these as desired in the Inspector)
@@ -63,6 +63,9 @@ var player
 
 @onready var adv_move = ADV_MOVE.new()
 @onready var particles = gpu_particle_effects.new()
+@onready var summerx = SUM.new()
+@onready var summery = SUM.new()
+@onready var summers = SUM.new()
 
 func _ready() -> void:
 	target_position = Vector3()
@@ -77,8 +80,8 @@ func _ready() -> void:
 	# Basic physics settings
 	freeze = false
 	gravity_scale = 0.0
-	linear_damp = 0.005
-	angular_damp = 0.01
+	linear_damp = 0.0035
+	angular_damp = 0.005
 	mass = max(1.0, properties["mass"])
 	inertia = Vector3(1, 1, 1) * mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
@@ -87,7 +90,7 @@ func _ready() -> void:
 	target = get_tree().current_scene.get_node_or_null("World/Active_Target")
 	
 	# Apply an initial impulse in our "forward" (local Y) direction.
-	apply_central_force(-global_basis.y * launch_charge_force * mass)
+	apply_central_impulse(-global_basis.y * launch_charge_force * mass)
 
 func load_missile_blocks() -> void:
 	for child in get_children():
@@ -158,14 +161,14 @@ func _physics_process(delta: float) -> void:
 	
 	# Thrust: Apply force along forward direction if within fuel duration.
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
-		apply_central_force(global_transform.basis.y * thrust_force * mass)
+		apply_force(global_transform.basis.y * thrust_force * mass, centers["thrust"])
 		# Optionally trigger smoke effect here.
 		if not smoking:
 			smoking = true
 			add_child(particles.smoke_01())
 	
 	# Gravity: Apply a downward force.
-	apply_central_force(Vector3.DOWN * 9.80665 * mass)
+	#apply_central_force(Vector3.DOWN * 9.80665 * mass)
 	
 	var A = 0.0 # val > 0 = +aim -flight, val < 0 = -aim +flight
 	
@@ -263,7 +266,7 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: String) 
 		yval = 0
 		
 	elif type == "Radar_Seeker": # radar
-		var stuff = _radar_steering(relative_angles)
+		var stuff = _radar_steering(delta, relative_angles)
 		xval = stuff.x
 		yval = stuff.y
 	
@@ -280,26 +283,27 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: String) 
 var prev_angles = Vector2.ZERO
 var prev_rate_angles = Vector2.ZERO
 var first: bool = true
-func _radar_steering(angles: Vector2) -> Vector2:
+func _radar_steering(delta:float, angles: Vector2) -> Vector2:
 	# First derivative: angular rate (LOS rate)
 	var rate_angles = Vector2.ZERO
 	
 	# If first tick, equalize values to prevent launching jerk
 	if first:
 		prev_angles = angles
+		first = false
 	
-	# Does a thing
-	first = false
-	
-	# wait a small delay between checking angle (prevents lock angle locking)
 	# imported as it allows a resonable delta to accumulate
-	rate_angles = -(angles - prev_angles)
+	# Divide by delta time to make rate calculations FPS independant
+	rate_angles = -(angles - prev_angles) / delta
 	
 	# Second derivative: angular acceleration (LOS jerk)
-	var jerk_angles = -(rate_angles - prev_rate_angles)
-
-	# Apply PID using LOS jerk as the 'error' input
-	#print()
+	var jerk_angles = -(rate_angles - prev_rate_angles) / delta
+	
+	# Update state history
+	prev_angles = angles
+	prev_rate_angles = rate_angles
+	
+	print()
 	
 	var yc0 =  angles.x * GAIN_0
 	var pc0 = -angles.y * GAIN_0
@@ -307,7 +311,7 @@ func _radar_steering(angles: Vector2) -> Vector2:
 	
 	var yc1 = rate_angles.x * GAIN_1
 	var pc1 = -rate_angles.y * GAIN_1
-	#print("rate: ", yc1, ", ", pc1)
+	print("rate: ", yc1, ", ", pc1)
 	
 	var yc2 = jerk_angles.x * GAIN_2
 	var pc2 = -jerk_angles.y * GAIN_2
@@ -316,31 +320,14 @@ func _radar_steering(angles: Vector2) -> Vector2:
 	var Ax = yc0+yc1+yc2
 	var Ay = pc0+pc1+pc2
 	
-	if yc1 != 0:
-		if yc1 > 0:
-			yc1 = 1
-		if yc1 < 0:
-			yc1 = -1
+	# Sum (integral) of all the values
+	var outx = Ax#summerx.update(Ax, 3, 3.0)
+	var outy = Ay#summery.update(Ay, 3, 3.0)
+	var outs =  summerx.update(Vector2(outx, outy).length(), 10, 25.0)
 	
-	if pc1 != 0:
-		if pc1 > 0:
-			pc1 = 1
-		if pc1 < 0:
-			pc1 = -1
-	
-	# Clamp based on speed
-	var speed = max(1, linear_velocity.dot(global_transform.basis.y))
-	print(speed)
-	var yaw_cmd = clamp(yc1, -speed, speed)
-	var pitch_cmd = clamp(pc1, -speed, speed)
-
-	# Update state history
-	prev_angles = angles
-	prev_rate_angles = rate_angles
-
 	# Output is final command vector
-	#print("out: ", Vector2(yaw_cmd, pitch_cmd))
-	return Vector2(yaw_cmd, pitch_cmd)
+	print("out: ", Vector2(outx, outy)*outs)
+	return Vector2(outx, outy)*outs
 
 # Apply torque based on input.
 # We interpret cmd.x as yaw and cmd.y as pitch.
@@ -348,18 +335,18 @@ func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
 	var yaw_rad = cmd.x
 	var pitch_rad = cmd.y
 	
-	if yaw_rad > 0:
-		if pitch_rad > 0:
-			pitch_rad = PI
-		elif pitch_rad < 0:
-			pitch_rad = -PI
-		yaw_rad = PI
-	elif yaw_rad < 0:
-		if pitch_rad > 0:
-			pitch_rad = PI
-		elif pitch_rad < 0:
-			pitch_rad = -PI
-		yaw_rad = -PI
+	#if yaw_rad > 0.0:
+		#if pitch_rad > 0.0:
+			#pitch_rad = PI
+		#elif pitch_rad < 0.0:
+			#pitch_rad = -PI
+		#yaw_rad = PI
+	#elif yaw_rad < 0.0:
+		#if pitch_rad > 0.0:
+			#pitch_rad = PI
+		#elif pitch_rad < 0.0:
+			#pitch_rad = -PI
+		#yaw_rad = -PI
 	
 	var right = global_basis.x
 	var up = global_basis.z

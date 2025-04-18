@@ -20,10 +20,8 @@ func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("key_mouse_left") and not active_builder:
 		spawn_missile()
 
-
 func _physics_process(_delta: float) -> void:
 	look_dir(self, Vector3.UP)
-
 
 func look_dir(node, look_vec):
 	if not leader_node:
@@ -38,7 +36,6 @@ func look_dir(node, look_vec):
 	# Rotate this node to face the target position
 	node.look_at(target_position, look_vec)
 
-
 func get_player() -> Node:
 	var node = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
 	if node == InstancePlaceholder:
@@ -47,7 +44,6 @@ func get_player() -> Node:
 		var cam:Camera3D = node.get_node("Player_Camera")
 		node = cam
 	return node
-
 
 func spawn_missile():
 	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
@@ -69,7 +65,6 @@ func spawn_missile():
 	missile_instance.rotate_object_local(Vector3.LEFT, PI/2)
 	list_o_msls.push_front(missile_instance)
 	LAUCNHER_CHILD_SHARE_SET("world", "missiles", list_o_msls)
-
 
 func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:

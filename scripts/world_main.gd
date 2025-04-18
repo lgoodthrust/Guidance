@@ -18,7 +18,6 @@ func _ready():
 	LAUCNHER_CHILD_SHARE_SET("world", "TARGET", get_node("Active_Target"))
 	LAUCNHER_CHILD_SHARE_SET("world", "SPAWNER", get_node("Missile_Spawner"))
 
-
 func _initialize_noise():
 	noise = FastNoiseLite.new()
 	noise.seed = randi_range(1, 1000000)
@@ -36,7 +35,6 @@ func add_chunk(x: int, z: int):
 
 	add_child(chunk)
 	chunks[key] = chunk
-
 
 func remove_chunk(x: int, z: int):
 	var key = Vector2i(x, z)
@@ -64,7 +62,6 @@ func _physics_process(_delta):
 	for x in range(p_x - range_in, p_x + range_in):
 		for z in range(p_z - range_in, p_z + range_in):
 			add_chunk(x, z)
-
 
 func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:
