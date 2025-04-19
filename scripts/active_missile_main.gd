@@ -1,105 +1,102 @@
-## missile_main.gd -------------------------------------------------
-## Complete missile script with fixed guidance, finished SUM usage,
-## and a few minor clean‑ups for stability.
-
 extends RigidBody3D
 
-# ─────────────────── Missile parameters ──────────────────────────
-@export var thrust_force:                    float = 25.0
-@export var lifetime:                        float = 25.0
-@export var launch_charge_force:             float = 0.0
-@export var motor_delay:                     float = 0.15
-@export var fuel_duration:                   float = 1.5
-@export var proximity_detonation_radius:     float = 10.0
+# Main missile parameters
+@export var thrust_force: float = 300.0
+@export var lifetime: float = 25.0
+@export var launch_charge_force: float = .0
+@export var motor_delay: float = 0.15
+@export var fuel_duration: float = 1.5
+@export var proximity_detonation_radius: float = 10.0
 
-# ─────────────────── Seeker parameters ───────────────────────────
-@export var max_range:                       float = 3500.0
-@export var seeker_fov:                      float = 40.0
-@export var unlocked_detonation_delay:       float = 1.5
+# Seeker parameters
+@export var max_range: float = 3500.0
+@export var seeker_fov: float = 40.0
+@export var unlocked_detonation_delay: float = 1.5
 
-# ─────────────────── Guidance PID gains ──────────────────────────
-@export var YAW_KP:                          float = 1.0
-@export var YAW_KI:                          float = 1.5
-@export var YAW_KD:                          float = 0.75
-@export var PITCH_KP:                        float = 1.0
-@export var PITCH_KI:                        float = 1.5
-@export var PITCH_KD:                        float = 0.75
+# Guidance PID gains
+@export var YAW_KP: float = 1.25
+@export var YAW_KI: float = 2.0
+@export var YAW_KD: float = 0.5
+@export var PITCH_KP: float = 1.25
+@export var PITCH_KI: float = 2.0
+@export var PITCH_KD: float = 0.5
 
-@export var GAIN_0:                          float = 0.0
-@export var GAIN_1:                          float = 1.0
-@export var GAIN_2:                          float = 0.0
+@export var GAIN_0: float = 0.0
+@export var GAIN_1: float = 10.0
+@export var GAIN_2: float = 0.0
 
-# ─────────────────── Centres / properties ────────────────────────
-var centers := {
-	"mass":     Vector3.ZERO,
+# Flags (set these as desired in the Inspector)
+var centers = {
+	"mass": Vector3.ZERO,
 	"pressure": Vector3.ZERO,
-	"thrust":   Vector3.ZERO
+	"thrust": Vector3.ZERO
 }
 
-var properties := {
-	"seeker_type":        "",
-	"fuel":               0,
-	"mass":               0.0,
-	"total_lift":         0.0,
-	"has_ir_seeker":      false,
-	"has_controller":     false,
-	"has_warhead":        false,
-	"has_front_cannard":  false,
-	"has_back_cannard":   false,
-	"has_fin":            false,
-	"has_motor":          false
+var properties = {
+	"seeker_type": "",
+	"fuel": 0,
+	"mass": 0.0,
+	"total_lift": 0.0,
+	"has_ir_seeker": false,
+	"has_controller": false,
+	"has_warhead": false,
+	"has_front_cannard": false,
+	"has_back_cannard": false,
+	"has_fin": false,
+	"has_motor": false
 }
 
-# ─────────────────── Internal state ──────────────────────────────
-var blocks: Array         = []
-var life:   float         = 0.0
-var unlocked_life: float  = 0.0
-var smoking: bool         = false
-var dist:    float        = 100.0
 
+# Internal state
+var blocks = []
+var life: float = 0.0
+var unlocked_life: float = 0.0
+var smoking: bool = false
+var dist = 100.0
 var target: Node3D
-var target_position: Vector3
-var player: Node3D
+var target_position
+var player
 
-# ─────────────────── Helper objects ──────────────────────────────
-@onready var pidx0    := PID.new()
-@onready var pidy0    := PID.new()
-@onready var adv_move := ADV_MOVE.new()
-@onready var particles:= gpu_particle_effects.new()
+# PID controllers for yaw and pitch
+@onready var pidx0 = PID.new()
+@onready var pidy0 = PID.new()
 
-@onready var summerx := SUM.new()
-@onready var summery := SUM.new()
-@onready var summers  := SUM.new()
+@onready var adv_move = ADV_MOVE.new()
+@onready var particles = gpu_particle_effects.new()
+@onready var summerx = SUM.new()
+@onready var summery = SUM.new()
+@onready var summers = SUM.new()
 
-# ─────────────────── Ready ───────────────────────────────────────
 func _ready() -> void:
 	target_position = Vector3()
-	player          = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
+	player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
 	
+	# add missile blocks to list
 	load_missile_blocks()
+	
+	# calculate data
 	calculate_centers()
 	
-	freeze                = false
-	gravity_scale         = 0.0
-	linear_damp           = 0.0035
-	angular_damp          = 0.125
-	mass                  = max(1.0, properties["mass"])
-	inertia               = Vector3.ONE * mass
-	center_of_mass_mode   = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	center_of_mass        = centers["mass"]
+	# Basic physics settings
+	freeze = false
+	gravity_scale = 0.0
+	linear_damp = 0.0035
+	angular_damp = 0.005
+	mass = max(1.0, properties["mass"])
+	inertia = Vector3(1, 1, 1) * mass
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = centers["mass"]
 	
 	target = get_tree().current_scene.get_node_or_null("World/Active_Target")
 	
-	# Initial impulse in local –Y (missile forward)
+	# Apply an initial impulse in our "forward" (local Y) direction.
 	apply_central_impulse(-global_basis.y * launch_charge_force * mass)
 
-# ─────────────────── Helper: load blocks ─────────────────────────
 func load_missile_blocks() -> void:
 	for child in get_children():
-		if child is Node3D and child.DATA.has("NAME"):
+		if child.get_class() == "Node3D" and child.DATA.has("NAME"):
 			blocks.append(child)
 
-# ─────────────────── Helper: centres of mass / lift / thrust ────
 func calculate_centers() -> void:
 	var lift_blocks = 0
 	var thrust_blocks = 0
@@ -155,143 +152,201 @@ func calculate_centers() -> void:
 	if thrust_blocks > 0:
 		centers["thrust"] /= thrust_blocks
 
-# ─────────────────── Physics process ─────────────────────────────
 var prev_vel: Vector3 = Vector3.ZERO
-
 func _physics_process(delta: float) -> void:
 	life += delta
 	if life >= lifetime:
 		_remove_missile()
 		return
 	
-	#apply_central_force(global_basis.y * thrust_force * mass)
-	
-	# Thrust
+	# Thrust: Apply force along forward direction if within fuel duration.
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
-		apply_force(global_basis.y * thrust_force * mass, centers["thrust"])
+		apply_force(global_transform.basis.y * thrust_force * mass, centers["thrust"])
+		# Optionally trigger smoke effect here.
 		if not smoking:
 			smoking = true
 			add_child(particles.smoke_01())
 	
-	# Basic aero alignment force
-	var afd  := (global_basis.y - linear_velocity.normalized()).normalized()
-	var afm  := global_basis.y.angle_to(linear_velocity.normalized())
-	apply_central_force(afd * afm * 10.0)
+	# Gravity: Apply a downward force.
+	apply_central_force(Vector3.DOWN * 9.80665 * mass)
 	
-	# Counteract deceleration from alignment
-	var cur_accel = (linear_velocity - prev_vel) / max(delta, 1e-4)
-	apply_central_force(-cur_accel * global_basis.y * 1.25)
+	var A = 0.0 # val > 0 = +aim -flight, val < 0 = -aim +flight
 	
-	# Torque missile nose into velocity
-	var axis  := global_basis.y.cross(linear_velocity.normalized())
-	var angle := global_basis.y.angle_to(linear_velocity.normalized())
+	# Apply aerodynamic alignment (forward flight toward missile's forward direction)
+	var afd = (global_transform.basis.y - linear_velocity.normalized()).normalized()
+	var afm = global_transform.basis.y.angle_to(linear_velocity.normalized())
+	apply_central_force(10.0 * afd * afm * (1.0-A))
+	
+	# counteract unwanted de-acceleration forces from alignment forces
+	var cur_accel = linear_velocity - prev_vel
+	var anti_drag = -cur_accel * 1.25
+	apply_central_force(anti_drag * global_transform.basis.y * clamp(A,0,1))
+	
+	# apply aerodynamic alignment (missile toward foward flight)
+	var axis = global_transform.basis.y.cross(linear_velocity.normalized())
+	var angle = global_transform.basis.y.angle_to(linear_velocity.normalized())
 	if axis.length() > 0.005 and angle > 0.005:
-		apply_torque(axis.normalized() * angle * (linear_velocity.length() / 10.0) * 10.0)
+		var torque = axis.normalized() * angle
+		apply_torque(10.0 * torque * linear_velocity.length()/10.0 * (1.0+A))
 	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
 	
+	# Guidance: If a seeker is active, steer toward the target.
 	if properties["has_ir_seeker"]:
-		if dist <= proximity_detonation_radius and properties["has_warhead"]:
-			_explode_and_remove()
-			return
-		
-		if dist < max_range:
-			var ang := _get_target_angles(target)
-			if ang != Vector2.ZERO:
-				var cmd := guidance_control_law(ang, delta, properties["seeker_type"])
-				_apply_pitch_yaw_torque(cmd)
+			# Proximity detonation: Explode if too close.
+			if dist <= proximity_detonation_radius and properties["has_warhead"]:
+				_explode_and_remove()
+				return
+			
+			# If within range, steer toward the target.
+			if dist < max_range:
+				var angles = _get_target_angles(target)
+				if angles != Vector2.ZERO:
+					var pid_output = guidance_control_law(angles, delta, properties["seeker_type"])
+					_apply_pitch_yaw_torque(pid_output)
 	
 	prev_vel = linear_velocity
 
-# ─────────────────── Remove / explode ────────────────────────────
-func _remove_missile() -> void: queue_free()
-func _explode_and_remove() -> void: queue_free()  # hook explosion VFX here
+func _remove_missile() -> void:
+	queue_free()
 
-# ─────────────────── Angle helper ────────────────────────────────
-var _prev_ang: Vector2 = Vector2.ZERO
+func _explode_and_remove() -> void:
+	# Optionally instantiate explosion effects here.
+	queue_free()
 
+#------------------------------------------------------------------
+# Helpers – using only the RigidBody's orientation.
+#------------------------------------------------------------------
+# Get the angles (yaw and pitch) between our forward direction and the target.
+var prev_ang: Vector2 = Vector2.ZERO
+var TEMP: Vector2 = Vector2.ZERO
 func _get_target_angles(target_node: Node3D) -> Vector2:
-	var forward    := global_basis.y
-	var to_target  := (target_node.global_transform.origin - global_transform.origin).normalized()
-	var right      := global_basis.x
-	var up         := global_basis.z
+	var forward = global_transform.basis.y
+	var to_target = (target_node.global_transform.origin - global_transform.origin).normalized()
 	
-	var yaw_angle   := atan2(to_target.dot(right),  to_target.dot(forward))
-	var pitch_angle := atan2(to_target.dot(up),     to_target.dot(forward))
-	var ang         := Vector2(yaw_angle, pitch_angle)
+	# Yaw: rotation about the missile's up axis (local Z).
+	var right = global_basis.x
+	var yaw_angle = atan2(to_target.dot(right), to_target.dot(forward))
 	
-	var limit := deg_to_rad(seeker_fov)
+	# Pitch: rotation about the missile's right axis (local X).
+	var up = global_basis.z
+	var pitch_angle = atan2(to_target.dot(up), to_target.dot(forward))
+	
+	var ang = Vector2(yaw_angle, pitch_angle)
+	TEMP = ang
+	
+	# If the angles exceed FOV, return previous angle of lock.
+	var limit = deg_to_rad(seeker_fov)
 	if abs(yaw_angle) > limit or abs(pitch_angle) > limit:
-		return _prev_ang  # out of FOV – hold last valid lock
-	_prev_ang = ang
+		return prev_ang
+	else:
+		prev_ang = ang
+	
 	return ang
 
-# ─────────────────── Guidance control law ───────────────────────
-func guidance_control_law(relative_angles: Vector2, delta: float, kind: String) -> Vector2:
-	var xval := 0.0
-	var yval := 0.0
+# ----------------------------------------------------------
+#  CUSTOM GUIDANCE LAW
+# ----------------------------------------------------------
+func guidance_control_law(relative_angles: Vector2, delta: float, type: String) -> Vector2:
+	var xval = 0
+	var yval = 0
 	
-	match kind:
-		"IR_Seeker":
-			xval = -relative_angles.x
-			yval =  relative_angles.y
+	if type == "IR_Seeker": # ir
+		xval = -relative_angles.x
+		yval =  relative_angles.y
+	
+	elif type == "Laser_Seeker": # SACLOS/laser (beam-riding)
+		if player:
+			var player_aim_dir = -player.global_transform.basis.z  # Player's forward direction
+			target_position = player.global_transform.origin + player_aim_dir * 10000.0
 		
-		"Laser_Seeker":  # beam‑ride SACLOS
-			if player:
-				var aim_dir := -player.global_basis.z
-				target_position = player.global_transform.origin + aim_dir * 10000.0
-			var vec := adv_move.force_to_forward(delta, self, Vector3.DOWN, target_position)
-			apply_force(vec * linear_velocity * properties["mass"])
+		var vec = adv_move.force_to_forward(delta, self, Vector3.DOWN, target_position)
+		apply_force(vec * linear_velocity * properties["mass"])
 		
-		"Radar_Seeker":
-			var steer := _radar_steering(delta, relative_angles)
-			xval = steer.x
-			yval = steer.y
+		xval = 0
+		yval = 0
+		
+	elif type == "Radar_Seeker": # radar
+		var stuff = _radar_steering(delta, relative_angles)
+		xval = stuff.x
+		yval = stuff.y
 	
-	# ───── PID correction (now actually used!) ─────
-	var yaw_cmd   := pidx0.update(delta, 0.0, xval, YAW_KP, YAW_KI, YAW_KD)
-	var pitch_cmd := pidy0.update(delta, 0.0, yval, PITCH_KP, PITCH_KI, PITCH_KD)
-	return Vector2(yaw_cmd, pitch_cmd)
+	else: # non
+		xval = 0
+		yval = 0
+	
+	var xx = pidx0.update(delta, 0, xval, YAW_KP, YAW_KI, YAW_KD)
+	var yy = pidy0.update(delta, 0, yval, PITCH_KP, PITCH_KI, PITCH_KD)
+	
+	return Vector2(xval, yval)
 
-# ─────────────────── Radar steering (CB/DR) ─────────────────────
-var _prev_angles:      Vector2 = Vector2.ZERO
-var _prev_rate_angles: Vector2 = Vector2.ZERO
-var _first_sample:     bool    = true
-
-func _radar_steering(delta: float, angles: Vector2) -> Vector2:
-	if _first_sample:
-		_prev_angles = angles
-		_first_sample = false
+# New and improved CB/DR guidance now with LR accel
+var prev_angles = Vector2.ZERO
+var prev_rate_angles = Vector2.ZERO
+var first: bool = true
+var rate_angles = Vector2.ZERO
+func _radar_steering(delta:float, angles: Vector2) -> Vector2:
+	# If first tick, equalize values to prevent launching jerk
+	if first:
+		prev_angles = angles
+		first = false
 	
-	var rate_angles = -(angles - _prev_angles) / max(delta, 1e-4)
-	var jerk_angles = -(rate_angles - _prev_rate_angles) / max(delta, 1e-4)
+	# imported as it allows a resonable delta to accumulate
+	# Divide by delta time to make rate calculations FPS independant
+	rate_angles = -(angles - prev_angles) / delta
 	
-	_prev_angles      = angles
-	_prev_rate_angles = rate_angles
+	# Second derivative: angular acceleration (LOS jerk)
+	var jerk_angles = -(rate_angles - prev_rate_angles) / delta
 	
-	var yc0 :=  angles.x * GAIN_0
-	var pc0 := -angles.y * GAIN_0
-	var yc1 =  rate_angles.x * GAIN_1
+	# Update state history
+	prev_angles = angles
+	prev_rate_angles = rate_angles
+	
+	print()
+	
+	var yc0 = angles.x * GAIN_0
+	var pc0 = -angles.y * GAIN_0
+	#print("raw: ", yc0, ", ", pc0)
+	
+	var yc1 = rate_angles.x * GAIN_1
 	var pc1 = -rate_angles.y * GAIN_1
-	var yc2 =  jerk_angles.x * GAIN_2
+	print("rate: ", yc1, ", ", pc1)
+	
+	var yc2 = jerk_angles.x * GAIN_2
 	var pc2 = -jerk_angles.y * GAIN_2
+	#print("jerk: ", yc2, ", ", pc2)
 	
-	var Ax = yc0 + yc1 + yc2
-	var Ay = pc0 + pc1 + pc2
+	var Ax = -yc0+yc1-yc2
+	var Ay = -pc0+pc1-pc2
 	
-	var outs := summers.update(Vector2(Ax, Ay).length(), 3, 10.0)
-	return Vector2(-Ax, Ay) * outs
+	# Sum (integral) of all the values
+	var outx = Ax#summerx.update(Ax, 3, 3.0)
+	var outy = Ay#summery.update(Ay, 3, 3.0)
+	var outs =  summerx.update(abs(Vector2(outx, outy).length()), 5, 5.0)
+	
+	var out = Vector2(outx, outy) * outs
+	
+	# Output is final command vector
+	print("out: ", out)
+	return out
 
-# ─────────────────── Apply torque ────────────────────────────────
+# Apply torque based on input.
+# We interpret cmd.x as yaw and cmd.y as pitch.
 func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
-	var right    := global_basis.x
-	var up       := global_basis.z
-	var forward  := -global_basis.y
+	var yaw_rad = cmd.x
+	var pitch_rad = cmd.y
 	
-	var pitch_tq := right * cmd.y
-	var yaw_tq   := up    * cmd.x
-	var roll_tq  := -forward.cross(right)  # simple roll damping / anti‑roll
+	var right = global_basis.x
+	var up = global_basis.z
+	var forward = -global_basis.y
+	var pitch_torque = right * pitch_rad
+	var yaw_torque = up * yaw_rad
+	var anti_roll_torque = -forward.cross(right)
 	
-	var speed = max(linear_velocity.dot(global_basis.y), 1.0)
-	apply_torque((pitch_tq + yaw_tq + roll_tq) * speed)
+	# Scale the torque by the speed (clamped) for responsiveness.
+	var speed = max(1, linear_velocity.dot(global_transform.basis.y))
+	
+	# Combine torque vectors and apply it as force
+	var forces = ((pitch_torque + yaw_torque) * speed)
+	apply_torque(forces)
