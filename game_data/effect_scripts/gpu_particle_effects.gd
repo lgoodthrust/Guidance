@@ -38,9 +38,9 @@ func explotion_01() -> GPUParticles3D:
 	var gpup = GPUParticles3D.new()
 	gpup.amount = 150
 	gpup.one_shot = true
-	gpup.lifetime = 0.75
+	gpup.lifetime = 0.25
 	gpup.explosiveness = 1.0
-	gpup.fixed_fps = 15
+	gpup.fixed_fps = 30
 	gpup.process_material = ppm
 	gpup.draw_pass_1 = bm
 	
@@ -64,6 +64,8 @@ func smoke_01() -> GPUParticles3D:
 	var ppm = ParticleProcessMaterial.new()
 	ppm.gravity = Vector3.UP * 0.25
 	ppm.inherit_velocity_ratio = 0.0
+	ppm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	ppm.emission_shape_scale = Vector3(0.25, 0.25, 0.25)
 	
 	var gpup = GPUParticles3D.new()
 	gpup.amount = 500

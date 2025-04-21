@@ -3,23 +3,23 @@ extends RigidBody3D
 # Main missile parameters
 @export var thrust_force: float = 300.0
 @export var lifetime: float = 25.0
-@export var launch_charge_force: float = .0
-@export var motor_delay: float = 0.15
-@export var fuel_duration: float = 1.5
+@export var launch_charge_force: float = 20.0
+@export var motor_delay: float = 0.3
+@export var fuel_duration: float = 1.0
 @export var proximity_detonation_radius: float = 10.0
 
 # Seeker parameters
 @export var max_range: float = 3500.0
-@export var seeker_fov: float = 40.0
+@export var seeker_fov: float = 20.0
 @export var unlocked_detonation_delay: float = 1.5
 
 # Guidance PID gains
-@export var YAW_KP: float = 1.25
-@export var YAW_KI: float = 2.0
-@export var YAW_KD: float = 0.5
-@export var PITCH_KP: float = 1.25
-@export var PITCH_KI: float = 2.0
-@export var PITCH_KD: float = 0.5
+@export var YAW_KP: float = 10.0
+@export var YAW_KI: float = 1.0
+@export var YAW_KD: float = 0.0
+@export var PITCH_KP: float = 10.0
+@export var PITCH_KI: float = 1.0
+@export var PITCH_KD: float = 0.0
 
 @export var GAIN_0: float = 0.0
 @export var GAIN_1: float = 10.0
@@ -56,6 +56,7 @@ var dist = 100.0
 var target: Node3D
 var target_position
 var player
+var tracking: bool = true
 
 # PID controllers for yaw and pitch
 @onready var pidx0 = PID.new()
@@ -88,9 +89,6 @@ func _ready() -> void:
 	center_of_mass = centers["mass"]
 	
 	target = get_tree().current_scene.get_node_or_null("World/Active_Target")
-	
-	# Apply an initial impulse in our "forward" (local Y) direction.
-	apply_central_impulse(-global_basis.y * launch_charge_force * mass)
 
 func load_missile_blocks() -> void:
 	for child in get_children():
@@ -153,11 +151,17 @@ func calculate_centers() -> void:
 		centers["thrust"] /= thrust_blocks
 
 var prev_vel: Vector3 = Vector3.ZERO
+var laucnhed: bool = false
 func _physics_process(delta: float) -> void:
 	life += delta
 	if life >= lifetime:
 		_remove_missile()
 		return
+	
+	if laucnhed == false:
+		# Apply an initial impulse in our "forward" (local Y) direction.
+		apply_central_impulse(global_transform.basis.y * launch_charge_force * mass)
+		laucnhed = true
 	
 	# Thrust: Apply force along forward direction if within fuel duration.
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
@@ -206,21 +210,32 @@ func _physics_process(delta: float) -> void:
 					var pid_output = guidance_control_law(angles, delta, properties["seeker_type"])
 					_apply_pitch_yaw_torque(pid_output)
 	
+	if tracking == false:
+		unlocked_life += delta
+	
+	if unlocked_life >= unlocked_detonation_delay:
+		_explode_and_remove()
+	
 	prev_vel = linear_velocity
 
 func _remove_missile() -> void:
 	queue_free()
 
 func _explode_and_remove() -> void:
-	# Optionally instantiate explosion effects here.
+	var kaboom = particles.explotion_01()
+	get_tree().current_scene.get_node(".").add_child(kaboom)
+	kaboom.global_position = global_position
+	for block in blocks:
+		block.hide()
+	await get_tree().create_timer(0.25).timeout
 	queue_free()
+
 
 #------------------------------------------------------------------
 # Helpers – using only the RigidBody's orientation.
 #------------------------------------------------------------------
 # Get the angles (yaw and pitch) between our forward direction and the target.
 var prev_ang: Vector2 = Vector2.ZERO
-var TEMP: Vector2 = Vector2.ZERO
 func _get_target_angles(target_node: Node3D) -> Vector2:
 	var forward = global_transform.basis.y
 	var to_target = (target_node.global_transform.origin - global_transform.origin).normalized()
@@ -234,13 +249,14 @@ func _get_target_angles(target_node: Node3D) -> Vector2:
 	var pitch_angle = atan2(to_target.dot(up), to_target.dot(forward))
 	
 	var ang = Vector2(yaw_angle, pitch_angle)
-	TEMP = ang
 	
 	# If the angles exceed FOV, return previous angle of lock.
 	var limit = deg_to_rad(seeker_fov)
 	if abs(yaw_angle) > limit or abs(pitch_angle) > limit:
-		return prev_ang
+		tracking = false
+		return Vector2.ZERO
 	else:
+		tracking = true
 		prev_ang = ang
 	
 	return ang
@@ -276,10 +292,10 @@ func guidance_control_law(relative_angles: Vector2, delta: float, type: String) 
 		xval = 0
 		yval = 0
 	
-	var xx = pidx0.update(delta, 0, xval, YAW_KP, YAW_KI, YAW_KD)
-	var yy = pidy0.update(delta, 0, yval, PITCH_KP, PITCH_KI, PITCH_KD)
+	var xx = -pidx0.update(delta, 0, xval, YAW_KP, YAW_KI, YAW_KD)
+	var yy = -pidy0.update(delta, 0, yval, PITCH_KP, PITCH_KI, PITCH_KD)
 	
-	return Vector2(xval, yval)
+	return Vector2(xx, yy)
 
 # New and improved CB/DR guidance now with LR accel
 var prev_angles = Vector2.ZERO
