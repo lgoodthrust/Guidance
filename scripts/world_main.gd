@@ -5,7 +5,8 @@ const CHUNK_AMOUNT = 8
 
 var noise: FastNoiseLite
 var chunks = {}  # Stores active chunks
-var ground_material = preload("res://textures/terrain.png")
+var ground_tex = preload("res://textures/terrain.png")
+var ground_material : StandardMaterial3D 
 
 var player_position: Vector3
 var range_in = CHUNK_AMOUNT / 2.0
@@ -13,10 +14,16 @@ var range_out = range_in + 1.0
 var launcher = Node # FOR DATA SHARE
 
 func _ready():
-	launcher = self.get_parent() # FOR DATA SHARE
+	launcher = get_parent()
 	_initialize_noise()
-	LAUCNHER_CHILD_SHARE_SET("world", "TARGET", get_node("Active_Target"))
-	LAUCNHER_CHILD_SHARE_SET("world", "SPAWNER", get_node("Missile_Spawner"))
+	LAUCNHER_CHILD_SHARE_SET("world", "TARGET",   get_node("Active_Target"))
+	LAUCNHER_CHILD_SHARE_SET("world", "SPAWNER",  get_node("Missile_Spawner"))
+
+	# --- build a material once and reuse it for every chunk -------------
+	ground_material = StandardMaterial3D.new()
+	ground_material.albedo_texture = ground_tex
+	ground_material.roughness = 1.0          # tweak as you like
+	ground_material.uv1_scale = Vector3(1,1,1)
 
 func _initialize_noise():
 	noise = FastNoiseLite.new()
@@ -32,6 +39,7 @@ func add_chunk(x: int, z: int):
 
 	var chunk = Chunk.new(noise, x * CHUNK_SIZE, z * CHUNK_SIZE, CHUNK_SIZE)
 	chunk.transform.origin = Vector3(x * CHUNK_SIZE, 0, z * CHUNK_SIZE)
+	chunk.ground_material = ground_material
 
 	add_child(chunk)
 	chunks[key] = chunk
