@@ -225,6 +225,7 @@ func reset_position():
 	global_basis = Basis(Vector3.LEFT, Vector3.DOWN, Vector3.BACK)
 	msl_follow_tog = false
 	back_step1 = true
+	velocity = Vector3.ZERO
 
 func disable_follow():
 	msl_follow_tog = false

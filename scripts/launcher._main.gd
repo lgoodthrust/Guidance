@@ -10,6 +10,8 @@ var player_instance: Node
 var main_menu_instance: Node
 var builder_instance: Node
 
+var LIFE_SUPPORT = preload("res://coconut.png")
+
 var LAUCNHER_CHILD_SHARED_DATA = {
 	"scenes":{
 		"player":InstancePlaceholder,
@@ -25,6 +27,8 @@ var LAUCNHER_CHILD_SHARED_DATA = {
 
 
 func _ready() -> void:
+	if not LIFE_SUPPORT.get_size() == Vector2(256, 256):
+		return
 	load_player()
 	load_world()
 	load_Builder()

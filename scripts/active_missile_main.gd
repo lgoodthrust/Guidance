@@ -1,32 +1,30 @@
 extends RigidBody3D
 
 # Main missile parameters
-@export var thrust_force: float = 500.0
+@export var thrust_force: float = 300.0
 @export var lifetime: float = 25.0
 @export var launch_charge_force: float = 20.0
 @export var motor_delay: float = 0.3
 @export var fuel_duration: float = 1.0
 @export var proximity_detonation_radius: float = 10.0
+@export var max_range: float = 3500.0
+@export var seeker_fov: float = 40.0
+@export var unlocked_detonation_delay: float = 3.0
 
 # Seeker type enum
 enum Seeker { NONE, IR, LASER, RADAR }
 var seeker_type: Seeker = Seeker.NONE
 
-# Seeker parameters
-@export var max_range: float = 3500.0
-@export var seeker_fov: float = 20.0
-@export var unlocked_detonation_delay: float = 1.5
-
 # Guidance PID gains
-@export var YAW_KP: float = 5.0
+@export var YAW_KP: float = 1
 @export var YAW_KI: float = 0.0
-@export var YAW_KD: float = 0.5
-@export var PITCH_KP: float = 5.0
+@export var YAW_KD: float = 0.1
+@export var PITCH_KP: float = 1.0
 @export var PITCH_KI: float = 0.0
-@export var PITCH_KD: float = 0.5
+@export var PITCH_KD: float = 0.1
 
-@export var GAIN_0: float = 10.0
-@export var GAIN_1: float = 0.0
+@export var GAIN_0: float = 0.0
+@export var GAIN_1: float = 1.0
 @export var GAIN_2: float = 0.0
 
 # Flags (set these as desired in the Inspector)
@@ -59,13 +57,16 @@ var target: Node3D
 var target_position
 var player
 var tracking: bool = true
+var speed: float = 0.0
 
 # PID controllers for yaw and pitch
 @onready var pidx0 = PID.new()
 @onready var pidy0 = PID.new()
 
 @onready var adv_move = ADV_MOVE.new()
+
 @onready var particles = gpu_particle_effects.new()
+
 @onready var summerx = SUM.new()
 @onready var summery = SUM.new()
 @onready var summers = SUM.new()
@@ -93,10 +94,10 @@ func _ready() -> void:
 	# Basic physics settings
 	freeze = false
 	gravity_scale = 0.0
-	linear_damp = 0.0035
-	angular_damp = 0.005
+	linear_damp = 0.001
+	angular_damp = 0.001
 	mass = max(1.0, properties["mass"])
-	inertia = Vector3(1, 1, 1) * mass
+	inertia = Vector3(1, 10, 1) * mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = centers["mass"]
 	grav = (Vector3.DOWN * 9.80665 * mass)
@@ -174,6 +175,7 @@ var laucnhed: bool = false
 func _physics_process(delta: float) -> void:
 	
 	var FORWARD = global_transform.basis.y
+	speed = max(1, linear_velocity.dot(global_transform.basis.y))
 	
 	life += delta
 	if life >= lifetime:
@@ -201,11 +203,11 @@ func _physics_process(delta: float) -> void:
 	# Apply aerodynamic alignment (forward flight toward missile's forward direction)
 	var afd = (FORWARD - linear_velocity.normalized()).normalized()
 	var afm = FORWARD.angle_to(linear_velocity.normalized())
-	apply_central_force(10.0 * afd * afm * (1.0-A))
+	apply_force(afd * afm * speed * (1.0-A), centers["pressure"])
 	
 	# counteract unwanted de-acceleration forces from alignment forces
 	var cur_accel = linear_velocity - prev_vel
-	var anti_drag = -cur_accel * 1.25
+	var anti_drag = -cur_accel * 1.5
 	apply_force(anti_drag * FORWARD * clamp(A,0,1), centers["mass"])
 	
 	# apply aerodynamic alignment (missile toward foward flight)
@@ -213,7 +215,7 @@ func _physics_process(delta: float) -> void:
 	var angle = FORWARD.angle_to(linear_velocity.normalized())
 	if axis.length() > 0.005 and angle > 0.005:
 		var torque = axis.normalized() * angle
-		apply_torque(10.0 * torque * linear_velocity.length()/10.0 * (1.0+A))
+		apply_torque(torque * speed * (1.0+A))
 	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
@@ -266,7 +268,7 @@ func _get_target_angles(t: Node3D) -> Vector2:
 	var yaw   : float = atan2(dir.dot(right), dir.dot(fwd))   # yaw  (+ = right)
 	var pitch : float = atan2(dir.dot(up), dir.dot(fwd))   # pitch (+ = up)
 
-	if abs(yaw) > seeker_fov || abs(pitch) > seeker_fov:
+	if abs(rad_to_deg(yaw)) > seeker_fov or abs(rad_to_deg(pitch)) > seeker_fov:
 		tracking = false
 		return Vector2.ZERO
 	tracking = true
@@ -355,19 +357,13 @@ func _radar_steering(delta:float, angles: Vector2) -> Vector2:
 # Apply torque based on input.
 # We interpret cmd.x as yaw and cmd.y as pitch.
 func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
-	var yaw_rad = cmd.x
-	var pitch_rad = cmd.y
-	
 	var right = global_basis.x
 	var up = global_basis.z
 	var forward = -global_basis.y
-	var pitch_torque = right * pitch_rad
-	var yaw_torque = up * yaw_rad
-	var anti_roll_torque = -forward.cross(right)
-	
-	# Scale the torque by the speed (clamped) for responsiveness.
-	var speed = max(1, linear_velocity.dot(global_transform.basis.y))
+	var pitch_torque = right * cmd.y
+	var yaw_torque = up * cmd.x
+	var anti_roll_torque = forward.cross(right).cross(up)
 	
 	# Combine torque vectors and apply it as force
-	var forces = ((pitch_torque + yaw_torque) * speed)
+	var forces = ((pitch_torque + yaw_torque + anti_roll_torque) * speed)
 	apply_torque(forces)

@@ -1,6 +1,9 @@
 extends Node3D
 class_name Chunk
 
+static var active_threads := 0
+const MAX_THREADS := 32
+
 var meshInstance: MeshInstance3D
 var noise: FastNoiseLite
 var chunkX: int
@@ -16,10 +19,19 @@ func _init(noiseParam: FastNoiseLite, chunkXParam: int, chunkZParam: int, chunkS
 	chunkSize = chunkSizeParam
 
 func _ready():
+	# Only proceed if under thread limit
+	if active_threads >= MAX_THREADS:
+		# Defer chunk creation slightly
+		await get_tree().create_timer(0.1).timeout
+		_ready()  # retry
+		return
+	
 	thread = Thread.new()
 	var err = thread.start(_threaded_generate_chunk)
 	if err != OK:
 		push_error("Failed to start terrain generation thread")
+	else:
+		active_threads += 1
 
 func _threaded_generate_chunk():
 	# Generate terrain in a separate thread
@@ -34,7 +46,8 @@ func _threaded_generate_chunk():
 func _cleanup_thread():
 	if thread:
 		thread.wait_to_finish()
-		thread = null  # Ensure thread is properly cleared
+		thread = null
+		active_threads = max(0, active_threads - 1)
 
 func _generate_mesh() -> ArrayMesh:
 	var planeMesh = PlaneMesh.new()
