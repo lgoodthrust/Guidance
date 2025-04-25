@@ -34,6 +34,7 @@ func _ready() -> void:
 	switch_to_tester()
 	
 	active_target_node = LAUCNHER_CHILD_SHARE_GET("world", "TARGET")
+	LAUCNHER_CHILD_SHARE_SET("main_menu", "open", false)
 
 func _process(_delta) -> void:
 	if Input.is_action_just_released(KEY_ESCAPE):
@@ -66,6 +67,7 @@ func toggler(): # release mouse when menu active
 	
 	if active:
 		show()
+		LAUCNHER_CHILD_SHARE_SET("main_menu", "open", true)
 		Input.mouse_mode = Input.MOUSE_MODE_CONFINED
 		var scene1 = LAUCNHER_CHILD_SHARE_GET("scenes", "world")
 		if scene1 == InstancePlaceholder:
@@ -79,6 +81,7 @@ func toggler(): # release mouse when menu active
 			scene2.noclip_tog = true
 	else:
 		hide()
+		LAUCNHER_CHILD_SHARE_SET("main_menu", "open", false)
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		var scene2 = LAUCNHER_CHILD_SHARE_GET("scenes", "world")
 		if scene2 == InstancePlaceholder:

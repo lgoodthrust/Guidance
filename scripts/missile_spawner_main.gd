@@ -18,7 +18,8 @@ func _ready():
 
 func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("key_mouse_left") and not active_builder:
-		spawn_missile()
+		if LAUCNHER_CHILD_SHARE_GET("main_menu", "open") == false:
+			spawn_missile()
 
 func _physics_process(_delta: float) -> void:
 	look_dir(self, Vector3.UP)

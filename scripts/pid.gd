@@ -1,32 +1,35 @@
 class_name PID
-
 extends RefCounted
 
-## PID Controller for general use
-## Call `update(delta, target, current, p, i, d)` to get the control output
-
-@export var integral_limit: float = INF # Limits the integral term to prevent windup
+@export var integral_limit: float = INF # Prevents windup
 
 var _prev_error: float = 0.0
 var _integral: float = 0.0
+var _history: Array = []
 
 func reset():
 	_prev_error = 0.0
 	_integral = 0.0
+	_history.clear()
 
-func update(delta: float, target: float, current: float, p: float, i: float, d: float) -> float:
+func update(delta: float, target: float, current: float, p: float, i: float, d: float, I_COUNT: int = 10) -> float:
 	var error = target - current
 	
 	# Proportional term
 	var p_term = p * error
 	
-	# Integral term with windup guard
-	_integral += error * delta
+	# Integral term (integrated error * delta)
+	var integrated_error = error * delta
+	_history.append(integrated_error)
+	_integral += integrated_error
+	
+	if _history.size() > I_COUNT:
+		_integral -= _history.pop_front()
 	_integral = clamp(_integral, -integral_limit, integral_limit)
 	var i_term = i * _integral
 	
 	# Derivative term
-	var derivative = (error - _prev_error) / delta if delta > 0 else 0.0
+	var derivative = (error - _prev_error) / delta
 	var d_term = d * derivative
 	
 	_prev_error = error

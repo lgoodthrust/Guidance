@@ -16,12 +16,12 @@ enum Seeker { NONE, IR, LASER, RADAR }
 var seeker_type: Seeker = Seeker.NONE
 
 # Guidance PID gains
-@export var YAW_KP: float = 1
-@export var YAW_KI: float = 0.0
-@export var YAW_KD: float = 0.1
+@export var YAW_KP: float = 1.0
+@export var YAW_KI: float = 10.0
+@export var YAW_KD: float = 0.2
 @export var PITCH_KP: float = 1.0
-@export var PITCH_KI: float = 0.0
-@export var PITCH_KD: float = 0.1
+@export var PITCH_KI: float = 10.0
+@export var PITCH_KD: float = 0.2
 
 @export var GAIN_0: float = 0.0
 @export var GAIN_1: float = 1.0
@@ -67,10 +67,6 @@ var speed: float = 0.0
 
 @onready var particles = gpu_particle_effects.new()
 
-@onready var summerx = SUM.new()
-@onready var summery = SUM.new()
-@onready var summers = SUM.new()
-
 var grav: Vector3 = Vector3.ZERO
 var launch_force: Vector3 = Vector3.ZERO
 func _ready() -> void:
@@ -84,7 +80,7 @@ func _ready() -> void:
 	calculate_centers()
 	
 	var shape = BoxShape3D.new()
-	shape.size = Vector3(0.25, 0.25, 0.25)
+	shape.size = Vector3(0.25, 5, 0.25)
 	var box = CollisionShape3D.new()
 	box.shape = shape
 	add_child(box)
@@ -97,7 +93,7 @@ func _ready() -> void:
 	linear_damp = 0.001
 	angular_damp = 0.001
 	mass = max(1.0, properties["mass"])
-	inertia = Vector3(1, 10, 1) * mass
+	inertia = Vector3(5, 0.75, 5) * mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = centers["mass"]
 	grav = (Vector3.DOWN * 9.80665 * mass)
@@ -231,8 +227,10 @@ func _physics_process(delta: float) -> void:
 			if dist < max_range:
 				var angles = _get_target_angles(target)
 				if angles != Vector2.ZERO:
-					var pid_output = control_algorithm(angles, delta, seeker_type)
-					_apply_pitch_yaw_torque(pid_output)
+					var output = control_algorithm(angles, delta, seeker_type)
+					_apply_pitch_yaw_torque(output)
+				else:
+					_apply_pitch_yaw_torque(Vector2.ZERO)
 	
 	if tracking == false:
 		unlocked_life += delta
@@ -254,8 +252,6 @@ func _explode_and_remove() -> void:
 #------------------------------------------------------------------
 # Helpers – using only the RigidBody's orientation.
 #------------------------------------------------------------------
-# Get the angles (yaw and pitch) between our forward direction and the target.
-var prev_ang: Vector2 = Vector2.ZERO
 func _get_target_angles(t: Node3D) -> Vector2:
 	var dir: Vector3 = (t.global_position - global_position).normalized()
 	var fwd: Vector3 = global_transform.basis.y
@@ -265,8 +261,8 @@ func _get_target_angles(t: Node3D) -> Vector2:
 	# dir  = (target - missile).normalized()
 	# fwd  = global_transform.basis.y
 	# right / up are the local X / Z axes
-	var yaw   : float = atan2(dir.dot(right), dir.dot(fwd))   # yaw  (+ = right)
-	var pitch : float = atan2(dir.dot(up), dir.dot(fwd))   # pitch (+ = up)
+	var yaw   : float = atan2(dir.dot(right), dir.dot(fwd)) * deg_to_rad(seeker_fov)
+	var pitch : float = atan2(dir.dot(up), dir.dot(fwd)) * deg_to_rad(seeker_fov)
 
 	if abs(rad_to_deg(yaw)) > seeker_fov or abs(rad_to_deg(pitch)) > seeker_fov:
 		tracking = false
@@ -310,11 +306,20 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 	
 	return Vector2(xx, yy)
 
-# New and improved CB/DR guidance now with LR accel
+# New and improved CBDR/TPN/LQR guidance
 var prev_angles = Vector2.ZERO
 var prev_rate_angles = Vector2.ZERO
 var first: bool = true
 var rate_angles = Vector2.ZERO
+var prev_dist: float = 0.0
+
+# Missile parameters
+var navigation_constant: float = 4.0  # baseline PN constant
+var closing_velocity: float
+
+# LQR optimal gain parameters (pre-computed or dynamically updated)
+var K_lambda: float = 2.5
+var K_lambda_dot: float = 1.2
 func _radar_steering(delta:float, angles: Vector2) -> Vector2:
 	# If first tick, equalize values to prevent launching jerk
 	if first:
@@ -345,11 +350,23 @@ func _radar_steering(delta:float, angles: Vector2) -> Vector2:
 	var Ay = -pc0+pc1-pc2
 	
 	# Sum (integral) of all the values
-	var outx = Ax#summerx.update(Ax, 3, 3.0)
-	var outy = Ay#summery.update(Ay, 3, 3.0)
-	var outs =  summerx.update(abs(Vector2(outx, outy).length()), 5, 5.0)
+	var outx = Ax
+	var outy = Ay
 	
-	var out = Vector2(outx, outy) * outs
+	var rel_vel = -(prev_dist - dist) / delta
+	prev_dist = dist
+	
+	# True Proportional Navigation (TPN) baseline command
+	var a_TPN = navigation_constant * rel_vel * Vector2(-outx, -outy)
+	
+	# LQR Optimal guidance correction
+	# State vector x = [LOS_angle, LOS_rate], control u = missile acceleration
+	var a_LQR = -(K_lambda * angles + K_lambda_dot * Vector2(-outx, -outy))
+	
+	# Combined TPN + LQR guidance acceleration
+	var guidance_acceleration = a_TPN + a_LQR
+	
+	var out = guidance_acceleration
 	
 	# Output is final command vector
 	return out
@@ -362,8 +379,7 @@ func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
 	var forward = -global_basis.y
 	var pitch_torque = right * cmd.y
 	var yaw_torque = up * cmd.x
-	var anti_roll_torque = forward.cross(right).cross(up)
 	
 	# Combine torque vectors and apply it as force
-	var forces = ((pitch_torque + yaw_torque + anti_roll_torque) * speed)
-	apply_torque(forces)
+	var forces = ((pitch_torque + yaw_torque) * speed)
+	apply_torque(forces * mass)

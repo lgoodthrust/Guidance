@@ -33,7 +33,7 @@ func create_mesh_library():
 	var material = StandardMaterial3D.new()
 	material.albedo_texture = terrain_texture
 	material.uv1_scale = Vector3(30, 30, 30)  # Adjust to match grid scaling
-	material.roughness = 1.0  # Reduce shine
+	material.roughness = 0.75  # Reduce shine
 	material.texture_repeat = StandardMaterial3D.TEXTURE_FILTER_LINEAR
 
 	tile_mesh.surface_set_material(0, material)
