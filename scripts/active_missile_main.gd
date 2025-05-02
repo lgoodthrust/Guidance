@@ -189,17 +189,17 @@ func calculate_centers() -> void:
 	if thrust_blocks > 0:
 		centers["thrust"] /= thrust_blocks
 
-var prev_vel: Vector3 = Vector3.ZERO
-var laucnhed: bool = false
 var E: float = 1.0
-
 func _process(_delta):
 	E = Engine.time_scale - 0.25 * Engine.time_scale
 	sound_launch.pitch_scale = E
 
+var prev_vel: Vector3 = Vector3.ZERO
+var laucnhed: bool = false
 func _physics_process(delta: float) -> void:
 	var FORWARD = global_transform.basis.y
-	speed = max(1, linear_velocity.dot(global_transform.basis.y))
+	#var p_dist = player.global_position.distance_to(global_position)
+	speed = max(1, linear_velocity.dot(FORWARD))
 	
 	if speed < 0.25 and life > 1.0:
 		return
@@ -215,12 +215,12 @@ func _physics_process(delta: float) -> void:
 	
 	if laucnhed == false:
 		# Apply an initial impulse in our "forward" (local Y) direction.
-		apply_central_impulse(global_transform.basis.y * launch_charge_force * mass)
+		apply_central_impulse(FORWARD * launch_charge_force * mass)
 		laucnhed = true
 	
 	# Thrust: Apply force along forward direction if within fuel duration.
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
-		apply_force(global_transform.basis.y * thrust_force * mass, centers["thrust"])
+		apply_force(FORWARD * thrust_force * mass, centers["thrust"])
 		if not sound_fly.playing:
 			sound_fly.play()
 			sound_fly.pitch_scale = E
@@ -268,7 +268,7 @@ func _physics_process(delta: float) -> void:
 					var output = control_algorithm(angles, delta, seeker_type)
 					_apply_pitch_yaw_torque(output)
 	
-	if tracking == false:
+	if tracking == false and not seeker_type == Seeker.LASER:
 		unlocked_life += delta
 	
 	if unlocked_life >= unlocked_detonation_delay:
@@ -316,12 +316,18 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 	
 	elif type == Seeker.LASER: # SACLOS/laser (beam-riding)
 		if player:
-			var player_aim_dir = -player.global_transform.basis.z  # Player's forward direction
-			target_position = player.global_transform.origin + player_aim_dir * 10000.0
-			
-			var vec = adv_move.torque_to_position(self, target_position, Vector3.UP, 25.0, 1.0)
-			var roll_torque = adv_move.roll_pd(self, 0.0, 30.0, 0.5)
-			apply_torque((roll_torque + vec) * speed * mass)
+			var beam_origin = player.global_transform.origin
+			var beam_dir = -player.global_transform.basis.z.normalized()
+			var missile_pos = global_transform.origin
+			var rel = missile_pos - beam_origin
+			var rd = max(beam_dir.dot(rel), 0.0)
+			var bp = beam_origin + beam_dir * rd
+			var obp = bp + beam_dir * 250.0
+			var st = adv_move.torque_to_position(self, obp, Vector3.UP, 3.0, 0.01)
+			var scally = 0.5
+			var sst = clamp(st, -Vector3.ONE*scally, Vector3.ONE*scally)
+			var rt = adv_move.roll_pd(self, 0.0, 10.0, 0.1)
+			apply_torque((sst + rt) * speed * mass)
 		
 		xval = 0
 		yval = 0
@@ -344,29 +350,24 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 # IDK
 var ptp: Vector3 = Vector3.ZERO
 func _radar_steering(delta: float, target_pos: Vector3) -> Vector3:
-	# relative vector from missile to target
 	var r = target_pos - global_transform.origin
-	var tv = (target_pos - ptp)/delta
-
-	# coefficients for: |r + target_vel * t| = missile_speed * t
+	var tv = (target_pos - ptp) / delta
+	
 	var a = tv.dot(tv) - speed**2.0
 	var b = 2.0 * r.dot(tv)
 	var c = r.dot(r)
-
-	# solve quadratic a t² + b t + c = 0
+	
 	var disc = b*b - 4.0 * a * c
 	if disc <= 0.0:
-		return target_pos          # no real solution or degenerate
-
-	# pick the “minus” root first (smaller positive time)
+		return target_pos
+	
 	var t = (-b - sqrt(disc)) / (2.0 * a)
 	if t <= 0.0:
 		# try the other root
 		t = (-b + sqrt(disc)) / (2.0 * a)
 		if t <= 0.0:
-			return target_pos      # both times in the past
-
-	# intercept point
+			return target_pos
+	
 	var out = target_pos + tv * t
 	return out
 
@@ -375,7 +376,6 @@ func _radar_steering(delta: float, target_pos: Vector3) -> Vector3:
 func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
 	var right = global_basis.x
 	var up = global_basis.z
-	var forward = -global_basis.y
 	var pitch_torque = right * cmd.y
 	var yaw_torque = up * cmd.x
 	var roll_torque = adv_move.roll_pd(self, 0.0, 10.0, 0.15)
