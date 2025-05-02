@@ -16,14 +16,14 @@ enum Seeker { NONE, IR, LASER, RADAR }
 var seeker_type: Seeker = Seeker.NONE
 
 # Guidance PID gains
-@export var YAW_KP: float = 1.0
-@export var YAW_KI: float = 10.0
-@export var YAW_KD: float = 0.2
-@export var PITCH_KP: float = 1.0
-@export var PITCH_KI: float = 10.0
-@export var PITCH_KD: float = 0.2
+@export var YAW_KP: float = 1.25
+@export var YAW_KI: float = 15.0
+@export var YAW_KD: float = 0.25
+@export var PITCH_KP: float = 1.25
+@export var PITCH_KI: float = 15.0
+@export var PITCH_KD: float = 0.25
 
-@export var GAIN_0: float = 0.0
+@export var GAIN_0: float = 1.0
 @export var GAIN_1: float = 1.0
 @export var GAIN_2: float = 0.0
 
@@ -38,7 +38,7 @@ var properties = {
 	"fuel": 0,
 	"mass": 0.0,
 	"total_lift": 0.0,
-	"has_ir_seeker": false,
+	"has_seeker": false,
 	"has_controller": false,
 	"has_warhead": false,
 	"has_front_cannard": false,
@@ -58,6 +58,9 @@ var target_position
 var player
 var tracking: bool = true
 var speed: float = 0.0
+var sound_launch: AudioStreamPlayer3D
+var sound_fly: AudioStreamPlayer3D
+var sound_wind: AudioStreamPlayer3D
 
 # PID controllers for yaw and pitch
 @onready var pidx0 = PID.new()
@@ -71,6 +74,26 @@ var grav: Vector3 = Vector3.ZERO
 var launch_force: Vector3 = Vector3.ZERO
 func _ready() -> void:
 	target_position = Vector3()
+	
+	var sound1 = AudioStreamPlayer3D.new()
+	sound1.stream = load("res://game_data/sound/cursed_missile_01.mp3")
+	add_child(sound1)
+	sound1.owner = self
+	sound_launch = sound1
+	sound_launch.play()
+	
+	var sound2 = AudioStreamPlayer3D.new()
+	sound2.stream = load("res://game_data/sound/cursed_missile_02.mp3")
+	add_child(sound2)
+	sound2.owner = self
+	sound_fly = sound2
+	
+	var sound3 = AudioStreamPlayer3D.new()
+	sound3.stream = load("res://game_data/sound/cursed_missile_03.mp3")
+	add_child(sound3)
+	sound3.owner = self
+	sound_wind = sound3
+	
 	player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
 	
 	# add missile blocks to list
@@ -113,7 +136,7 @@ func calculate_centers() -> void:
 		var block_pos = block.to_global(Vector3.ZERO)
 		if block.DATA.has("TYPE"):
 			if block.DATA["TYPE"] == 1:
-				properties["has_ir_seeker"] = true
+				properties["has_seeker"] = true
 				match block.DATA["NAME"]:
 					"IR_Seeker":
 						seeker_type = Seeker.IR
@@ -168,10 +191,22 @@ func calculate_centers() -> void:
 
 var prev_vel: Vector3 = Vector3.ZERO
 var laucnhed: bool = false
+var E: float = 1.0
+
+func _process(_delta):
+	E = Engine.time_scale - 0.25 * Engine.time_scale
+	sound_launch.pitch_scale = E
+
 func _physics_process(delta: float) -> void:
-	
 	var FORWARD = global_transform.basis.y
 	speed = max(1, linear_velocity.dot(global_transform.basis.y))
+	
+	if speed < 0.25 and life > 1.0:
+		return
+	elif speed > 25.0:
+		if not sound_wind.playing:
+			sound_wind.play()
+			sound_wind.pitch_scale = E
 	
 	life += delta
 	if life >= lifetime:
@@ -186,7 +221,10 @@ func _physics_process(delta: float) -> void:
 	# Thrust: Apply force along forward direction if within fuel duration.
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
 		apply_force(global_transform.basis.y * thrust_force * mass, centers["thrust"])
-		# Optionally trigger smoke effect here.
+		if not sound_fly.playing:
+			sound_fly.play()
+			sound_fly.pitch_scale = E
+		
 		if not smoking:
 			smoking = true
 			add_child(particles.smoke_01())
@@ -215,22 +253,20 @@ func _physics_process(delta: float) -> void:
 	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
+		
+		# Proximity detonation: Explode if close.
+		if dist <= proximity_detonation_radius and properties["has_warhead"]:
+			_explode_and_remove()
+			return
 	
 	# Guidance: If a seeker is active, steer toward the target.
-	if properties["has_ir_seeker"]:
-			# Proximity detonation: Explode if too close.
-			if dist <= proximity_detonation_radius and properties["has_warhead"]:
-				_explode_and_remove()
-				return
-			
+	if properties["has_seeker"]:
 			# If within range, steer toward the target.
 			if dist < max_range:
 				var angles = _get_target_angles(target)
 				if angles != Vector2.ZERO:
 					var output = control_algorithm(angles, delta, seeker_type)
 					_apply_pitch_yaw_torque(output)
-				else:
-					_apply_pitch_yaw_torque(Vector2.ZERO)
 	
 	if tracking == false:
 		unlocked_life += delta
@@ -258,9 +294,6 @@ func _get_target_angles(t: Node3D) -> Vector2:
 	var right: Vector3 = global_transform.basis.x
 	var up: Vector3 = global_transform.basis.z
 
-	# dir  = (target - missile).normalized()
-	# fwd  = global_transform.basis.y
-	# right / up are the local X / Z axes
 	var yaw   : float = atan2(dir.dot(right), dir.dot(fwd)) * deg_to_rad(seeker_fov)
 	var pitch : float = atan2(dir.dot(up), dir.dot(fwd)) * deg_to_rad(seeker_fov)
 
@@ -286,8 +319,9 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 			var player_aim_dir = -player.global_transform.basis.z  # Player's forward direction
 			target_position = player.global_transform.origin + player_aim_dir * 10000.0
 		
-		var vec = adv_move.force_to_forward(delta, self, Vector3.DOWN, target_position)
-		apply_force(vec * linear_velocity * properties["mass"])
+		var vec = adv_move.torque_to_position(self, target_position, Vector3.DOWN)
+		var roll_torque = adv_move.roll_pd(self, 0.0, 30.0, 0.5)
+		apply_torque((roll_torque + vec) * linear_velocity * mass)
 		
 		xval = 0
 		yval = 0
@@ -314,12 +348,12 @@ var rate_angles = Vector2.ZERO
 var prev_dist: float = 0.0
 
 # Missile parameters
-var navigation_constant: float = 4.0  # baseline PN constant
+var navigation_constant: float = 1.0  # baseline PN constant
 var closing_velocity: float
 
 # LQR optimal gain parameters (pre-computed or dynamically updated)
-var K_lambda: float = 2.5
-var K_lambda_dot: float = 1.2
+var K_lambda: float = 1.0#2.5
+var K_lambda_dot: float = 1.0#1.2
 func _radar_steering(delta:float, angles: Vector2) -> Vector2:
 	# If first tick, equalize values to prevent launching jerk
 	if first:
@@ -379,7 +413,8 @@ func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
 	var forward = -global_basis.y
 	var pitch_torque = right * cmd.y
 	var yaw_torque = up * cmd.x
+	var roll_torque = adv_move.roll_pd(self, 0.0, 10.0, 0.25)
 	
 	# Combine torque vectors and apply it as force
-	var forces = ((pitch_torque + yaw_torque) * speed)
+	var forces = ((pitch_torque + yaw_torque + roll_torque) * speed)
 	apply_torque(forces * mass)

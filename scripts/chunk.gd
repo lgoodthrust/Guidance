@@ -2,7 +2,7 @@ extends Node3D
 class_name Chunk
 
 static var active_threads := 0
-const MAX_THREADS := 32
+const MAX_THREADS := 64
 
 var meshInstance: MeshInstance3D
 var noise: FastNoiseLite
@@ -22,7 +22,7 @@ func _ready():
 	# Only proceed if under thread limit
 	if active_threads >= MAX_THREADS:
 		# Defer chunk creation slightly
-		await get_tree().create_timer(0.1).timeout
+		await get_tree().create_timer(0.25).timeout
 		_ready()  # retry
 		return
 	

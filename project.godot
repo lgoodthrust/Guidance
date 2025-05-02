@@ -452,12 +452,12 @@ common/physics_ticks_per_second=64
 common/max_physics_steps_per_frame=32
 3d/physics_engine="JoltPhysics3D"
 jolt_3d/collisions/areas_detect_static_bodies=true
-jolt_3d/solver/position_iterations=4
+jolt_3d/solver/position_iterations=8
 jolt_3d/solver/position_correction=25.0
-jolt_3d/solver/bounce_velocity_threshold=3.0
 jolt_3d/limits/world_boundary_shape_size=50000.0
 jolt_3d/limits/max_linear_velocity=686.0
 jolt_3d/limits/max_angular_velocity=360.0
+jolt_3d/limits/max_temporary_memory=64
 
 [rendering]
 

@@ -40,29 +40,25 @@ func _process(_delta) -> void:
 	if Input.is_action_just_released(KEY_ESCAPE):
 		toggler()
 	
-	update_target_distance()
-	update_target_altitude()
-	update_target_speed()
+	if Input_Target_Button_Apply.button_pressed:
+		update_target_distance()
+		update_target_altitude()
+		update_target_speed()
 
 func update_target_distance():
-	var data: String = Input_Target_Speed.text
-	var val: float = data.to_float()
-	if data and Input_Target_Button_Apply.button_pressed:
-		active_target_node.global_position.z = -val
+	var dist = Input_Target_Distance.text.to_float()
+	active_target_node.global_position.z = -dist
+	active_target_node.global_position.x = 0.0
 
 func update_target_altitude():
-	var data = Input_Target_Speed.text
-	var val: float = data.to_float()
-	if data and Input_Target_Button_Apply.button_pressed:
-		active_target_node.global_position.y = val
+	var alt = Input_Target_Altitude.text.to_float()
+	active_target_node.global_position.y = alt
 
 func update_target_speed():
-	var data = Input_Target_Speed.text
-	var val: float = data.to_float()
-	if data and Input_Target_Button_Apply.button_pressed:
-		active_target_node.forward_velocity = val
+	var speed = Input_Target_Speed.text.to_float()
+	active_target_node.forward_velocity = speed
 
-func toggler(): # release mouse when menu active
+func toggler():
 	active = !active
 	
 	if active:
