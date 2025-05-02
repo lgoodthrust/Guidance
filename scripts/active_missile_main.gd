@@ -318,18 +318,19 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 		if player:
 			var player_aim_dir = -player.global_transform.basis.z  # Player's forward direction
 			target_position = player.global_transform.origin + player_aim_dir * 10000.0
-		
-		var vec = adv_move.torque_to_position(self, target_position, Vector3.DOWN)
-		var roll_torque = adv_move.roll_pd(self, 0.0, 30.0, 0.5)
-		apply_torque((roll_torque + vec) * linear_velocity * mass)
+			
+			var vec = adv_move.torque_to_position(self, target_position, Vector3.UP, 25.0, 1.0)
+			var roll_torque = adv_move.roll_pd(self, 0.0, 30.0, 0.5)
+			apply_torque((roll_torque + vec) * speed * mass)
 		
 		xval = 0
 		yval = 0
 		
 	elif type == Seeker.RADAR: # radar
-		var stuff = _radar_steering(delta, relative_angles)
-		xval = stuff.x
-		yval = stuff.y
+		var stuff = _radar_steering(delta, target.global_transform.origin)
+		apply_torque(adv_move.torque_to_position(self, stuff, Vector3.DOWN, 20, 1.0))
+		xval = 0
+		yval = 0
 	
 	else: # non
 		xval = 0
@@ -340,69 +341,33 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 	
 	return Vector2(xx, yy)
 
-# New and improved CBDR/TPN/LQR guidance
-var prev_angles = Vector2.ZERO
-var prev_rate_angles = Vector2.ZERO
-var first: bool = true
-var rate_angles = Vector2.ZERO
-var prev_dist: float = 0.0
+# IDK
+var ptp: Vector3 = Vector3.ZERO
+func _radar_steering(delta: float, target_pos: Vector3) -> Vector3:
+	# relative vector from missile to target
+	var r = target_pos - global_transform.origin
+	var tv = (target_pos - ptp)/delta
 
-# Missile parameters
-var navigation_constant: float = 1.0  # baseline PN constant
-var closing_velocity: float
+	# coefficients for: |r + target_vel * t| = missile_speed * t
+	var a = tv.dot(tv) - speed**2.0
+	var b = 2.0 * r.dot(tv)
+	var c = r.dot(r)
 
-# LQR optimal gain parameters (pre-computed or dynamically updated)
-var K_lambda: float = 1.0#2.5
-var K_lambda_dot: float = 1.0#1.2
-func _radar_steering(delta:float, angles: Vector2) -> Vector2:
-	# If first tick, equalize values to prevent launching jerk
-	if first:
-		prev_angles = angles
-		first = false
-	
-	# imported as it allows a resonable delta to accumulate
-	# Divide by delta time to make rate calculations FPS independant
-	rate_angles = -(angles - prev_angles) / delta
-	
-	# Second derivative: angular acceleration (LOS jerk)
-	var jerk_angles = -(rate_angles - prev_rate_angles) / delta
-	
-	# Update state history
-	prev_angles = angles
-	prev_rate_angles = rate_angles
-	
-	var yc0 = angles.x * GAIN_0
-	var pc0 = -angles.y * GAIN_0
-	
-	var yc1 = rate_angles.x * GAIN_1
-	var pc1 = -rate_angles.y * GAIN_1
-	
-	var yc2 = jerk_angles.x * GAIN_2
-	var pc2 = -jerk_angles.y * GAIN_2
-	
-	var Ax = -yc0+yc1-yc2
-	var Ay = -pc0+pc1-pc2
-	
-	# Sum (integral) of all the values
-	var outx = Ax
-	var outy = Ay
-	
-	var rel_vel = -(prev_dist - dist) / delta
-	prev_dist = dist
-	
-	# True Proportional Navigation (TPN) baseline command
-	var a_TPN = navigation_constant * rel_vel * Vector2(-outx, -outy)
-	
-	# LQR Optimal guidance correction
-	# State vector x = [LOS_angle, LOS_rate], control u = missile acceleration
-	var a_LQR = -(K_lambda * angles + K_lambda_dot * Vector2(-outx, -outy))
-	
-	# Combined TPN + LQR guidance acceleration
-	var guidance_acceleration = a_TPN + a_LQR
-	
-	var out = guidance_acceleration
-	
-	# Output is final command vector
+	# solve quadratic a t² + b t + c = 0
+	var disc = b*b - 4.0 * a * c
+	if disc <= 0.0:
+		return target_pos          # no real solution or degenerate
+
+	# pick the “minus” root first (smaller positive time)
+	var t = (-b - sqrt(disc)) / (2.0 * a)
+	if t <= 0.0:
+		# try the other root
+		t = (-b + sqrt(disc)) / (2.0 * a)
+		if t <= 0.0:
+			return target_pos      # both times in the past
+
+	# intercept point
+	var out = target_pos + tv * t
 	return out
 
 # Apply torque based on input.
@@ -413,8 +378,7 @@ func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
 	var forward = -global_basis.y
 	var pitch_torque = right * cmd.y
 	var yaw_torque = up * cmd.x
-	var roll_torque = adv_move.roll_pd(self, 0.0, 10.0, 0.25)
+	var roll_torque = adv_move.roll_pd(self, 0.0, 10.0, 0.15)
 	
-	# Combine torque vectors and apply it as force
 	var forces = ((pitch_torque + yaw_torque + roll_torque) * speed)
 	apply_torque(forces * mass)
