@@ -323,18 +323,17 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 			var rd = max(beam_dir.dot(rel), 0.0)
 			var bp = beam_origin + beam_dir * rd
 			var obp = bp + beam_dir * 250.0
-			var st = adv_move.torque_to_position(self, obp, Vector3.UP, 3.0, 0.01)
+			var st = adv_move.torque_to_pos(delta, self, Vector3.UP, obp)
 			var scally = 0.5
 			var sst = clamp(st, -Vector3.ONE*scally, Vector3.ONE*scally)
-			var rt = adv_move.roll_pd(self, 0.0, 10.0, 0.1)
-			apply_torque((sst + rt) * speed * mass)
+			apply_torque(sst * speed * mass)
 		
 		xval = 0
 		yval = 0
 		
 	elif type == Seeker.RADAR: # radar
-		var stuff = _radar_steering(delta, target.global_transform.origin)
-		apply_torque(adv_move.torque_to_position(self, stuff, Vector3.DOWN, 20, 1.0))
+		_radar_steering(delta, target.global_transform.origin)
+		
 		xval = 0
 		yval = 0
 	
@@ -348,28 +347,22 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 	return Vector2(xx, yy)
 
 # IDK
-var ptp: Vector3 = Vector3.ZERO
-func _radar_steering(delta: float, target_pos: Vector3) -> Vector3:
-	var r = target_pos - global_transform.origin
-	var tv = (target_pos - ptp) / delta
+func _radar_steering(delta, target_pos: Vector3) -> void:
+	var my_dir = global_transform.basis.y.normalized()
+	# compute distance and a time-to-go (t_go = distance/speed)
+	var t_go = dist / speed
+	# offset the intercept forward by how far you'll travel in t_go
+	var intercept = target_pos + my_dir * (speed * t_go)
 	
-	var a = tv.dot(tv) - speed**2.0
-	var b = 2.0 * r.dot(tv)
-	var c = r.dot(r)
+	var raw_torque: Vector3 = adv_move.torque_to_pos(
+		delta,
+		self,
+		Vector3.UP,
+		intercept
+		)
 	
-	var disc = b*b - 4.0 * a * c
-	if disc <= 0.0:
-		return target_pos
-	
-	var t = (-b - sqrt(disc)) / (2.0 * a)
-	if t <= 0.0:
-		# try the other root
-		t = (-b + sqrt(disc)) / (2.0 * a)
-		if t <= 0.0:
-			return target_pos
-	
-	var out = target_pos + tv * t
-	return out
+	var steer = raw_torque * speed * mass * 200.0
+	apply_torque(steer)
 
 # Apply torque based on input.
 # We interpret cmd.x as yaw and cmd.y as pitch.
@@ -378,7 +371,6 @@ func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
 	var up = global_basis.z
 	var pitch_torque = right * cmd.y
 	var yaw_torque = up * cmd.x
-	var roll_torque = adv_move.roll_pd(self, 0.0, 10.0, 0.15)
 	
-	var forces = ((pitch_torque + yaw_torque + roll_torque) * speed)
+	var forces = ((pitch_torque + yaw_torque) * speed)
 	apply_torque(forces * mass)

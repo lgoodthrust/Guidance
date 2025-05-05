@@ -22,6 +22,8 @@ extends Window
 
 
 var active = false
+enum Mode {build, test}
+var cur_mode = Mode.test
 var launcher = Node # FOR DATA SHARE
 var build_file_path: String = "res://game_data/assemblies/"
 var active_target_node: Node3D
@@ -78,7 +80,10 @@ func toggler():
 	else:
 		hide()
 		LAUCNHER_CHILD_SHARE_SET("main_menu", "open", false)
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		if cur_mode == Mode.build:
+			Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+		elif cur_mode == Mode.test:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		var scene2 = LAUCNHER_CHILD_SHARE_GET("scenes", "world")
 		if scene2 == InstancePlaceholder:
 			return
@@ -91,6 +96,7 @@ func update_build_file(filename: String):
 
 
 func switch_to_tester():
+	cur_mode = Mode.test
 	var scene1 = LAUCNHER_CHILD_SHARE_GET("scenes", "builder")
 	if scene1 == InstancePlaceholder:
 		return
@@ -124,6 +130,7 @@ func switch_to_tester():
 
 
 func switch_to_builder():
+	cur_mode = Mode.build
 	var scene1:Node3D = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
 	if scene1 == InstancePlaceholder:
 		return
