@@ -9,7 +9,6 @@ extends Window
 @export var Target_Distance: float = 100.0
 @export var Build_Filename: String = "TEST"
 
-
 @onready var Input_Target_Speed = $Control/V_Container_Tester/Label_Target_Speed
 @onready var Input_Target_Altitude = $Control/V_Container_Tester/Label_Target_Altitude
 @onready var Input_Target_Distance = $Control/V_Container_Tester/Label_Target_Distance
@@ -20,22 +19,21 @@ extends Window
 @onready var Input_Switch_to_Builder = $Control/Misc/Button_Builder
 @onready var Input_Switch_to_Tester = $Control/Misc/Button_Tester
 
-
 var active = false
 enum Mode {build, test}
 var cur_mode = Mode.test
-var launcher = Node # FOR DATA SHARE
+var launcher # FOR DATA SHARE
 var build_file_path: String = "res://game_data/assemblies/"
 var active_target_node: Node3D
 
 func _ready() -> void:
 	launcher = self.get_parent() # FOR DATA SHARE
+	active_target_node = LAUCNHER_CHILD_SHARE_GET("scenes", "target")
 	hide()
 	Input_Build_Filename.text = Build_Filename
 	update_build_file(Input_Build_Filename.text)
 	switch_to_tester()
 	
-	active_target_node = LAUCNHER_CHILD_SHARE_GET("world", "TARGET")
 	LAUCNHER_CHILD_SHARE_SET("main_menu", "open", false)
 
 func _process(_delta) -> void:
@@ -89,11 +87,9 @@ func toggler():
 			return
 		scene2.process_mode = Node.PROCESS_MODE_INHERIT
 
-
 func update_build_file(filename: String):
 	var full_filename = str(build_file_path + filename)
 	LAUCNHER_CHILD_SHARE_SET("main_menu", "FILE_PATH", full_filename)
-
 
 func switch_to_tester():
 	cur_mode = Mode.test
@@ -113,7 +109,7 @@ func switch_to_tester():
 	scene2.show()
 	LAUCNHER_CHILD_SHARE_GET("world", "SPAWNER").active_builder = false
 	
-	var scene4 = LAUCNHER_CHILD_SHARE_GET("world", "TARGET")
+	var scene4 = active_target_node
 	if scene4 == InstancePlaceholder:
 		return
 	scene4.process_mode = Node.PROCESS_MODE_INHERIT
@@ -127,7 +123,6 @@ func switch_to_tester():
 	hud.queue_redraw()
 	scene3.show()
 	scene3.process_mode = Node.PROCESS_MODE_INHERIT
-
 
 func switch_to_builder():
 	cur_mode = Mode.build
@@ -146,7 +141,7 @@ func switch_to_builder():
 	scene2.hide()
 	LAUCNHER_CHILD_SHARE_GET("world", "SPAWNER").active_builder = true
 	
-	var scene4 = LAUCNHER_CHILD_SHARE_GET("world", "TARGET")
+	var scene4 = active_target_node
 	if scene4 == InstancePlaceholder:
 		return
 	scene4.process_mode = Node.PROCESS_MODE_DISABLED
@@ -161,7 +156,6 @@ func switch_to_builder():
 	cam2_gui.show()
 	scene3.show()
 	scene3.process_mode = Node.PROCESS_MODE_INHERIT
-
 
 func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:

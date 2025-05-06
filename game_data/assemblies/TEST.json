@@ -28,10 +28,10 @@
 	},
 	{
 		"DATA": {
-			"LIFT": 0,
-			"MASS": 15,
-			"NAME": "Rocket_Fuel",
-			"TYPE": 7,
+			"LIFT": 0.0437,
+			"MASS": 5,
+			"NAME": "Fin",
+			"TYPE": 4,
 			"UDLRTB": [
 				-1,
 				-1,
@@ -41,7 +41,7 @@
 				0
 			]
 		},
-		"path": "res://game_data/blocks/rocket_fuel.tscn",
+		"path": "res://game_data/blocks/fin.tscn",
 		"position": {
 			"x": 0,
 			"y": 1,
@@ -110,9 +110,9 @@
 	{
 		"DATA": {
 			"LIFT": 0.0292,
-			"MASS": 10,
-			"NAME": "back_Cannard",
-			"TYPE": 6,
+			"MASS": 7.5,
+			"NAME": "Front_Cannard",
+			"TYPE": 5,
 			"UDLRTB": [
 				-1,
 				-1,
@@ -122,7 +122,7 @@
 				0
 			]
 		},
-		"path": "res://game_data/blocks/back_cannard.tscn",
+		"path": "res://game_data/blocks/front_cannard.tscn",
 		"position": {
 			"x": 0,
 			"y": 4,
@@ -152,7 +152,7 @@
 		"path": "res://game_data/blocks/warhead.tscn",
 		"position": {
 			"x": 0,
-			"y": 6,
+			"y": 5,
 			"z": 0
 		},
 		"rotation": {
@@ -178,61 +178,7 @@
 		"path": "res://game_data/blocks/controller.tscn",
 		"position": {
 			"x": 0,
-			"y": 8,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
-			"LIFT": 0,
-			"MASS": 10,
-			"NAME": "Warhead",
-			"TYPE": 3,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/warhead.tscn",
-		"position": {
-			"x": 0,
-			"y": 7,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
-			"LIFT": 0.0292,
-			"MASS": 7.5,
-			"NAME": "Front_Cannard",
-			"TYPE": 5,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/front_cannard.tscn",
-		"position": {
-			"x": 0,
-			"y": 5,
+			"y": 6,
 			"z": 0
 		},
 		"rotation": {
@@ -259,7 +205,7 @@
 		"path": "res://game_data/blocks/laser_seeker.tscn",
 		"position": {
 			"x": 0,
-			"y": 9,
+			"y": 7,
 			"z": 0
 		},
 		"rotation": {

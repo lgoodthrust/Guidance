@@ -19,10 +19,9 @@ var extra_anchors : PackedVector2Array = PackedVector2Array()  # keeps uniques
 func _ready() -> void:
 	launcher = get_parent()
 	_initialize_noise()
-
-	LAUCNHER_CHILD_SHARE_SET("world", "TARGET",   get_node("Active_Target"))
+	
 	LAUCNHER_CHILD_SHARE_SET("world", "SPAWNER",  get_node("Missile_Spawner"))
-
+	
 	ground_material = StandardMaterial3D.new()
 	ground_material.albedo_texture = ground_tex
 	ground_material.roughness = 1.0

@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://bcek3bjluycap"]
+[gd_scene load_steps=7 format=3 uid="uid://bcek3bjluycap"]
 
 [ext_resource type="Script" path="res://scripts/launcher._main.gd" id="1_c8l02"]
 [ext_resource type="PackedScene" uid="uid://cdiqbatoqks5f" path="res://world.tscn" id="2_2t1i3"]
 [ext_resource type="PackedScene" uid="uid://dlxi8x2yr1iyb" path="res://player.tscn" id="3_o5t42"]
 [ext_resource type="PackedScene" uid="uid://byjrynbhgbq5v" path="res://main_menu.tscn" id="4_311sp"]
 [ext_resource type="PackedScene" uid="uid://dvf1m5jclhql5" path="res://builder.tscn" id="5_yliov"]
+[ext_resource type="PackedScene" uid="uid://dci17n0stw0oi" path="res://active_target.tscn" id="6_6pxec"]
 
 [node name="Launcher" type="Control"]
 layout_mode = 3
@@ -14,3 +15,4 @@ world_scene = ExtResource("2_2t1i3")
 player_scene = ExtResource("3_o5t42")
 main_menu_scene = ExtResource("4_311sp")
 builder_scene = ExtResource("5_yliov")
+target_scene = ExtResource("6_6pxec")

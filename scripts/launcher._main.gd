@@ -4,11 +4,13 @@ extends Control
 @export var player_scene: PackedScene
 @export var main_menu_scene: PackedScene
 @export var builder_scene: PackedScene
+@export var target_scene: PackedScene
 
 var world_instance: Node
 var player_instance: Node
 var main_menu_instance: Node
 var builder_instance: Node
+var target_instance: Node
 
 var LIFE_SUPPORT = preload("res://coconut.png")
 
@@ -17,14 +19,15 @@ var LAUCNHER_CHILD_SHARED_DATA = {
 		"player":InstancePlaceholder,
 		"world":InstancePlaceholder,
 		"main_menu":InstancePlaceholder,
-		"builder":InstancePlaceholder
+		"builder":InstancePlaceholder,
+		"target":InstancePlaceholder
 		},
 	"player":{},
 	"world":{},
 	"main_menu":{},
-	"builder":{}
+	"builder":{},
+	"target":{}
 	}
-
 
 func _ready() -> void:
 	if not LIFE_SUPPORT.get_size() == Vector2(256, 256):
@@ -32,13 +35,13 @@ func _ready() -> void:
 	load_player()
 	load_world()
 	load_Builder()
+	load_target()
 	load_main_menu()
 
 
 func _process(_delta) -> void:
 	if Input.is_action_just_pressed("key_alt_f4"):
 		get_tree().quit()
-
 
 func load_world():
 	if world_scene:
@@ -50,7 +53,6 @@ func load_world():
 	else:
 		print("Error: World scene not assigned!")
 
-
 func load_Builder():
 	if builder_scene:
 		builder_instance = builder_scene.instantiate()
@@ -60,7 +62,6 @@ func load_Builder():
 		print("Builder loaded successfully!")
 	else:
 		print("Error: Builder scene not assigned!")
-
 
 func load_player():
 	if player_scene:
@@ -72,7 +73,6 @@ func load_player():
 	else:
 		print("Error: Player scene not assigned!")
 
-
 func load_main_menu():
 	if main_menu_scene:
 		main_menu_instance = main_menu_scene.instantiate()
@@ -81,3 +81,13 @@ func load_main_menu():
 		print("Main Menu loaded successfully!")
 	else:
 		print("Error: Main Menu scene not assigned!")
+
+func load_target():
+	if target_scene:
+		target_instance = target_scene.instantiate()
+		add_child(target_instance)
+		LAUCNHER_CHILD_SHARED_DATA["scenes"]["target"] = target_instance
+		target_instance.global_position = Vector3(0, 25, -1000)
+		print("Target loaded successfully!")
+	else:
+		print("Error: Target scene not assigned!")

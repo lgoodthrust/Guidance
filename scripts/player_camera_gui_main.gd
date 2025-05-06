@@ -39,7 +39,7 @@ func _process(_delta: float) -> void:
 	
 	FOV = camera.fov
 	if not target:
-		target = get_tree().root.get_node("./Launcher/World/Active_Target")
+		target = get_parent().get_parent().LAUCNHER_CHILD_SHARE_GET("scenes", "target")
 		return
 	
 	queue_redraw()

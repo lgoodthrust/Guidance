@@ -1,10 +1,9 @@
-[gd_scene load_steps=11 format=3 uid="uid://cdiqbatoqks5f"]
+[gd_scene load_steps=10 format=3 uid="uid://cdiqbatoqks5f"]
 
 [ext_resource type="Script" path="res://scripts/world_main.gd" id="1_tuqnl"]
 [ext_resource type="Environment" uid="uid://dgprbal832kg7" path="res://meshs/world_meshes/world_env.tres" id="2_3pj4t"]
 [ext_resource type="PhysicsMaterial" uid="uid://busg2y68ds2kt" path="res://meshs/world_meshes/physics_materials/ground_hard.tres" id="3_qp27n"]
 [ext_resource type="Shape3D" uid="uid://p3ebrq7ejpio" path="res://meshs/world_meshes/world_build_base.tres" id="4_3wejh"]
-[ext_resource type="PackedScene" uid="uid://dci17n0stw0oi" path="res://active_target.tscn" id="5_b3s5p"]
 [ext_resource type="Script" path="res://scripts/missile_spawner_main.gd" id="6_rethw"]
 [ext_resource type="Material" uid="uid://dyoso0jtf04vi" path="res://textures/ghost_1.tres" id="7_hjtdv"]
 
@@ -39,9 +38,6 @@ shape = ExtResource("4_3wejh")
 
 [node name="World_Build_Platform_Mesh" type="MeshInstance3D" parent="World_Build_Platform"]
 mesh = SubResource("BoxMesh_ye4ns")
-
-[node name="Active_Target" parent="." instance=ExtResource("5_b3s5p")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 250, -3000)
 
 [node name="Missile_Spawner" type="Node3D" parent="."]
 transform = Transform3D(0.334, 0, 0, 0, 0.334, 0, 0, 0, 0.334, 0, 3, 0)

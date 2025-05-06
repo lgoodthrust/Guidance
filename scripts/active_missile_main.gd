@@ -49,6 +49,7 @@ var properties = {
 
 # Internal state
 var blocks = []
+var launcher
 var life: float = 0.0
 var unlocked_life: float = 0.0
 var smoking: bool = false
@@ -73,6 +74,7 @@ var sound_wind: AudioStreamPlayer3D
 var grav: Vector3 = Vector3.ZERO
 var launch_force: Vector3 = Vector3.ZERO
 func _ready() -> void:
+	launcher = get_tree().root.get_node("Launcher")
 	target_position = Vector3()
 	
 	var sound1 = AudioStreamPlayer3D.new()
@@ -96,10 +98,7 @@ func _ready() -> void:
 	
 	player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
 	
-	# add missile blocks to list
 	load_missile_blocks()
-	
-	# calculate data
 	calculate_centers()
 	
 	var shape = BoxShape3D.new()
@@ -121,7 +120,7 @@ func _ready() -> void:
 	center_of_mass = centers["mass"]
 	grav = (Vector3.DOWN * 9.80665 * mass)
 	
-	target = get_tree().current_scene.get_node_or_null("World/Active_Target")
+	target = LAUCNHER_CHILD_SHARE_GET("scenes", "target")
 
 func load_missile_blocks() -> void:
 	for child in get_children():
@@ -193,20 +192,20 @@ var E: float = 1.0
 func _process(_delta):
 	E = Engine.time_scale - 0.25 * Engine.time_scale
 	sound_launch.pitch_scale = E
+	sound_wind.pitch_scale = E
 
 var prev_vel: Vector3 = Vector3.ZERO
 var laucnhed: bool = false
 func _physics_process(delta: float) -> void:
 	var FORWARD = global_transform.basis.y
-	#var p_dist = player.global_position.distance_to(global_position)
 	speed = max(1, linear_velocity.dot(FORWARD))
+	print(speed)
 	
 	if speed < 0.25 and life > 1.0:
 		return
 	elif speed > 25.0:
 		if not sound_wind.playing:
 			sound_wind.play()
-			sound_wind.pitch_scale = E
 	
 	life += delta
 	if life >= lifetime:
@@ -249,7 +248,7 @@ func _physics_process(delta: float) -> void:
 	var angle = FORWARD.angle_to(linear_velocity.normalized())
 	if axis.length() > 0.005 and angle > 0.005:
 		var torque = axis.normalized() * angle
-		apply_torque(torque * speed * (1.0+A))
+		apply_torque(torque * speed * clamp((1.0+A),0,1))
 	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
@@ -285,9 +284,7 @@ func _explode_and_remove() -> void:
 	await get_tree().create_timer(0.25).timeout
 	queue_free()
 
-#------------------------------------------------------------------
-# Helpers – using only the RigidBody's orientation.
-#------------------------------------------------------------------
+# Helpers – using only the RigidBody's orientation
 func _get_target_angles(t: Node3D) -> Vector2:
 	var dir: Vector3 = (t.global_position - global_position).normalized()
 	var fwd: Vector3 = global_transform.basis.y
@@ -303,9 +300,7 @@ func _get_target_angles(t: Node3D) -> Vector2:
 	tracking = true
 	return Vector2(yaw, pitch)
 
-# ----------------------------------------------------------
 #  CUSTOM GUIDANCE LAW
-# ----------------------------------------------------------
 func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vector2:
 	var xval = 0
 	var yval = 0
@@ -322,10 +317,10 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 			var rel = missile_pos - beam_origin
 			var rd = max(beam_dir.dot(rel), 0.0)
 			var bp = beam_origin + beam_dir * rd
-			var obp = bp + beam_dir * 250.0
+			var obp = bp + beam_dir * min(speed, 343)
 			var st = adv_move.torque_to_pos(delta, self, Vector3.UP, obp)
-			var scally = 0.5
-			var sst = clamp(st, -Vector3.ONE*scally, Vector3.ONE*scally)
+			var lim = 3.0 * (mass/10.0)
+			var sst = clamp(st * 30.0, -Vector3.ONE*lim, Vector3.ONE*lim)
 			apply_torque(sst * speed * mass)
 		
 		xval = 0
@@ -346,12 +341,10 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 	
 	return Vector2(xx, yy)
 
-# IDK
+# Cursed rotate to position
 func _radar_steering(delta, target_pos: Vector3) -> void:
 	var my_dir = global_transform.basis.y.normalized()
-	# compute distance and a time-to-go (t_go = distance/speed)
 	var t_go = dist / speed
-	# offset the intercept forward by how far you'll travel in t_go
 	var intercept = target_pos + my_dir * (speed * t_go)
 	
 	var raw_torque: Vector3 = adv_move.torque_to_pos(
@@ -367,10 +360,17 @@ func _radar_steering(delta, target_pos: Vector3) -> void:
 # Apply torque based on input.
 # We interpret cmd.x as yaw and cmd.y as pitch.
 func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
-	var right = global_basis.x
-	var up = global_basis.z
-	var pitch_torque = right * cmd.y
-	var yaw_torque = up * cmd.x
+	var pitch_torque = global_basis.x * cmd.y
+	var yaw_torque = global_basis.z * cmd.x
 	
-	var forces = ((pitch_torque + yaw_torque) * speed)
-	apply_torque(forces * mass)
+	var forces = ((pitch_torque + yaw_torque) * speed) * mass
+	apply_torque(forces)
+
+func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
+	if launcher:
+		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data
+
+func LAUCNHER_CHILD_SHARE_GET(scene, key): # FOR DATA SHARE
+	if launcher:
+		var data = launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key]
+		return data

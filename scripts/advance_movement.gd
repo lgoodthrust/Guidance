@@ -35,15 +35,15 @@ func force_to_forward(delta: float, current_object: Node3D, current_forward_axis
 	return forward_dir * proj * delta
 
 # Static rotation utilities (direct vs composed)
-static func rotate_transform_about_point(tr: Transform3D, pivot: Vector3, rot_basis: Basis) -> Transform3D:
-	var offset = tr.origin - pivot
+static func rotate_transform_about_point(transform: Transform3D, pivot: Vector3, rot_basis: Basis) -> Transform3D:
+	var offset = transform.origin - pivot
 	var new_origin = rot_basis * offset + pivot
-	var new_basis = rot_basis * tr.basis
+	var new_basis = rot_basis * transform.basis
 	return Transform3D(new_basis, new_origin)
 
-static func rotate_transform_about_point_composed(tr: Transform3D, pivot: Vector3, rot_basis: Basis) -> Transform3D:
+static func rotate_transform_about_point_composed(transform: Transform3D, pivot: Vector3, rot_basis: Basis) -> Transform3D:
 	# composed method allocates multiple Transforms; may impact performance in tight loops
 	var to_origin = Transform3D(Basis(), -pivot)
 	var rot_tf = Transform3D(rot_basis, Vector3.ZERO)
 	var back = Transform3D(Basis(), pivot)
-	return back * rot_tf * to_origin * tr
+	return back * rot_tf * to_origin * transform
