@@ -180,10 +180,7 @@ func toggle_zoom(enable):
 	if not enable and Camera.fov == 15.0:
 		Camera.fov = 75.0
 
-
 var back_step1 := false
-#var back_step2 := false
-#var back_step3 := false
 func toggle_msl_follow(enabled: bool):
 	if enabled:
 		if launcher.LAUCNHER_CHILD_SHARED_DATA.has("world") and launcher.LAUCNHER_CHILD_SHARED_DATA["world"].has("missiles"):
@@ -202,9 +199,9 @@ func toggle_msl_follow(enabled: bool):
 					var up = rigid.global_basis.z.normalized()
 					var right = -rigid.global_basis.x.normalized()
 					#up = right.cross(forward).normalized()
-
+					
 					global_transform.basis = Basis(right, up, forward).orthonormalized()
-
+					
 					# Set flags
 					msl_follow_tog = true
 					back_step1 = false
@@ -235,7 +232,6 @@ func disable_follow():
 func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:
 		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data
-
 
 func LAUCNHER_CHILD_SHARE_GET(scene, key): # FOR DATA SHARE
 	if launcher:

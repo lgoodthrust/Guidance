@@ -15,7 +15,7 @@ func _ready():
 	static_node = StaticBody3D.new()
 	static_node.name = "Static"
 	add_child(static_node)  # Attach StaticBody3D to this node
-
+	
 	create_mesh_library()  # Create and assign a MeshLibrary
 	setup_noise()
 	generate_terrain()
@@ -28,20 +28,20 @@ func create_mesh_library():
 	# Create a textured plane mesh
 	var tile_mesh = PlaneMesh.new()
 	tile_mesh.size = Vector2(tile_size, tile_size)
-
+	
 	# Create a material with a texture
 	var material = StandardMaterial3D.new()
 	material.albedo_texture = terrain_texture
 	material.uv1_scale = Vector3(30, 30, 30)  # Adjust to match grid scaling
 	material.roughness = 0.75  # Reduce shine
 	material.texture_repeat = StandardMaterial3D.TEXTURE_FILTER_LINEAR
-
+	
 	tile_mesh.surface_set_material(0, material)
-
+	
 	# Add tile to the MeshLibrary
 	mesh_lib.create_item(0)  # Tile ID 0
 	mesh_lib.set_item_mesh(0, tile_mesh)
-
+	
 	self.mesh_library = mesh_lib  # Assign to GridMap
 
 func setup_noise():
@@ -51,7 +51,7 @@ func setup_noise():
 func generate_terrain():
 	# Precompute squared render distance to avoid square roots in every iteration.
 	var squared_render_distance = render_distance * render_distance
-
+	
 	for x in range(-terrain_resolution, terrain_resolution):
 		for z in range(-terrain_resolution, terrain_resolution):
 			var world_x = x * tile_size
@@ -60,11 +60,11 @@ func generate_terrain():
 			# Use squared distance for efficiency
 			if (world_x * world_x + world_z * world_z) > squared_render_distance:
 				continue  # Skip tiles outside the render distance
-
+			
 			# Normalize noise value and clamp to ensure minimum tile height
 			var height = int((noise.get_noise_2d(x, z) + 1) * 0.5 * max_height)
 			height = clamp(height, tile_size, max_height)
-
+			
 			# Cache the number of vertical tiles needed
 			var y_tiles = height / tile_size
 			for y in range(y_tiles):
@@ -81,30 +81,30 @@ func generate_collision():
 	# Collect all vertex data for collision
 	var surface_tool = SurfaceTool.new()
 	surface_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-
+	
 	# Cache used cells to minimize repeated function calls
 	var used_cells = get_used_cells()
 	for cell in used_cells:
 		var world_pos = map_to_local(cell)
-
+		
 		# Create quad faces for each tile using precomputed offsets
 		var v0 = world_pos + offset0
 		var v1 = world_pos + offset1
 		var v2 = world_pos + offset2
 		var v3 = world_pos + offset3
-
+		
 		surface_tool.add_vertex(v0)
 		surface_tool.add_vertex(v1)
 		surface_tool.add_vertex(v2)
 		surface_tool.add_vertex(v2)
 		surface_tool.add_vertex(v3)
 		surface_tool.add_vertex(v0)
-
+	
 	# Generate the final collision mesh
 	var mesh = surface_tool.commit()
 	concave_shape = ConcavePolygonShape3D.new()
 	concave_shape.set_faces(mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX])
-
+	
 	# Create a single CollisionShape3D for the terrain collision
 	var col_shape = CollisionShape3D.new()
 	col_shape.shape = concave_shape

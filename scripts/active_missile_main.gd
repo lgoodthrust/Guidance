@@ -59,6 +59,7 @@ var target_position
 var player
 var tracking: bool = true
 var speed: float = 0.0
+var FORWARD: Vector3
 var sound_launch: AudioStreamPlayer3D
 var sound_fly: AudioStreamPlayer3D
 var sound_wind: AudioStreamPlayer3D
@@ -197,9 +198,8 @@ func _process(_delta):
 var prev_vel: Vector3 = Vector3.ZERO
 var laucnhed: bool = false
 func _physics_process(delta: float) -> void:
-	var FORWARD = global_transform.basis.y
+	FORWARD = global_transform.basis.y
 	speed = max(1, linear_velocity.dot(FORWARD))
-	print(speed)
 	
 	if speed < 0.25 and life > 1.0:
 		return
@@ -231,24 +231,22 @@ func _physics_process(delta: float) -> void:
 	# Gravity: Apply a downward force.
 	apply_central_force(grav)
 	
-	var A = 0.0 # val > 0 = +aim -flight, val < 0 = -aim +flight
-	
 	# Apply aerodynamic alignment (forward flight toward missile's forward direction)
 	var afd = (FORWARD - linear_velocity.normalized()).normalized()
 	var afm = FORWARD.angle_to(linear_velocity.normalized())
-	apply_force(afd * afm * speed * (1.0-A), centers["pressure"])
+	apply_force(afd * afm * speed * 1.0, centers["pressure"])
 	
 	# counteract unwanted de-acceleration forces from alignment forces
 	var cur_accel = linear_velocity - prev_vel
 	var anti_drag = -cur_accel * 1.5
-	apply_force(anti_drag * FORWARD * clamp(A,0,1), centers["mass"])
+	apply_force(anti_drag * FORWARD * 1.0, centers["mass"])
 	
 	# apply aerodynamic alignment (missile toward foward flight)
 	var axis = FORWARD.cross(linear_velocity.normalized())
 	var angle = FORWARD.angle_to(linear_velocity.normalized())
-	if axis.length() > 0.005 and angle > 0.005:
+	if abs(axis.length()) > 0.005 and abs(angle) > 0.005:
 		var torque = axis.normalized() * angle
-		apply_torque(torque * speed * clamp((1.0+A),0,1))
+		apply_torque(torque * speed * 0.5)
 	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
@@ -343,16 +341,10 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 
 # Cursed rotate to position
 func _radar_steering(delta, target_pos: Vector3) -> void:
-	var my_dir = global_transform.basis.y.normalized()
 	var t_go = dist / speed
-	var intercept = target_pos + my_dir * (speed * t_go)
+	var intercept = target_pos + FORWARD.normalized() * (speed * t_go)
 	
-	var raw_torque: Vector3 = adv_move.torque_to_pos(
-		delta,
-		self,
-		Vector3.UP,
-		intercept
-		)
+	var raw_torque:  = adv_move.torque_to_pos(delta, self, Vector3.UP, intercept)
 	
 	var steer = raw_torque * speed * mass * 200.0
 	apply_torque(steer)

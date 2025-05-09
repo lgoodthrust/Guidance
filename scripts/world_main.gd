@@ -31,14 +31,14 @@ func _physics_process(_delta: float) -> void:
 	var player_pos : Vector3 = LAUCNHER_CHILD_SHARE_GET("player", "POS")
 	if player_pos == null:
 		return
-
+	
 	extra_anchors.clear()  #  start fresh every tick
 	_collect_missile_anchors()  #  (fills extra_anchors)
-
+	
 	var anchors : PackedVector2Array = PackedVector2Array()
 	anchors.push_back(Vector2(player_pos.x, player_pos.z))
 	anchors.append_array(extra_anchors)
-
+	
 	# ---------- build set of required chunks ----------
 	var required : Dictionary = {}  # Set<Vector2i>
 	for pos in anchors:
@@ -60,18 +60,17 @@ func _collect_missile_anchors():
 	if not launcher or not launcher.LAUCNHER_CHILD_SHARED_DATA.has("world"):
 		return
 	var missiles: Array = launcher.LAUCNHER_CHILD_SHARED_DATA["world"].get("missiles", [])
-
+	
 	for m:Node3D in missiles:
 		if m.get_child_count() > 1:
 			var body:RigidBody3D = m.get_child(0)
 			if body and is_instance_valid(body):
 				if body.linear_velocity.length() > 685.0:
 					continue  # too fast, ignore for terrain anchoring
-
+				
 				var pos := Vector2(body.global_position.x, body.global_position.z)
 				if not extra_anchors.has(pos):
 					extra_anchors.append(pos)
-
 
 func _initialize_noise():
 	noise = FastNoiseLite.new()
@@ -96,7 +95,6 @@ func remove_chunk(x: int, z: int) -> void:
 		chunks[key].queue_free()
 		chunks.erase(key)
 
-# launcher-share helpers stay exactly as they were
 func LAUCNHER_CHILD_SHARE_SET(scene, key, data):
 	if launcher:
 		launcher.LAUCNHER_CHILD_SHARED_DATA[scene][key] = data

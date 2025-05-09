@@ -41,7 +41,7 @@ var camming: bool = false
 func _ready():
 	if CAPTURE_ON_START:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
+	
 	start_pos = self.position
 
 func _physics_process(delta):
@@ -65,10 +65,9 @@ func _input(event):
 			if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 				camming = false
 				Input.mouse_mode = Input.MOUSE_MODE_CONFINED
-
+	
 	if camming and event is InputEventMouseMotion:
 		set_rotation_target(event.relative)
-
 
 func set_rotation_target(mouse_motion : Vector2):
 	rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS
@@ -76,7 +75,7 @@ func set_rotation_target(mouse_motion : Vector2):
 	
 	if CLAMP_HEAD_ROTATION:
 		rotation_target = clamp(rotation_target, deg_to_rad(CLAMP_HEAD_ROTATION_MIN), deg_to_rad(CLAMP_HEAD_ROTATION_MAX))
-	
+
 func rotate_player(delta):
 	if MOUSE_ACCEL:
 		# Use slerp for smooth rotation
@@ -89,10 +88,9 @@ func rotate_player(delta):
 		self.rotation.y = rotation_target_player
 		self.rotation.x = rotation_target
 
-
 func move_player(delta):
 	var input_dir = Input.get_vector(KEY_BIND_LEFT, KEY_BIND_RIGHT, KEY_BIND_UP, KEY_BIND_DOWN)
-
+	
 	# Noclip flying mode
 	speed = SPEED * (2.0 if Input.is_action_pressed(KEY_BIND_SPRINT) else (0.5 if Input.is_action_pressed(KEY_BIND_CROUTCH) else 1.0))
 	accel = ACCEL

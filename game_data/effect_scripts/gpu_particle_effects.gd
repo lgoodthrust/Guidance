@@ -46,7 +46,6 @@ func explotion_01() -> GPUParticles3D:
 	
 	return gpup
 
-
 func smoke_01() -> GPUParticles3D:
 	var color = Color8(25, 25, 25, 255)
 	

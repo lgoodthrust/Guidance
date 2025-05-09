@@ -47,7 +47,7 @@ func _process(_delta) -> void:
 
 func update_target_distance():
 	var dist = Input_Target_Distance.text.to_float()
-	active_target_node.global_position.z = -dist
+	active_target_node.global_position = -dist
 	active_target_node.global_position.x = 0.0
 
 func update_target_altitude():

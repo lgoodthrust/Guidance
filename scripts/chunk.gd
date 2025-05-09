@@ -87,7 +87,7 @@ func _apply_mesh(mesh: ArrayMesh):
 	# Assign material safely AFTER meshInstance is created
 	if ground_material:
 		meshInstance.set_surface_override_material(0, ground_material)
-
+	
 	add_child(meshInstance)
 
 func _exit_tree():

@@ -54,11 +54,11 @@ func _get_rigidbody_or_null(n: Node) -> RigidBody3D:
 
 func get_missiles() -> Array:
 	var bodies: Array = []
-
+	
 	if launcher.LAUCNHER_CHILD_SHARED_DATA.has("world") \
 		and launcher.LAUCNHER_CHILD_SHARED_DATA["world"].has("missiles"):
 		var missiles: Array = launcher.LAUCNHER_CHILD_SHARED_DATA["world"]["missiles"]
-	
+		
 		for m in missiles:
 			var body := _get_rigidbody_or_null(m)
 			if body and is_instance_valid(body):
@@ -75,7 +75,7 @@ func _draw() -> void:
 		# Ensure the position is within screen bounds
 		screen_pos.x = clamp(screen_pos.x, 0, w_size.x)
 		screen_pos.y = clamp(screen_pos.y, 0, w_size.y)
-
+		
 		# Drawing parameters
 		var t_radius = 45.0
 		var t_filled = false

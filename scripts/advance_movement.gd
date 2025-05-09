@@ -1,5 +1,5 @@
-# ADV_MOVE: consider splitting torque and force utilities into separate modules for single responsibility
 class_name ADV_MOVE
+
 extends RefCounted
 
 func torque_to_pos(delta: float, current_object: Node3D, current_forward_axis: Vector3, target_global_position: Vector3) -> Vector3:
@@ -21,14 +21,12 @@ func torque_to_pos(delta: float, current_object: Node3D, current_forward_axis: V
 	return axis * angle * delta
 
 # TODO: extract global_transform caching as helper to avoid duplicate code
-func force_to_forward(delta: float, current_object: Node3D, current_forward_axis: Vector3, target_global_position: Vector3) -> Vector3:
-	var gt = current_object.global_transform
-	var origin = gt.origin
-	var to_target = target_global_position - origin
+func force_to_forward(delta: float, transform: Transform3D, current_forward_axis: Vector3, target_global_position: Vector3) -> Vector3:
+	var to_target = target_global_position - transform.origin
 	if to_target.length_squared() < 1e-6:
 		return Vector3.ZERO
 	to_target = to_target.normalized()
-	var forward_dir = (gt.basis * current_forward_axis).normalized()  # ensure normalized before projection
+	var forward_dir = (transform.basis * current_forward_axis).normalized()  # ensure normalized before projection
 	var proj = forward_dir.dot(to_target)
 	if abs(proj) < 1e-6:
 		return Vector3.ZERO

@@ -38,7 +38,6 @@ func _ready() -> void:
 	load_target()
 	load_main_menu()
 
-
 func _process(_delta) -> void:
 	if Input.is_action_just_pressed("key_alt_f4"):
 		get_tree().quit()

@@ -7,7 +7,6 @@ var Sound : Control
 
 var Param_Node_List = []
 
-
 func _init() -> void:
 	pass
 
@@ -31,7 +30,6 @@ func _process(_delta) -> void:
 
 func update_launch_settings():
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
-
 
 func _on_close_requested() -> void:
 	update_launch_settings()

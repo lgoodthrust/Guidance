@@ -11,7 +11,6 @@ extends Node3D
 @export var cl_block_scene: PackedScene  # CL block preview
 @export var ct_block_scene: PackedScene  # CT block preview
 
-
 var grid: Dictionary = {}  # Stores placed blocks
 var selected_position: Vector3i = Vector3i.ZERO  # Current selected grid cell
 var ghost_block: Node3D  # Ghost block instance
@@ -25,7 +24,6 @@ var loader_saver
 
 @onready var camera = $Builder_Camera #get_tree().current_scene.find_child("Player_Camera", true, false)
 @onready var block_selector = $Builder_Camera/GUI/GUI_Scroll_Container/GUI_Scroll_Selector/GUI_Scroll_Selector_Seporater
-
 
 func _ready():
 	launcher = self.get_parent() # FOR DATA SHARE
@@ -66,7 +64,7 @@ func _ready():
 		add_child(ghost_block)
 	else:
 		push_error("Ghost block scene not assigned!")
-
+	
 	# Create the grid mesh instance
 	grid_mesh = MeshInstance3D.new()
 	grid_mesh.mesh = ImmediateMesh.new()
@@ -74,7 +72,7 @@ func _ready():
 	
 	# Draw the grid
 	_draw_grid()
-
+	
 	# Load UI block selector
 	load_blocks_into_ui()
 
@@ -126,7 +124,7 @@ func is_valid_placement(pos: Vector3i, block):
 		"FRONT": pos + Vector3i(0, 0, -1),
 		"BACK": pos + Vector3i(0, 0, 1)
 	}
-
+	
 	for i in range(6):
 		if block_connections[i] == -1:
 			continue  # Allow any connection
@@ -174,7 +172,7 @@ func remove_block():
 	update_center_of_gravity()
 	update_center_of_lift()
 	update_center_of_thrust()
-	
+
 func _draw_grid():
 	var im = grid_mesh.mesh as ImmediateMesh
 	var gs = cell_size / 2
@@ -192,7 +190,7 @@ func _draw_grid():
 			im.surface_set_color(grid_color)
 			im.surface_add_vertex(Vector3(x_pos - gs, y_pos - gs, -gs))
 			im.surface_add_vertex(Vector3(x_pos - gs, y_pos - gs, grid_size.z * cell_size - gs))
-
+		
 		for z in range(grid_size.z + 1):
 			var z_pos = z * cell_size
 			im.surface_set_color(grid_color)
@@ -209,7 +207,7 @@ func _draw_grid():
 			im.surface_add_vertex(Vector3(x_pos - gs, grid_size.y * cell_size - gs, z_pos - gs))
 	
 	im.surface_end()
-	
+
 func update_center_of_gravity():
 	var total_mass = 0.0
 	var weighted_position = Vector3.ZERO
@@ -233,7 +231,7 @@ func update_center_of_gravity():
 func update_center_of_lift():
 	var total_lift = 0.0
 	var lifting_position = Vector3.ZERO
-
+	
 	# grid is { position: block_node }
 	for pos in grid:
 		var block_node = grid[pos]
@@ -242,14 +240,13 @@ func update_center_of_lift():
 			total_lift += part_lift
 			var block_pos = block_node.global_transform.origin
 			lifting_position += block_pos * part_lift
-
+	
 	if total_lift > 0.0:
 		var col = lifting_position / total_lift
 		cl_block.global_position = col
 		cl_block.visible = true
 	else:
 		cl_block.visible = false
-
 
 func update_center_of_thrust():
 	var thrusting_position = Vector3.ZERO # >:)
@@ -269,7 +266,6 @@ func update_center_of_thrust():
 		ct_block.global_position = cot
 		ct_block.visible = true
 
-
 func select_block(block_path: String):
 	selected_block = load(block_path)
 	print("Selected Block:", block_path)
@@ -278,7 +274,7 @@ func select_block(block_path: String):
 func load_blocks_into_ui():
 	for child in block_selector.get_children():
 		child.queue_free()
-
+	
 	var dir = DirAccess.open(block_folder_path)
 	if dir:
 		dir.list_dir_begin()
@@ -291,21 +287,19 @@ func load_blocks_into_ui():
 	else:
 		push_error("Failed to open block folder!")
 
-
 func create_block_button(block_path: String):
 	var block_scene = load(block_path)
 	if block_scene:
 		var block_instance = block_scene.instantiate()
 		var block_name = block_instance.DATA["NAME"]
-
+		
 		var button = Button.new()
 		button.text = block_name
 		button.pressed.connect(func(): select_block(block_path))
 		
 		block_selector.add_child(button)
-
+		
 		block_instance.queue_free()
-
 
 func _SAVER():
 	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
@@ -315,14 +309,12 @@ func _SAVER():
 	else:
 		print("Invalid Grid Data")
 
-
 func _LOADER():
 	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
 	loader_saver.load_vehicle(path)
 	update_center_of_gravity()
 	update_center_of_lift()
 	update_center_of_thrust()
-
 
 func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE
 	if launcher:

@@ -2,7 +2,6 @@ extends Node3D
 
 @export var intersection_distance: float = 3000.0  # Distance in front of leader node
 
-
 var launcher: Node # FOR DATA SHARE
 var leader_node: Node3D  # The node to follow
 var loader_saver
