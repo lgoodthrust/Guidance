@@ -44,87 +44,6 @@
 		"path": "res://game_data/blocks/rocket_fuel.tscn",
 		"position": {
 			"x": 0,
-			"y": 1,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
-			"LIFT": 0.0437,
-			"MASS": 5,
-			"NAME": "Fin",
-			"TYPE": 4,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/fin.tscn",
-		"position": {
-			"x": 0,
-			"y": 2,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
-			"LIFT": 0,
-			"MASS": 15,
-			"NAME": "Rocket_Fuel",
-			"TYPE": 7,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/rocket_fuel.tscn",
-		"position": {
-			"x": 0,
-			"y": 3,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
-			"LIFT": 0,
-			"MASS": 15,
-			"NAME": "Rocket_Fuel",
-			"TYPE": 7,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/rocket_fuel.tscn",
-		"position": {
-			"x": 0,
 			"y": 4,
 			"z": 0
 		},
@@ -190,33 +109,6 @@
 	},
 	{
 		"DATA": {
-			"LIFT": 0.0292,
-			"MASS": 7.5,
-			"NAME": "Front_Cannard",
-			"TYPE": 5,
-			"UDLRTB": [
-				-1,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/front_cannard.tscn",
-		"position": {
-			"x": 0,
-			"y": 7,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
 			"MASS": 10,
 			"NAME": "Controller",
 			"TYPE": 2,
@@ -260,6 +152,114 @@
 		"position": {
 			"x": 0,
 			"y": 9,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"LIFT": 0.0292,
+			"MASS": 10,
+			"NAME": "back_Cannard",
+			"TYPE": 6,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/back_cannard.tscn",
+		"position": {
+			"x": 0,
+			"y": 2,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"LIFT": 0.0437,
+			"MASS": 5,
+			"NAME": "Fin",
+			"TYPE": 4,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/fin.tscn",
+		"position": {
+			"x": 0,
+			"y": 3,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"LIFT": 0.0292,
+			"MASS": 10,
+			"NAME": "back_Cannard",
+			"TYPE": 6,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/back_cannard.tscn",
+		"position": {
+			"x": 0,
+			"y": 1,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"LIFT": 0.0292,
+			"MASS": 7.5,
+			"NAME": "Front_Cannard",
+			"TYPE": 5,
+			"UDLRTB": [
+				-1,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/front_cannard.tscn",
+		"position": {
+			"x": 0,
+			"y": 7,
 			"z": 0
 		},
 		"rotation": {

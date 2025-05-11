@@ -5,8 +5,8 @@ extends RigidBody3D
 @export var lifetime: float = 25.0
 @export var launch_charge_force: float = 20.0
 @export var motor_delay: float = 0.3
-@export var fuel_duration: float = 1.0
-@export var proximity_detonation_radius: float = 10.0
+@export var fuel_duration: float = 1.5
+@export var proximity_detonation_radius: float = 20.0
 @export var max_range: float = 3500.0
 @export var seeker_fov: float = 40.0
 @export var unlocked_detonation_delay: float = 3.0
@@ -22,10 +22,6 @@ var seeker_type: Seeker = Seeker.NONE
 @export var PITCH_KP: float = 1.25
 @export var PITCH_KI: float = 15.0
 @export var PITCH_KD: float = 0.25
-
-@export var GAIN_0: float = 1.0
-@export var GAIN_1: float = 1.0
-@export var GAIN_2: float = 0.0
 
 # Flags (set these as desired in the Inspector)
 var centers = {
@@ -213,7 +209,6 @@ func _physics_process(delta: float) -> void:
 		return
 	
 	if laucnhed == false:
-		# Apply an initial impulse in our "forward" (local Y) direction.
 		apply_central_impulse(FORWARD * launch_charge_force * mass)
 		laucnhed = true
 	
@@ -231,22 +226,26 @@ func _physics_process(delta: float) -> void:
 	# Gravity: Apply a downward force.
 	apply_central_force(grav)
 	
+	var A = 1.0
+	var B = 2.0
+	var C = 1.5
+	
 	# Apply aerodynamic alignment (forward flight toward missile's forward direction)
 	var afd = (FORWARD - linear_velocity.normalized()).normalized()
 	var afm = FORWARD.angle_to(linear_velocity.normalized())
-	apply_force(afd * afm * speed * 1.0, centers["pressure"])
+	apply_force(afd * afm * speed * mass * properties["total_lift"] * A, centers["pressure"])
 	
 	# counteract unwanted de-acceleration forces from alignment forces
 	var cur_accel = linear_velocity - prev_vel
-	var anti_drag = -cur_accel * 1.5
-	apply_force(anti_drag * FORWARD * 1.0, centers["mass"])
+	var anti_drag = -cur_accel * C
+	apply_force(anti_drag * FORWARD * 1.25, centers["mass"])
 	
 	# apply aerodynamic alignment (missile toward foward flight)
 	var axis = FORWARD.cross(linear_velocity.normalized())
 	var angle = FORWARD.angle_to(linear_velocity.normalized())
 	if abs(axis.length()) > 0.005 and abs(angle) > 0.005:
 		var torque = axis.normalized() * angle
-		apply_torque(torque * speed * 0.5)
+		apply_torque(torque * speed * mass * properties["total_lift"] * B)
 	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
@@ -279,7 +278,7 @@ func _explode_and_remove() -> void:
 	kaboom.global_position = global_position
 	for block in blocks:
 		block.hide()
-	await get_tree().create_timer(0.25).timeout
+	await get_tree().create_timer(0.20).timeout
 	queue_free()
 
 # Helpers – using only the RigidBody's orientation
@@ -347,6 +346,7 @@ func _radar_steering(delta, target_pos: Vector3) -> void:
 	var raw_torque:  = adv_move.torque_to_pos(delta, self, Vector3.UP, intercept)
 	
 	var steer = raw_torque * speed * mass * 200.0
+	
 	apply_torque(steer)
 
 # Apply torque based on input.

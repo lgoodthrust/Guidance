@@ -1,97 +1,102 @@
 extends Node3D
 class_name Chunk
 
-static var active_threads := 0
-const MAX_THREADS := 64
+static var active_threads: int = 0
+const MAX_THREADS : int = 128
+const LOD_DIVISIONS : int = 4
+const TEX_TILE_SIZE : float = 1.0
 
-var meshInstance: MeshInstance3D
-var noise: FastNoiseLite
-var chunkX: int
-var chunkZ: int
-var chunkSize: int
-var thread: Thread = null  # Initialized as null to prevent issues
+var meshInstance : MeshInstance3D
+var noise : FastNoiseLite
+var chunkX : int
+var chunkZ : int
+var chunkSize : int
+var thread : Thread = null
 var ground_material: Material
+var A : float
 
-func _init(noiseParam: FastNoiseLite, chunkXParam: int, chunkZParam: int, chunkSizeParam: int):
+func _init(noiseParam: FastNoiseLite, x: int, z: int, size: int, height: float=10.0) -> void:
 	noise = noiseParam
-	chunkX = chunkXParam
-	chunkZ = chunkZParam
-	chunkSize = chunkSizeParam
+	chunkX = x
+	chunkZ = z
+	chunkSize = size
+	A = height
 
-func _ready():
-	# Only proceed if under thread limit
+func _ready() -> void:
+	_try_launch_thread()
+	
+func _try_launch_thread() -> void:
 	if active_threads >= MAX_THREADS:
-		# Defer chunk creation slightly
-		await get_tree().create_timer(0.25).timeout
-		_ready()  # retry
+		await get_tree().create_timer(0.125).timeout
+		if is_inside_tree():
+			_try_launch_thread()
 		return
 	
 	thread = Thread.new()
-	var err = thread.start(_threaded_generate_chunk)
+	var err: int = thread.start(_threaded_generate_chunk)
 	if err != OK:
-		push_error("Failed to start terrain generation thread")
+		push_error("Failed to start terrain generation thread: %s" % err)
 	else:
 		active_threads += 1
 
-func _threaded_generate_chunk():
-	# Generate terrain in a separate thread
-	var mesh = _generate_mesh()
-	
-	# Transfer to main thread
+func _threaded_generate_chunk() -> void:
+	var mesh: ArrayMesh = _build_mesh_one_pass()
 	call_deferred("_apply_mesh", mesh)
-	
-	# Ensure thread cleanup
 	call_deferred("_cleanup_thread")
 
-func _cleanup_thread():
+func _cleanup_thread() -> void:
 	if thread:
 		thread.wait_to_finish()
 		thread = null
 		active_threads = max(0, active_threads - 1)
 
-func _generate_mesh() -> ArrayMesh:
-	var planeMesh = PlaneMesh.new()
-	planeMesh.size = Vector2(chunkSize, chunkSize)
+func _build_mesh_one_pass() -> ArrayMesh:
 	@warning_ignore("integer_division")
-	planeMesh.subdivide_depth = chunkSize / 2
-	@warning_ignore("integer_division")
-	planeMesh.subdivide_width = chunkSize / 2
-
-	var st = SurfaceTool.new()
-	st.create_from(planeMesh, 0)
-	# Commit the initial mesh only once
-	var mesh = st.commit()
-
-	var mdt = MeshDataTool.new()
-	mdt.create_from_surface(mesh, 0)
-	var vertex_count = mdt.get_vertex_count()
-	for i in range(vertex_count):
-		var vertex = mdt.get_vertex(i)
-		vertex.y = noise.get_noise_3d(vertex.x + chunkX, vertex.y, vertex.z + chunkZ) * 50
-		mdt.set_vertex(i, vertex)
-	mdt.commit_to_surface(mesh)
+	var div : int = chunkSize / LOD_DIVISIONS
+	var step: float = float(chunkSize) / float(div)
+	var half: float = chunkSize * 0.5
 	
-	# Reuse SurfaceTool to generate normals efficiently
-	st.clear()
-	st.create_from(mesh, 0)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	
+	for z: int in range(div + 1):
+		var vz : float = z * step - half
+		var uv_v : float = (float(z) / float(div)) * TEX_TILE_SIZE
+		for x: int in range(div + 1):
+			var vx : float = x * step - half
+			var vy : float = noise.get_noise_2d(vx + chunkX, vz + chunkZ) * A
+			var uv_u : float = (float(x) / float(div)) * TEX_TILE_SIZE
+			
+			st.set_uv(Vector2(uv_u, uv_v))
+			st.add_vertex(Vector3(vx, vy, vz))
+	
+	for z: int in range(div):
+		for x: int in range(div):
+			var i: int = z * (div + 1) + x
+			st.add_index(i)
+			st.add_index(i + 1)
+			st.add_index(i + div + 1)
+			
+			st.add_index(i + 1)
+			st.add_index(i + div + 2)
+			st.add_index(i + div + 1)
+	
 	st.generate_normals()
-	var final_mesh = st.commit()
-	return final_mesh
+	st.generate_tangents()
+	return st.commit()
 
-func _apply_mesh(mesh: ArrayMesh):
+func _apply_mesh(mesh: ArrayMesh) -> void:
 	meshInstance = MeshInstance3D.new()
 	meshInstance.mesh = mesh
 	meshInstance.create_trimesh_collision()
 	meshInstance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-
-	# Assign material safely AFTER meshInstance is created
+	
 	if ground_material:
 		meshInstance.set_surface_override_material(0, ground_material)
 	
 	add_child(meshInstance)
 
-func _exit_tree():
-	# Ensure thread cleanup before deletion
+func _exit_tree() -> void:
 	if thread and thread.is_alive():
 		thread.wait_to_finish()
 		thread = null

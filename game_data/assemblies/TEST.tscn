@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3 uid="uid://dfcpnnirrm4ol"]
+[gd_scene load_steps=10 format=3 uid="uid://dfcpnnirrm4ol"]
 
 [ext_resource type="PackedScene" uid="uid://jdpjcqkyj5ab" path="res://game_data/blocks/rocket_motor.tscn" id="1_3i4sl"]
 [ext_resource type="PackedScene" uid="uid://8tqnmisb1gkr" path="res://game_data/blocks/fin.tscn" id="3_366hq"]
 [ext_resource type="PackedScene" uid="uid://c6ikuns81cj1j" path="res://game_data/blocks/rocket_fuel.tscn" id="5_e6had"]
 [ext_resource type="PackedScene" uid="uid://b8tp2s0vjnfi5" path="res://game_data/blocks/front_cannard.tscn" id="7_cwlgq"]
 [ext_resource type="PackedScene" uid="uid://b6xprrcbpswax" path="res://game_data/blocks/warhead.tscn" id="9_m6ir2"]
+[ext_resource type="PackedScene" uid="uid://c8y1d14qkdba8" path="res://game_data/blocks/back_cannard.tscn" id="10_0crk2"]
 [ext_resource type="PackedScene" uid="uid://yw4re2eruv0u" path="res://game_data/blocks/controller.tscn" id="10_tnk5k"]
 [ext_resource type="PackedScene" uid="uid://6mfhdv1x06sq" path="res://game_data/blocks/radar_seeker.tscn" id="12_3so6d"]
 
@@ -34,36 +35,6 @@ DATA = {
 }
 
 [node name="Rocket_Fuel" parent="RigidBody3D" instance=ExtResource("5_e6had")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-DATA = {
-"LIFT": 0.0,
-"MASS": 15.0,
-"NAME": "Rocket_Fuel",
-"TYPE": 7.0,
-"UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
-}
-
-[node name="Fin" parent="RigidBody3D" instance=ExtResource("3_366hq")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-DATA = {
-"LIFT": 0.0437,
-"MASS": 5.0,
-"NAME": "Fin",
-"TYPE": 4.0,
-"UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
-}
-
-[node name="@Node3D@357" parent="RigidBody3D" instance=ExtResource("5_e6had")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
-DATA = {
-"LIFT": 0.0,
-"MASS": 15.0,
-"NAME": "Rocket_Fuel",
-"TYPE": 7.0,
-"UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
-}
-
-[node name="@Node3D@359" parent="RigidBody3D" instance=ExtResource("5_e6had")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 DATA = {
 "LIFT": 0.0,
@@ -73,7 +44,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="@Node3D@361" parent="RigidBody3D" instance=ExtResource("5_e6had")]
+[node name="@Node3D@238" parent="RigidBody3D" instance=ExtResource("5_e6had")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
 DATA = {
 "LIFT": 0.0,
@@ -94,16 +65,6 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Front_Cannard" parent="RigidBody3D" instance=ExtResource("7_cwlgq")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, 0)
-DATA = {
-"LIFT": 0.0292,
-"MASS": 7.5,
-"NAME": "Front_Cannard",
-"TYPE": 5.0,
-"UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
-}
-
 [node name="Controller" parent="RigidBody3D" instance=ExtResource("10_tnk5k")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8, 0)
 DATA = {
@@ -121,4 +82,44 @@ DATA = {
 "NAME": "Radar_Seeker",
 "TYPE": 1.0,
 "UDLRTB": [0.0, -1.0, 0.0, 0.0, 0.0, 0.0]
+}
+
+[node name="Back_Cannard" parent="RigidBody3D" instance=ExtResource("10_0crk2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+DATA = {
+"LIFT": 0.0292,
+"MASS": 10.0,
+"NAME": "back_Cannard",
+"TYPE": 6.0,
+"UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
+}
+
+[node name="Fin" parent="RigidBody3D" instance=ExtResource("3_366hq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+DATA = {
+"LIFT": 0.0437,
+"MASS": 5.0,
+"NAME": "Fin",
+"TYPE": 4.0,
+"UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
+}
+
+[node name="@Node3D@244" parent="RigidBody3D" instance=ExtResource("10_0crk2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+DATA = {
+"LIFT": 0.0292,
+"MASS": 10.0,
+"NAME": "back_Cannard",
+"TYPE": 6.0,
+"UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
+}
+
+[node name="Front_Cannard" parent="RigidBody3D" instance=ExtResource("7_cwlgq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, 0)
+DATA = {
+"LIFT": 0.0292,
+"MASS": 7.5,
+"NAME": "Front_Cannard",
+"TYPE": 5.0,
+"UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
