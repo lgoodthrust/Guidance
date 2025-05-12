@@ -9,15 +9,15 @@ extends Window
 @export var Target_Distance: float = 100.0
 @export var Build_Filename: String = "TEST"
 
-@onready var Input_Target_Speed = $Control/V_Container_Tester/Label_Target_Speed
-@onready var Input_Target_Altitude = $Control/V_Container_Tester/Label_Target_Altitude
-@onready var Input_Target_Distance = $Control/V_Container_Tester/Label_Target_Distance
-@onready var Input_Target_Button_Apply = $Control/V_Container_Tester/Button_Target_Apply
+@onready var Input_Target_Speed: LineEdit = $Control/V_Container_Tester/Line_Target_Speed
+@onready var Input_Target_Altitude: LineEdit = $Control/V_Container_Tester/Line_Target_Altitude
+@onready var Input_Target_Distance: LineEdit = $Control/V_Container_Tester/Line_Target_Distance
+@onready var Input_Target_Button_Apply: Button = $Control/V_Container_Tester/Button_Target_Apply
 
-@onready var Input_Build_Filename = $Control/V_Container_Builder/Line_Build_Filename
+@onready var Input_Build_Filename: LineEdit = $Control/V_Container_Builder/Line_Build_Filename
 
-@onready var Input_Switch_to_Builder = $Control/Misc/Button_Builder
-@onready var Input_Switch_to_Tester = $Control/Misc/Button_Tester
+@onready var Input_Switch_to_Builder: Button = $Control/Misc/Button_Builder
+@onready var Input_Switch_to_Tester: Button = $Control/Misc/Button_Tester
 
 var active = false
 enum Mode {build, test}
@@ -36,27 +36,27 @@ func _ready() -> void:
 	
 	LAUCNHER_CHILD_SHARE_SET("main_menu", "open", false)
 
+var pressing: bool = false
 func _process(_delta) -> void:
 	if Input.is_action_just_released(KEY_ESCAPE):
 		toggler()
 	
-	if Input_Target_Button_Apply.button_pressed:
-		update_target_distance()
-		update_target_altitude()
-		update_target_speed()
+	if Input_Target_Button_Apply.button_pressed and not pressing:
+		update_target()
+		pressing = true
+	elif not Input_Target_Button_Apply.button_pressed and pressing :
+		pressing = false
 
-func update_target_distance():
-	var dist = Input_Target_Distance.text.to_float()
-	active_target_node.global_position = -dist
-	active_target_node.global_position.x = 0.0
-
-func update_target_altitude():
-	var alt = Input_Target_Altitude.text.to_float()
-	active_target_node.global_position.y = alt
-
-func update_target_speed():
-	var speed = Input_Target_Speed.text.to_float()
+func update_target():
+	var dist = float(Input_Target_Distance.text)
+	var alt = float(Input_Target_Altitude.text)
+	var speed = float(Input_Target_Speed.text)
+	
+	print(dist, alt)
+	
 	active_target_node.forward_velocity = speed
+	active_target_node.curr_pos = Vector3(0, alt, -dist)
+	active_target_node.global_position = Vector3(0, alt, -dist)
 
 func toggler():
 	active = !active

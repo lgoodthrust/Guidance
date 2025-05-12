@@ -14,7 +14,9 @@ config/name="Guidance"
 run/main_scene="res://launcher.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
 run/max_fps=200
+boot_splash/image="res://missile_01.png"
 config/icon="res://icon.svg"
+boot_splash/minimum_display_time=1500
 
 [display]
 

@@ -85,6 +85,7 @@ func load_target():
 	if target_scene:
 		target_instance = target_scene.instantiate()
 		add_child(target_instance)
+		target_instance.set_owner(self)
 		LAUCNHER_CHILD_SHARED_DATA["scenes"]["target"] = target_instance
 		target_instance.global_position = Vector3(0, 150, -2500)
 		print("Target loaded successfully!")

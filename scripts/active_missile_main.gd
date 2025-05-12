@@ -7,7 +7,7 @@ extends RigidBody3D
 @export var motor_delay: float = 0.3
 @export var fuel_duration: float = 1.5
 @export var proximity_detonation_radius: float = 20.0
-@export var max_range: float = 3500.0
+@export var max_range: float = 4000.0
 @export var seeker_fov: float = 40.0
 @export var unlocked_detonation_delay: float = 3.0
 
@@ -278,7 +278,7 @@ func _explode_and_remove() -> void:
 	kaboom.global_position = global_position
 	for block in blocks:
 		block.hide()
-	await get_tree().create_timer(0.20).timeout
+	await get_tree().create_timer(0.1).timeout
 	queue_free()
 
 # Helpers – using only the RigidBody's orientation
