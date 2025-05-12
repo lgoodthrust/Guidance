@@ -22,6 +22,10 @@ boot_splash/minimum_display_time=1500
 
 window/size/viewport_width=1000
 window/size/viewport_height=800
+display_server/driver.windows="windows"
+display_server/driver.android="android"
+display_server/driver.ios="iOS"
+display_server/driver.macos="macos"
 
 [dotnet]
 
