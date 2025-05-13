@@ -2,6 +2,13 @@ class_name ADV_MOVE
 
 extends RefCounted
 
+func torque_from_offset_force(transform: Transform3D, offset: Vector3, force: Vector3) -> Vector3:
+	var world_point = transform.origin + transform.basis * offset
+	var r = world_point - transform.origin
+	
+	var torque = r.cross(force)
+	return torque
+
 func torque_to_pos(delta: float, current_object: Node3D, current_forward_axis: Vector3, target_global_position: Vector3) -> Vector3:
 	# Cached transform access to reduce repeated property lookups
 	var gt = current_object.global_transform

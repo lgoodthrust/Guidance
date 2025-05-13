@@ -112,7 +112,7 @@ func _ready() -> void:
 	linear_damp = 0.001
 	angular_damp = 0.001
 	mass = max(1.0, properties["mass"])
-	inertia = Vector3(5, 0.75, 5) * mass
+	inertia = Vector3(10, 1, 10) * mass
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = centers["mass"]
 	grav = (Vector3.DOWN * 9.80665 * mass)
@@ -347,7 +347,9 @@ func _radar_steering(delta, target_pos: Vector3) -> void:
 	
 	var steer = raw_torque * speed * mass * 200.0
 	
-	apply_torque(steer)
+	var force = (global_basis.x * steer.x) + (global_basis.z * steer.x)
+	
+	apply_torque(force)
 
 # Apply torque based on input.
 # We interpret cmd.x as yaw and cmd.y as pitch.

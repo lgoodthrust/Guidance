@@ -3,7 +3,6 @@ extends Node3D
 @export_subgroup("BUILDER CONFIG")
 @export var grid_size: Vector3i = Vector3i(1, 10, 1)  # Grid dimensions
 @export var cell_size: float = 1.0  # Grid cell size
-@export var block_folder_path: String = "res://game_data/blocks/"  # Folder for blocks
 @export var placement_distance: int = 3  # Distance from camera to place block
 @export_subgroup("MISC")
 @export var ghost_block_scene: PackedScene  # Ghost block preview
@@ -19,10 +18,23 @@ var cl_block: Node3D  # CL block instance
 var ct_block: Node3D  # CL block instance
 var launcher = Node  # FOR DATA SHARE
 var grid_mesh: MeshInstance3D  # The grid renderer
-var selected_block: PackedScene = null  # Currently selected block
+var selected_block: PackedScene = null
 var loader_saver
 
-@onready var camera = $Builder_Camera #get_tree().current_scene.find_child("Player_Camera", true, false)
+var aval_blocks = [
+	load("res://game_data/blocks/back_cannard.tscn"),
+	load("res://game_data/blocks/controller.tscn"),
+	load("res://game_data/blocks/fin.tscn"),
+	load("res://game_data/blocks/front_cannard.tscn"),
+	load("res://game_data/blocks/ir_seeker.tscn"),
+	load("res://game_data/blocks/laser_seeker.tscn"),
+	load("res://game_data/blocks/radar_seeker.tscn"),
+	load("res://game_data/blocks/rocket_fuel.tscn"),
+	load("res://game_data/blocks/rocket_motor.tscn"),
+	load("res://game_data/blocks/warhead.tscn"),
+	]
+
+@onready var camera = $Builder_Camera
 @onready var block_selector = $Builder_Camera/GUI/GUI_Scroll_Container/GUI_Scroll_Selector/GUI_Scroll_Selector_Seporater
 
 func _ready():
@@ -72,9 +84,7 @@ func _ready():
 	
 	# Draw the grid
 	_draw_grid()
-	
-	# Load UI block selector
-	load_blocks_into_ui()
+	create_block_button()
 
 func _process(_delta):
 	update_selected_position()
@@ -266,40 +276,23 @@ func update_center_of_thrust():
 		ct_block.global_position = cot
 		ct_block.visible = true
 
-func select_block(block_path: String):
-	selected_block = load(block_path)
+func select_block(block_path: PackedScene):
+	selected_block = block_path
 	print("Selected Block:", block_path)
 
-
-func load_blocks_into_ui():
-	for child in block_selector.get_children():
-		child.queue_free()
-	
-	var dir = DirAccess.open(block_folder_path)
-	if dir:
-		dir.list_dir_begin()
-		var file_name = dir.get_next()
-		while file_name != "":
-			if file_name.ends_with(".tscn"):
-				var block_path = block_folder_path + file_name
-				create_block_button(block_path)
-			file_name = dir.get_next()
-	else:
-		push_error("Failed to open block folder!")
-
-func create_block_button(block_path: String):
-	var block_scene = load(block_path)
-	if block_scene:
-		var block_instance = block_scene.instantiate()
-		var block_name = block_instance.DATA["NAME"]
-		
-		var button = Button.new()
-		button.text = block_name
-		button.pressed.connect(func(): select_block(block_path))
-		
-		block_selector.add_child(button)
-		
-		block_instance.queue_free()
+func create_block_button():
+	for block: PackedScene in aval_blocks:
+		if block:
+			var block_instance = block.instantiate()
+			var block_name = block_instance.DATA["NAME"]
+			
+			var button = Button.new()
+			button.text = block_name
+			button.pressed.connect(func(): select_block(block))
+			
+			block_selector.add_child(button)
+			
+			block_instance.queue_free()
 
 func _SAVER():
 	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
