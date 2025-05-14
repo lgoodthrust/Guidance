@@ -25,7 +25,7 @@ func torque_to_pos(delta: float, current_object: Node3D, current_forward_axis: V
 	if axis.length_squared() < 1e-6:
 		return Vector3.ZERO
 	axis = axis.normalized()
-	return axis * angle * delta
+	return (axis * angle) / delta
 
 # TODO: extract global_transform caching as helper to avoid duplicate code
 func force_to_forward(delta: float, transform: Transform3D, current_forward_axis: Vector3, target_global_position: Vector3) -> Vector3:
@@ -37,7 +37,7 @@ func force_to_forward(delta: float, transform: Transform3D, current_forward_axis
 	var proj = forward_dir.dot(to_target)
 	if abs(proj) < 1e-6:
 		return Vector3.ZERO
-	return forward_dir * proj * delta
+	return (forward_dir * proj) / delta
 
 # Static rotation utilities (direct vs composed)
 static func rotate_transform_about_point(transform: Transform3D, pivot: Vector3, rot_basis: Basis) -> Transform3D:
