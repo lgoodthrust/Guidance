@@ -43,6 +43,11 @@ var properties = {
 	"has_motor": false
 }
 
+# aerodynamic force scalars
+var A = 1.0
+var B = 2.0
+var C = 1.5
+
 # Internal state
 var blocks = []
 var launcher
@@ -54,8 +59,6 @@ var target: Node3D
 var target_position
 var player
 var tracking: bool = true
-var speed: float = 0.0
-var FORWARD: Vector3
 var sound_launch: AudioStreamPlayer3D
 var sound_fly: AudioStreamPlayer3D
 var sound_wind: AudioStreamPlayer3D
@@ -185,21 +188,37 @@ func calculate_centers() -> void:
 	if thrust_blocks > 0:
 		centers["thrust"] /= thrust_blocks
 
-var E: float = 1.0
+var sound_scale: float = 1.0
 func _process(_delta):
-	E = Engine.time_scale - 0.25 * Engine.time_scale
-	sound_launch.pitch_scale = E
-	sound_wind.pitch_scale = E
+	sound_scale = Engine.time_scale - 0.25 * Engine.time_scale
+	sound_launch.pitch_scale = sound_scale
+	sound_wind.pitch_scale = sound_scale
 
-var prev_vel: Vector3 = Vector3.ZERO
+# Caches variables to reduce loading or something, idk
 var laucnhed: bool = false
+var p_transform: Transform3D = Transform3D()
+var p_speed: float = 0.0
+var p_forward: Vector3 = Vector3.ZERO
+var prev_lin_vel: Vector3 = Vector3.ZERO
+var prev_ang_vel: Vector3 = Vector3.ZERO
+var p_lin_vel: Vector3 = Vector3.ZERO
+var p_ang_vel: Vector3 = Vector3.ZERO
+var p_lin_acc: Vector3 = Vector3.ZERO
+var p_ang_acc: Vector3 = Vector3.ZERO
 func _physics_process(delta: float) -> void:
-	FORWARD = global_transform.basis.y
-	speed = max(1, linear_velocity.dot(FORWARD))
+	p_transform = global_transform
+	p_forward = p_transform.basis.y
+	p_speed = max(1e-3, linear_velocity.dot(p_forward))
+	p_lin_vel = linear_velocity
+	p_ang_vel = angular_velocity
+	p_lin_acc = (p_lin_vel - prev_lin_vel) * delta
+	p_ang_acc = (p_ang_vel - prev_ang_vel) * delta
+	prev_lin_vel = p_lin_vel
+	prev_ang_vel = p_ang_vel
 	
-	if speed < 0.25 and life > 1.0:
+	if p_speed < 0.25 and life > 1.0:
 		return
-	elif speed > 25.0:
+	elif p_speed > 25.0:
 		if not sound_wind.playing:
 			sound_wind.play()
 	
@@ -209,15 +228,15 @@ func _physics_process(delta: float) -> void:
 		return
 	
 	if laucnhed == false:
-		apply_central_impulse(FORWARD * launch_charge_force * mass)
+		apply_central_impulse(p_forward * launch_charge_force * mass)
 		laucnhed = true
 	
-	# Thrust: Apply force along forward direction if within fuel duration.
+	# Thrust: Apply force along p_forward direction if within fuel duration.
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
-		apply_force(FORWARD * thrust_force * mass, centers["thrust"])
+		apply_force(p_forward * thrust_force * mass, centers["thrust"])
 		if not sound_fly.playing:
 			sound_fly.play()
-			sound_fly.pitch_scale = E
+			sound_fly.pitch_scale = sound_scale
 		
 		if not smoking:
 			smoking = true
@@ -226,26 +245,22 @@ func _physics_process(delta: float) -> void:
 	# Gravity: Apply a downward force.
 	apply_central_force(grav)
 	
-	var A = 1.0
-	var B = 2.0
-	var C = 1.5
-	
-	# Apply aerodynamic alignment (forward flight toward missile's forward direction)
-	var afd = (FORWARD - linear_velocity.normalized()).normalized()
-	var afm = FORWARD.angle_to(linear_velocity.normalized())
-	apply_force(afd * afm * speed * mass * properties["total_lift"] * A, centers["pressure"])
+	# Apply aerodynamic alignment (p_forward flight toward missile's p_forward direction)
+	var afd = (p_forward - p_lin_vel.normalized()).normalized()
+	var afm = p_forward.angle_to(p_lin_vel.normalized())
+	apply_force(afd * afm * p_speed * mass * properties["total_lift"] * A, centers["pressure"])
 	
 	# counteract unwanted de-acceleration forces from alignment forces
-	var cur_accel = linear_velocity - prev_vel
+	var cur_accel = p_lin_vel - prev_lin_vel
 	var anti_drag = -cur_accel * C
-	apply_force(anti_drag * FORWARD * 1.25, centers["mass"])
+	apply_force(anti_drag * p_forward * 1.25, centers["mass"])
 	
 	# apply aerodynamic alignment (missile toward foward flight)
-	var axis = FORWARD.cross(linear_velocity.normalized())
-	var angle = FORWARD.angle_to(linear_velocity.normalized())
+	var axis = p_forward.cross(p_lin_vel.normalized())
+	var angle = p_forward.angle_to(p_lin_vel.normalized())
 	if abs(axis.length()) > 0.005 and abs(angle) > 0.005:
 		var torque = axis.normalized() * angle
-		apply_torque(torque * speed * mass * properties["total_lift"] * B)
+		apply_torque(torque * p_speed * mass * properties["total_lift"] * B)
 	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
@@ -269,8 +284,6 @@ func _physics_process(delta: float) -> void:
 	
 	if unlocked_life >= unlocked_detonation_delay:
 		_explode_and_remove()
-	
-	prev_vel = linear_velocity
 
 func _explode_and_remove() -> void:
 	var kaboom = particles.explotion_01()
@@ -282,20 +295,26 @@ func _explode_and_remove() -> void:
 	queue_free()
 
 # Helpers – using only the RigidBody's orientation
-func _get_target_angles(t: Node3D) -> Vector2:
-	var dir: Vector3 = (t.global_position - global_position).normalized()
-	var fwd: Vector3 = global_transform.basis.y
-	var right: Vector3 = global_transform.basis.x
-	var up: Vector3 = global_transform.basis.z
-
+func _get_target_angles(target_node: Node3D) -> Vector2:
+	var dir: Vector3 = (target_node.global_position - global_position).normalized()
+	var fwd: Vector3 = p_forward
+	var right: Vector3 = p_transform.basis.x
+	var up: Vector3 = p_transform.basis.z
+	
 	var yaw   : float = atan2(dir.dot(right), dir.dot(fwd)) * deg_to_rad(seeker_fov)
 	var pitch : float = atan2(dir.dot(up), dir.dot(fwd)) * deg_to_rad(seeker_fov)
-
+	
 	if abs(rad_to_deg(yaw)) > seeker_fov or abs(rad_to_deg(pitch)) > seeker_fov:
 		tracking = false
 		return Vector2.ZERO
 	tracking = true
 	return Vector2(yaw, pitch)
+
+# return missile rotation rates in terms of something useful
+func get_pitch_yaw_rates() -> Vector2:
+	var pitch_rate = p_ang_vel.dot(p_transform.basis.x)
+	var yaw_rate = p_ang_vel.dot(p_transform.basis.z)
+	return Vector2(yaw_rate, pitch_rate)
 
 #  CUSTOM GUIDANCE LAW
 func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vector2:
@@ -314,20 +333,24 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 			var rel = missile_pos - beam_origin
 			var rd = max(beam_dir.dot(rel), 0.0)
 			var bp = beam_origin + beam_dir * rd
-			var obp = bp + beam_dir * min(speed, 343)
+			var obp = bp + beam_dir * min(p_speed, 343)
 			var st = adv_move.torque_to_pos(delta, self, Vector3.UP, obp)
 			var lim = 3.0 * (mass/10.0)
 			var sst = clamp(st * 30.0, -Vector3.ONE*lim, Vector3.ONE*lim)
-			apply_torque(sst * speed * mass)
+			apply_torque(sst * p_speed * mass)
 		
 		xval = 0
 		yval = 0
 		
 	elif type == Seeker.RADAR: # radar
-		_radar_steering(delta, target.global_transform.origin)
+		xval = -relative_angles.x
+		yval =  relative_angles.y
+		var rel = Vector2(xval, yval)
 		
-		xval = 0
-		yval = 0
+		var calcs = _radar_steering_01(delta, rel)
+		
+		xval = calcs.x
+		yval = calcs.y
 	
 	else: # non
 		xval = 0
@@ -339,13 +362,27 @@ func control_algorithm(relative_angles: Vector2, delta: float, type: int) -> Vec
 	return Vector2(xx, yy)
 
 # Cursed rotate to position
-func _radar_steering(delta, target_pos: Vector3) -> void:
-	var t_go = dist / speed
-	var intercept = target_pos + FORWARD.normalized() * (speed * t_go)
+var prev_rel_ang: Vector2 = Vector2.ZERO
+func _radar_steering_01(delta, relative_angles: Vector2) -> Vector2:
+	var rate_rel_angle = (relative_angles - prev_rel_ang) * delta
+	prev_rel_ang = relative_angles
+	
+	var py_vel = get_pitch_yaw_rates()
+	print(py_vel)
+	
+	# MAXIMUM COMPENSATION!
+	var good = rate_rel_angle - py_vel
+	
+	var output = good
+	return output
+
+func _radar_steering_02(delta, target_pos: Vector3) -> void:
+	var t_go = dist / p_speed
+	var intercept = target_pos + p_forward.normalized() * (p_speed * t_go)
 	
 	var raw_torque:  = adv_move.torque_to_pos(delta, self, Vector3.UP, intercept)
 	
-	var steer = raw_torque * speed * mass * 200.0
+	var steer = raw_torque * p_speed * mass * 200.0
 	
 	var force = (global_basis.x * steer.x) + (global_basis.z * steer.x)
 	
@@ -354,10 +391,10 @@ func _radar_steering(delta, target_pos: Vector3) -> void:
 # Apply torque based on input.
 # We interpret cmd.x as yaw and cmd.y as pitch.
 func _apply_pitch_yaw_torque(cmd: Vector2) -> void:
-	var pitch_torque = global_basis.x * cmd.y
-	var yaw_torque = global_basis.z * cmd.x
+	var pitch_torque = p_transform.basis.x * cmd.y
+	var yaw_torque = p_transform.basis.z * cmd.x
 	
-	var forces = ((pitch_torque + yaw_torque) * speed) * mass
+	var forces = ((pitch_torque + yaw_torque) * p_speed) * mass
 	apply_torque(forces)
 
 func LAUCNHER_CHILD_SHARE_SET(scene, key, data): # FOR DATA SHARE

@@ -79,7 +79,7 @@ func toggler():
 		hide()
 		LAUCNHER_CHILD_SHARE_SET("main_menu", "open", false)
 		if cur_mode == Mode.build:
-			Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif cur_mode == Mode.test:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		var scene2 = LAUCNHER_CHILD_SHARE_GET("scenes", "world")

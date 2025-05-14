@@ -473,6 +473,7 @@ jolt_3d/limits/max_temporary_memory=64
 [rendering]
 
 occlusion_culling/bvh_build_quality=1
+textures/vram_compression/import_etc2_astc=true
 driver/depth_prepass/enable=false
 environment/ssao/quality=1
 anti_aliasing/screen_space_roughness_limiter/limit=0.25
