@@ -16,7 +16,7 @@ config/features=PackedStringArray("4.3", "Forward Plus")
 run/max_fps=200
 boot_splash/image="res://missile_01.png"
 config/icon="res://icon.svg"
-boot_splash/minimum_display_time=1500
+boot_splash/minimum_display_time=500
 
 [display]
 
@@ -462,6 +462,8 @@ limits/tcp/connect_timeout_seconds=10
 common/physics_ticks_per_second=64
 common/max_physics_steps_per_frame=32
 3d/physics_engine="JoltPhysics3D"
+3d/default_gravity=9.807
+jolt_3d/sleep/velocity_threshold=0.05
 jolt_3d/collisions/areas_detect_static_bodies=true
 jolt_3d/solver/position_iterations=8
 jolt_3d/solver/position_correction=25.0

@@ -4,7 +4,7 @@ extends Node3D
 @export var DATA = {
 	"NAME": "Fin",
 	"MASS": 5,
-	"LIFT": 0.0437,
+	"LIFT": 0.075,
 	"UDLRTB": [-1, -1, 0, 0, 0, 0],
 	"TYPE": 4
 }

@@ -171,7 +171,7 @@ func place_block():
 	
 	add_child(block)
 	grid[selected_position] = block
-	update_center_of_gravity()
+	update_center_of_mass()
 	update_center_of_lift()
 	update_center_of_thrust()
 
@@ -179,7 +179,7 @@ func remove_block():
 	if grid.has(selected_position):
 		grid[selected_position].queue_free()
 		grid.erase(selected_position)
-	update_center_of_gravity()
+	update_center_of_mass()
 	update_center_of_lift()
 	update_center_of_thrust()
 
@@ -218,11 +218,10 @@ func _draw_grid():
 	
 	im.surface_end()
 
-func update_center_of_gravity():
+func update_center_of_mass():
 	var total_mass = 0.0
 	var weighted_position = Vector3.ZERO
-
-	# grid is { position: block_node }
+	
 	for pos in grid:
 		var block_node = grid[pos]
 		if block_node.DATA.has("MASS"):
@@ -232,8 +231,7 @@ func update_center_of_gravity():
 			weighted_position += block_pos * part_mass
 	
 	if total_mass > 0.0:
-		var cog = weighted_position / total_mass
-		cg_block.global_position = cog
+		cg_block.global_position = weighted_position / total_mass
 		cg_block.visible = true
 	else:
 		cg_block.visible = false
@@ -259,6 +257,7 @@ func update_center_of_lift():
 		cl_block.visible = false
 
 func update_center_of_thrust():
+	var thrusting_blocks = 0
 	var thrusting_position = Vector3.ZERO # >:)
 	
 	# grid is { position: block_node }
@@ -266,8 +265,9 @@ func update_center_of_thrust():
 		var block_node = grid[pos]
 		if block_node.DATA.has("TYPE"):
 			if  block_node.DATA["TYPE"] == 8:
+				thrusting_blocks += 1
 				var block_pos = block_node.global_transform.origin
-				thrusting_position += block_pos
+				thrusting_position += block_pos / thrusting_blocks
 	
 	if thrusting_position == Vector3.INF:
 		ct_block.visible = false
@@ -305,7 +305,7 @@ func _SAVER():
 func _LOADER():
 	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
 	loader_saver.load_vehicle(path)
-	update_center_of_gravity()
+	update_center_of_mass()
 	update_center_of_lift()
 	update_center_of_thrust()
 
