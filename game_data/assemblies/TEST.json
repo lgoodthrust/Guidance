@@ -244,8 +244,8 @@
 	{
 		"DATA": {
 			"LIFT": 0,
-			"MASS": 10,
-			"NAME": "IR_Seeker",
+			"MASS": 5,
+			"NAME": "Laser_Seeker",
 			"TYPE": 1,
 			"UDLRTB": [
 				0,
@@ -256,7 +256,7 @@
 				0
 			]
 		},
-		"path": "res://game_data/blocks/ir_seeker.tscn",
+		"path": "res://game_data/blocks/laser_seeker.tscn",
 		"position": {
 			"x": 0,
 			"y": 9,
