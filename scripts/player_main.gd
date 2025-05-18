@@ -205,7 +205,7 @@ func toggle_msl_follow(enabled: bool):
 					# Set flags
 					msl_follow_tog = true
 					back_step1 = false
-					noclip_tog = false
+					noclip_tog = true
 				else:
 					disable_follow()
 			else:

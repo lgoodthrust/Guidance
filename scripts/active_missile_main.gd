@@ -45,7 +45,7 @@ var C = 0.001
 var air_density = 1.225 #1.225 # ISA/USSA standard STP
 
 var laucnhed: bool = false
-var p_transform: Transform3D = Transform3D()
+var p_trans: Transform3D = Transform3D()
 var p_speed: float = 0.0
 var p_delta: float = 0.0001
 var p_forward: Vector3 = Vector3.ZERO
@@ -64,7 +64,7 @@ var smoking: bool = false
 var dist = 100.0
 var num_blocks: int = 0
 var target: Node3D
-var target_position
+var target_position: Vector3 = Vector3.ZERO
 var player
 var tracking: bool = true
 var sound_launch: AudioStreamPlayer3D
@@ -102,9 +102,6 @@ func _ready() -> void:
 	sound3.owner = self
 	sound_wind = sound3
 	
-	player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
-	
-	load_missile_blocks()
 	calculate_centers()
 	
 	var shape = BoxShape3D.new()
@@ -126,14 +123,14 @@ func _ready() -> void:
 	center_of_mass = centers["mass"]
 	
 	target = launcher.LAUCNHER_CHILD_SHARED_DATA["scenes"]["target"]
+	player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
 
-func load_missile_blocks() -> void:
+func calculate_centers() -> void:
 	for child in get_children():
 		if child.get_class() == "Node3D" and child.DATA.has("NAME"):
 			blocks.append(child)
 			num_blocks += 1
-
-func calculate_centers() -> void:
+	
 	var lift_blocks = 0
 	var thrust_blocks = 0
 	
@@ -189,10 +186,10 @@ func calculate_centers() -> void:
 	
 	if properties["mass"] > 0:
 		centers["mass"] /= properties["mass"]
-		
+	
 	if lift_blocks > 0:
 		centers["pressure"] /= lift_blocks
-		
+	
 	if thrust_blocks > 0:
 		centers["thrust"] /= thrust_blocks
 	
@@ -205,36 +202,36 @@ func _process(_delta):
 	sound_wind.pitch_scale = sound_scale
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
-	p_delta = state.step
-	p_transform = global_transform
-	p_forward = p_transform.basis.y
+	p_delta = state.get_step()
+	p_trans = state.get_transform()
+	p_forward = p_trans.basis.y
 	p_speed = max(1e-3, linear_velocity.length())
-	p_lin_vel = state.linear_velocity
-	p_ang_vel = state.angular_velocity
+	p_lin_vel = state.get_linear_velocity()
+	p_ang_vel = state.get_angular_velocity()
 	p_lin_acc = (p_lin_vel - prev_lin_vel) / p_delta
 	p_ang_acc = (p_ang_vel - prev_ang_vel) / p_delta
 	prev_lin_vel = p_lin_vel
 	prev_ang_vel = p_ang_vel
 	
-	if abs(p_speed) < 0.1 and life > motor_delay:
-		return
-	elif p_speed > 45.0:
-		if not sound_wind.playing:
-			sound_wind.play()
+	var total_force: Vector3 = Vector3.ZERO
+	var total_torque: Vector3 = Vector3.ZERO
+	
+	if p_speed > 45.0 and not sound_wind.playing:
+		sound_wind.play()
 	
 	life += p_delta
 	if life >= lifetime:
-		_explode_and_remove()
+		explode_and_remove()
 		return
 	
 	if laucnhed == false:
 		state.apply_central_impulse(p_forward * launch_charge_force * properties["mass"])
 		laucnhed = true
 	
-	state.add_constant_central_force(Vector3.DOWN * 9.8067 * properties["mass"])
-	
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
-		state.add_constant_force(p_forward * thrust_force * properties["mass"], centers["thrust"])
+		var stuff = p_forward * thrust_force * properties["mass"]
+		total_force += stuff
+		total_torque += adv_move.torque_from_offset_force(p_trans, centers["thrust"], p_forward * thrust_force * properties["mass"])
 		if not sound_fly.playing:
 			sound_fly.play()
 			sound_fly.pitch_scale = sound_scale
@@ -245,38 +242,40 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 			add_child(smoke)
 			smoke.position = centers["thrust"]
 	
+	total_force += p_trans.basis * Vector3.DOWN * 9.8067 * properties["mass"]
+	
 	var vel_dir = p_lin_vel.normalized()
 	var aoaos_axis = p_forward.cross(vel_dir)
-	var force_scale = 0.5 * air_density * p_speed**2
-	if aoaos_axis.length() > 0.005:
-		aoaos_axis = aoaos_axis.normalized()
-		var lift_dir = aoaos_axis.cross(vel_dir).normalized()
-		
+	var force_scale = 0.5 * air_density * p_speed
+	if abs(aoaos_axis.length()) > 0.005:
+		var lift_dir = aoaos_axis.normalized().cross(vel_dir).normalized()
 		var lift = lift_dir * force_scale * properties["total_lift"] * A
-		state.apply_force(lift, centers["pressure"])
-	
-	var cur_accel = (p_lin_vel - prev_lin_vel) / p_delta
-	prev_lin_vel = p_lin_vel
-	var anti_drag = -cur_accel * C
-	state.apply_force(anti_drag, centers["mass"])
+		var lift_force = lift * properties["mass"]
+		total_force += lift_force
+		total_torque += adv_move.torque_from_offset_force(p_trans, centers["pressure"], lift_force)
+
+	var anti_drag = -p_lin_acc * C
+	var anti_forces = anti_drag * properties["mass"]
+	total_force += anti_forces
+	total_torque += adv_move.torque_from_offset_force(p_trans, centers["mass"], anti_forces)
 	
 	var angle = p_forward.angle_to(vel_dir)
-	if aoaos_axis.length() > 0.005 and angle > 0.005:
+	if abs(aoaos_axis.length()) > 0.005 and abs(angle) > 0.005:
 		var torque_cmd = aoaos_axis.normalized() * angle
 		var aero_mom = torque_cmd * force_scale * 0.88 * B
 		var damp_mom = -p_ang_vel * (inertia.length() * 2.0)
-		#state.apply_torque(aero_mom + damp_mom)
+		total_torque += (aero_mom + damp_mom * properties["mass"])
 	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
 		
 		if dist <= proximity_detonation_radius and properties["has_warhead"]:
-			_explode_and_remove()
+			explode_and_remove()
 			return
 	
 	if properties["has_seeker"]:
 			if dist < max_range:
-				var angles = _get_target_angles(target)
+				var angles = get_target_angles(target)
 				if angles != Vector2.ZERO:
 					var xval = 0
 					var yval = 0
@@ -289,7 +288,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 						if player:
 							var beam_origin = player.global_transform.origin
 							var beam_dir = -player.global_transform.basis.z.normalized()
-							var missile_pos = p_transform.origin
+							var missile_pos = p_trans.origin
 							var rel = missile_pos - beam_origin
 							var rd = max(beam_dir.dot(rel), 0.0)
 							var bp = beam_origin + beam_dir * rd
@@ -297,10 +296,11 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 							var st = adv_move.torque_to_pos(p_delta, self, Vector3.UP, obp)
 							var lim = properties["mass"] / 10.0
 							var sst = clamp(st * 10.0, -Vector3.ONE*lim, Vector3.ONE*lim)
-							var p_torque = p_transform.basis.x * sst.y
-							var y_torque = p_transform.basis.z * sst.x
-							var comb_torque = (p_torque + y_torque) * properties["mass"] * p_speed**2
-							#state.apply_torque(comb_torque)
+							var p_torque = p_trans.basis.x * sst.y
+							var y_torque = p_trans.basis.z * sst.x
+							var torque_beam = (p_torque + y_torque)
+							var comb_torque = torque_beam * properties["mass"] * p_speed
+							total_torque += (comb_torque)
 						
 						xval = 0
 						yval = 0
@@ -310,7 +310,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 						yval =  angles.y
 						var rel = Vector2(xval, yval)
 						
-						var calcs = _radar_steering_01(rel)
+						var calcs = radar_steering_01(rel)
 						
 						xval = calcs.x
 						yval = calcs.y
@@ -324,33 +324,46 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 					
 					var output = Vector2(xx, yy)
 					
-					var pitch_torque = p_transform.basis.x * output.y
-					var yaw_torque = p_transform.basis.z * output.x
-					var forces = (pitch_torque + yaw_torque) * properties["mass"] * p_speed**2
-					#state.apply_torque(forces)
+					var pitch_torque = p_trans.basis.x * output.y
+					var yaw_torque = p_trans.basis.z * output.x
+					var torque_pid = (pitch_torque + yaw_torque)
+					var forces = torque_pid * properties["mass"] * p_speed
+					total_torque += (forces)
 	
 	if tracking == false and not seeker_type == Seeker.LASER:
 		unlocked_life += p_delta
 	
 	if unlocked_life >= unlocked_detonation_delay:
-		_explode_and_remove()
+		explode_and_remove()
 	
-	state.integrate_forces()
+	var dv = total_force * state.get_inverse_mass() * p_delta
+	state.set_linear_velocity(p_lin_vel + dv)
+	
+	var inv_Ib = state.get_inverse_inertia()
+	var T = p_trans.basis
+	var invI_body = Basis(
+		Vector3(inv_Ib.x, 0, 0),
+		Vector3(0, inv_Ib.y, 0),
+		Vector3(0, 0, inv_Ib.z))
+	
+	var invI_world = T * invI_body * T.transposed()
+	var alpha = (invI_world * total_torque) * p_delta
+	state.set_angular_velocity(p_ang_vel + alpha)
 
-func _explode_and_remove() -> void:
+func explode_and_remove() -> void:
 	var kaboom = particles.explotion_01()
 	get_tree().current_scene.get_node(".").add_child(kaboom)
-	kaboom.global_position = p_transform.origin
+	kaboom.global_position = p_trans.origin
 	for block in blocks:
 		block.hide()
 	await get_tree().create_timer(0.05).timeout
 	queue_free()
 
-func _get_target_angles(target_node: Node3D) -> Vector2:
-	var dir: Vector3 = (target_node.global_position - p_transform.origin).normalized()
+func get_target_angles(target_node: Node3D) -> Vector2:
+	var dir: Vector3 = (target_node.global_position - p_trans.origin).normalized()
 	var fwd: Vector3 = p_forward
-	var right: Vector3 = p_transform.basis.x
-	var up: Vector3 = p_transform.basis.z
+	var right: Vector3 = p_trans.basis.x
+	var up: Vector3 = p_trans.basis.z
 	
 	var yaw: float = atan2(dir.dot(right), dir.dot(fwd)) * deg_to_rad(seeker_fov)
 	var pitch: float = atan2(dir.dot(up), dir.dot(fwd)) * deg_to_rad(seeker_fov)
@@ -363,12 +376,12 @@ func _get_target_angles(target_node: Node3D) -> Vector2:
 	return Vector2(yaw, pitch)
 
 var prev_rel_ang: Vector2 = Vector2.ZERO
-func _radar_steering_01(relative_angles: Vector2) -> Vector2:
+func radar_steering_01(relative_angles: Vector2) -> Vector2:
 	var rate_rel_angle = (relative_angles - prev_rel_ang) / p_delta
 	prev_rel_ang = relative_angles
 	
-	var pitch_rate = p_ang_vel.dot(p_transform.basis.x) / p_delta
-	var yaw_rate = p_ang_vel.dot(p_transform.basis.z) / p_delta
+	var pitch_rate = p_ang_vel.dot(p_trans.basis.x) / p_delta
+	var yaw_rate = p_ang_vel.dot(p_trans.basis.z) / p_delta
 	var py_vel = Vector2(yaw_rate, pitch_rate)
 	
 	var output = rate_rel_angle - py_vel
