@@ -42,9 +42,9 @@ var properties = {
 var A = 1.0
 var B = 1.0
 var C = 0.001
-var air_density = 1.225 #1.225 # ISA/USSA standard STP
+var air_density = 1.225 # ISA/USSA standard STP
 
-var laucnhed: bool = false
+var launched: bool = false # corrected typo
 var p_trans: Transform3D = Transform3D()
 var p_speed: float = 0.0
 var p_delta: float = 0.0001
@@ -66,6 +66,7 @@ var num_blocks: int = 0
 var target: Node3D
 var target_position: Vector3 = Vector3.ZERO
 var player
+var laucnhed = false
 var tracking: bool = true
 var sound_launch: AudioStreamPlayer3D
 var sound_fly: AudioStreamPlayer3D
@@ -79,6 +80,7 @@ var sound_wind: AudioStreamPlayer3D
 @onready var particles = gpu_particle_effects.new()
 
 var launch_force: Vector3 = Vector3.ZERO
+
 func _ready() -> void:
 	launcher = get_tree().root.get_node("Launcher")
 	target_position = Vector3()
@@ -114,7 +116,7 @@ func _ready() -> void:
 	
 	custom_integrator = true
 	freeze = false
-	gravity_scale = 1.0
+	gravity_scale = 1.0 # TODO: set to 0 if manual gravity retained
 	linear_damp = 0.001
 	angular_damp = 0.001
 	mass = max(1e-3, properties["mass"])
@@ -134,51 +136,32 @@ func calculate_centers() -> void:
 	var lift_blocks = 0
 	var thrust_blocks = 0
 	
-	for block:Node3D in blocks:
-		var block_pos = block.to_global(Vector3(0, 0, 0))
-		if block.DATA.has("TYPE"):
-			if block.DATA["TYPE"] == 1:
-				properties["has_seeker"] = true
-				match block.DATA["NAME"]:
-					"IR_Seeker":
-						seeker_type = Seeker.IR
-					"Laser_Seeker":
-						seeker_type = Seeker.LASER
-					"Radar_Seeker":
-						seeker_type = Seeker.RADAR
-			
-			if block.DATA["TYPE"] == 2:
-				properties["has_controller"] = true
-			
-			if block.DATA["TYPE"] == 3:
-				properties["has_warhead"] = true
+	for block: Node3D in blocks:
+		var block_pos = block.to_global(Vector3.ZERO)
+		# TODO: store local offset instead to avoid world/local mix-up
 	
-			if block.DATA["TYPE"] == 4:
-				properties["has_fin"] = true
-				centers["pressure"] += block_pos
-				lift_blocks += 1
-				properties["total_lift"] += block.DATA["LIFT"]
-			
-			if block.DATA["TYPE"] == 5:
-				properties["has_front_cannard"] = true
-				centers["pressure"] += block_pos
-				lift_blocks += 1
-				properties["total_lift"] += block.DATA["LIFT"]
-			
-			if block.DATA["TYPE"] == 6:
-				properties["has_back_cannard"] = true
-				centers["pressure"] += block_pos
-				lift_blocks += 1
-				properties["total_lift"] += block.DATA["LIFT"]
-			
-			if block.DATA["TYPE"] == 7:
-				properties["fuel"] += fuel_duration
-			
-			if block.DATA["TYPE"] == 8:
-				properties["has_motor"] = true
-				centers["thrust"] += block_pos
-				properties["fuel"] += 0.25
-				thrust_blocks += 1
+		if block.DATA.has("TYPE"):
+			match block.DATA["TYPE"]:
+				1:
+					properties["has_seeker"] = true
+					match block.DATA["NAME"]:
+						"IR_Seeker":   seeker_type = Seeker.IR
+						"Laser_Seeker": seeker_type = Seeker.LASER
+						"Radar_Seeker": seeker_type = Seeker.RADAR
+				2: properties["has_controller"] = true
+				3: properties["has_warhead"] = true
+				4,5,6:
+					properties["has_fin"] = true
+					centers["pressure"] += block_pos
+					lift_blocks += 1
+					properties["total_lift"] += block.DATA["LIFT"]
+				7:
+					properties["fuel"] += fuel_duration
+				8:
+					properties["has_motor"] = true
+					centers["thrust"] += block_pos
+					properties["fuel"] += 0.25
+					thrust_blocks += 1
 		
 		if block.DATA.has("MASS"):
 			centers["mass"] += block_pos * block.DATA["MASS"]
@@ -186,10 +169,8 @@ func calculate_centers() -> void:
 	
 	if properties["mass"] > 0:
 		centers["mass"] /= properties["mass"]
-	
 	if lift_blocks > 0:
 		centers["pressure"] /= lift_blocks
-	
 	if thrust_blocks > 0:
 		centers["thrust"] /= thrust_blocks
 	
@@ -205,8 +186,8 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	p_delta = state.get_step()
 	p_trans = state.get_transform()
 	p_forward = p_trans.basis.y
-	p_speed = max(1e-3, linear_velocity.length())
 	p_lin_vel = state.get_linear_velocity()
+	p_speed = max(1e-3, p_lin_vel.length())
 	p_ang_vel = state.get_angular_velocity()
 	p_lin_acc = (p_lin_vel - prev_lin_vel) / p_delta
 	p_ang_acc = (p_ang_vel - prev_ang_vel) / p_delta
@@ -215,6 +196,8 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	
 	var total_force: Vector3 = Vector3.ZERO
 	var total_torque: Vector3 = Vector3.ZERO
+	
+	var force_scale = 0.5 * air_density * p_speed * p_speed
 	
 	if p_speed > 45.0 and not sound_wind.playing:
 		sound_wind.play()
@@ -231,7 +214,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
 		var stuff = p_forward * thrust_force * properties["mass"]
 		total_force += stuff
-		total_torque += adv_move.torque_from_offset_force(p_trans, centers["thrust"], p_forward * thrust_force * properties["mass"])
+		total_torque += adv_move.torque_from_offset_force(p_trans, centers["thrust"], stuff)
 		if not sound_fly.playing:
 			sound_fly.play()
 			sound_fly.pitch_scale = sound_scale
@@ -246,14 +229,13 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	
 	var vel_dir = p_lin_vel.normalized()
 	var aoaos_axis = p_forward.cross(vel_dir)
-	var force_scale = 0.5 * air_density * p_speed
 	if abs(aoaos_axis.length()) > 0.005:
 		var lift_dir = aoaos_axis.normalized().cross(vel_dir).normalized()
 		var lift = lift_dir * force_scale * properties["total_lift"] * A
 		var lift_force = lift * properties["mass"]
 		total_force += lift_force
 		total_torque += adv_move.torque_from_offset_force(p_trans, centers["pressure"], lift_force)
-
+	
 	var anti_drag = -p_lin_acc * C
 	var anti_forces = anti_drag * properties["mass"]
 	total_force += anti_forces
@@ -336,19 +318,9 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	if unlocked_life >= unlocked_detonation_delay:
 		explode_and_remove()
 	
-	var dv = total_force * state.get_inverse_mass() * p_delta
-	state.set_linear_velocity(p_lin_vel + dv)
-	
-	var inv_Ib = state.get_inverse_inertia()
-	var T = p_trans.basis
-	var invI_body = Basis(
-		Vector3(inv_Ib.x, 0, 0),
-		Vector3(0, inv_Ib.y, 0),
-		Vector3(0, 0, inv_Ib.z))
-	
-	var invI_world = T * invI_body * T.transposed()
-	var alpha = (invI_world * total_torque) * p_delta
-	state.set_angular_velocity(p_ang_vel + alpha)
+	state.apply_central_force(total_force)
+	state.apply_torque(total_torque)
+
 
 func explode_and_remove() -> void:
 	var kaboom = particles.explotion_01()
