@@ -18,6 +18,10 @@ boot_splash/image="res://missile_01.png"
 config/icon="res://icon.svg"
 boot_splash/minimum_display_time=500
 
+[audio]
+
+video/limits/world_boundary_shape_size=2000.0
+
 [display]
 
 window/size/viewport_width=1000

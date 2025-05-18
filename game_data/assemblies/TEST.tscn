@@ -7,7 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://8tqnmisb1gkr" path="res://game_data/blocks/fin.tscn" id="8_nhfuf"]
 [ext_resource type="PackedScene" uid="uid://c8y1d14qkdba8" path="res://game_data/blocks/back_cannard.tscn" id="10_2pm4g"]
 [ext_resource type="PackedScene" uid="uid://yw4re2eruv0u" path="res://game_data/blocks/controller.tscn" id="12_qwh1j"]
-[ext_resource type="PackedScene" uid="uid://b1q1lsdrk07ru" path="res://game_data/blocks/laser_seeker.tscn" id="14_56kvu"]
+[ext_resource type="PackedScene" uid="uid://b1q1lsdrk07ru" path="res://game_data/blocks/laser_seeker.tscn" id="14_6wd2n"]
 
 [sub_resource type="GDScript" id="GDScript_qvbnp"]
 script/source = "extends Node3D
@@ -44,7 +44,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="@Node3D@630" parent="RigidBody3D" instance=ExtResource("3_y0w51")]
+[node name="@Node3D@682" parent="RigidBody3D" instance=ExtResource("3_y0w51")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 DATA = {
 "LIFT": 0.0,
@@ -85,7 +85,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="@Node3D@635" parent="RigidBody3D" instance=ExtResource("8_nhfuf")]
+[node name="@Node3D@687" parent="RigidBody3D" instance=ExtResource("8_nhfuf")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 DATA = {
 "LIFT": 0.075,
@@ -114,7 +114,7 @@ DATA = {
 "UDLRTB": [-1.0, -1.0, 0.0, 0.0, 0.0, 0.0]
 }
 
-[node name="Laser_Seeker" parent="RigidBody3D" instance=ExtResource("14_56kvu")]
+[node name="Laser_Seeker" parent="RigidBody3D" instance=ExtResource("14_6wd2n")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9, 0)
 DATA = {
 "LIFT": 0.0,
