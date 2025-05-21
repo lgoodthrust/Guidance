@@ -120,7 +120,7 @@ func center_camera():
 		grid_size.y / 2,
 		grid_size.z / 2
 	)
-	camera.global_position = grid_center
+	camera.global_position = grid_center + Vector3(0,0,6)
 
 
 func is_valid_placement(pos: Vector3i, block):

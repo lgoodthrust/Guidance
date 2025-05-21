@@ -13,7 +13,7 @@ func reset():
 	_history.clear()
 
 func update(delta: float, target: float, current: float, p: float, i: float, d: float, I_COUNT: int = 10) -> float:
-	var error = target - current
+	var error = (target - current) * p
 	
 	# Proportional term
 	var p_term = p * error

@@ -6,7 +6,7 @@ extends RigidBody3D
 @export var motor_delay: float = 0.3
 @export var fuel_duration: float = 1.5
 @export var proximity_detonation_radius: float = 20.0
-@export var max_range: float = 4000.0
+@export var max_range: float = 8000.0
 @export var seeker_fov: float = 40.0
 @export var unlocked_detonation_delay: float = 3.0
 
@@ -15,10 +15,10 @@ var seeker_type: Seeker = Seeker.NONE
 
 @export var YAW_KP: float = 1.25
 @export var YAW_KI: float = 15.0
-@export var YAW_KD: float = 0.25
+@export var YAW_KD: float = 0.3
 @export var PITCH_KP: float = 1.25
 @export var PITCH_KI: float = 15.0
-@export var PITCH_KD: float = 0.25
+@export var PITCH_KD: float = 0.3
 
 var centers = {
 	"mass": Vector3.ZERO,
@@ -38,11 +38,6 @@ var properties = {
 	"has_fin": false,
 	"has_motor": false
 }
-
-var A = 1.0
-var B = 1.0
-var C = 1.0
-var air_density = 1.225 # ISA/USSA standard STP
 
 var launched: bool = false # corrected typo
 var p_trans: Transform3D = Transform3D()
@@ -73,12 +68,12 @@ var sound_wind: AudioStreamPlayer3D
 
 @onready var pidx0 = PID.new()
 @onready var pidy0 = PID.new()
+@onready var pidx1 = PID.new()
+@onready var pidy1 = PID.new()
 
 @onready var adv_move = ADV_MOVE.new()
 
 @onready var particles = gpu_particle_effects.new()
-
-var launch_force: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
 	for child in get_children():
@@ -201,7 +196,14 @@ func _process(_delta):
 	sound_launch.pitch_scale = sound_scale
 	sound_wind.pitch_scale = sound_scale
 
+var A = 1.0
+var B = 1.0
+var air_density = 1.225 # ISA/USSA standard STP
+
 var prev_rel_ang: Vector2 = Vector2.ZERO
+var prev_ang_rate = Vector2.ZERO
+var wind_playing = false
+var radar_first: bool = true
 func _physics_process(delta: float) -> void:
 	p_delta = delta
 	p_trans = global_transform
@@ -213,103 +215,126 @@ func _physics_process(delta: float) -> void:
 	p_ang_acc = (p_ang_vel - prev_ang_vel) / p_delta
 	prev_lin_vel = p_lin_vel
 	prev_ang_vel = p_ang_vel
-
-	var damp_mom: Vector3 = -p_ang_vel * inertia
-	var force_scale: float = 0.5 * air_density * p_speed**2
-	var vel_dir: Vector3 = p_lin_vel.normalized()
-	var aoas_axis: Vector3 = p_forward.cross(vel_dir)
-	var aoas_scale: float = aoas_axis.length()
-
-	if p_speed > 45.0 and not sound_wind.playing:
+	
+	if p_speed > 45.0 and not wind_playing:
 		sound_wind.play()
-
+		wind_playing = true
+	
 	life += p_delta
 	if life >= lifetime:
 		explode_and_remove()
 		return
-
+	
 	if not launched:
 		apply_central_impulse(p_forward * launch_charge_force * properties["mass"])
 		launched = true
-
+	
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
 		apply_force(p_forward * thrust_force * properties["mass"], centers["thrust"])
+	
 		if not sound_fly.playing:
 			sound_fly.play()
 			sound_fly.pitch_scale = sound_scale
+	
 		if not smoking:
 			smoking = true
 			var smoke = particles.smoke_01()
 			add_child(smoke)
 			smoke.position = centers["thrust"]
-
-	apply_force(Vector3.DOWN * 9.80665 * properties["mass"], centers["mass"])
-
-	if p_speed > 5.0:
-		if aoas_scale > 0.0001:
-			var angle: float = p_forward.angle_to(vel_dir)
-			var aoa_hat: Vector3 = aoas_axis / aoas_scale
-			var corr_dir: Vector3 = vel_dir.cross(aoa_hat).normalized()
-			var corr_force: Vector3 = corr_dir * force_scale * properties["total_lift"] * A * angle
-			apply_force(corr_force, centers["pressure"])
-
-			var torque: Vector3 = -aoas_axis * angle * force_scale * B
-			apply_torque(torque + damp_mom)
-
-		var drag: Vector3 = -vel_dir * force_scale * C
-		apply_force(drag, centers["mass"])
-
+	
+	apply_central_force(Vector3.DOWN * 9.80665 * properties["mass"])
+	
+	var damp_mom: Vector3 = Vector3(
+		-p_ang_vel.x * inertia.x,
+		-p_ang_vel.y * inertia.y,
+		-p_ang_vel.z * inertia.z)
+	
+	var vel_dir: Vector3 = p_lin_vel.normalized()
+	var aoas_axis: Vector3 = p_forward.cross(vel_dir)
+	var dynq = 0.5 * air_density * (p_speed**2.0)
+	var aoaos_scale = p_forward.dot(vel_dir)
+	
+	if abs(p_speed) > 1e-3:
+		var ang: float = acos(clamp(aoaos_scale, -1.0, 1.0))
+		var aoas_hat: Vector3 = aoas_axis / aoas_axis.length()
+		
+		# push back against aoa/aos
+		var lift_dir: Vector3 = vel_dir.cross(aoas_hat).normalized()
+		var lift: Vector3 = lift_dir * dynq * properties["total_lift"] * A * ang
+		apply_force(lift, centers["pressure"])
+		
+		# rotate toward velocity direction
+		var aero_torque: Vector3 = -aoas_axis * ang * dynq * properties["total_lift"] * B
+		apply_torque((aero_torque) + damp_mom)
+	
 	if target:
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
 		if dist <= proximity_detonation_radius and properties["has_warhead"]:
 			explode_and_remove()
 			return
-
+	
 	if properties["has_seeker"] and target and dist < max_range:
 		var angles: Vector2 = get_target_angles(target)
+		
 		if angles != Vector2.ZERO:
-			var xval: float = 0.0
-			var yval: float = 0.0
+			var xerr: float = angles.x
+			var yerr: float = angles.y
 			match seeker_type:
 				Seeker.IR:
-					xval = -angles.x
-					yval = angles.y
+					var yaw_tq = -pidx0.update(p_delta, 0.0, xerr, 1.25, 15.0, 0.3)
+					var pitch_tq = -pidy0.update(p_delta, 0.0, yerr, 1.25, 15.0, 0.3)
+					
+					var comb_forces = (p_trans.basis.z * yaw_tq + p_trans.basis.x * pitch_tq)
+					apply_torque(comb_forces * dynq)
+					
 				Seeker.LASER:
 					if player:
-						var beam_origin: Vector3 = player.global_transform.origin
-						var beam_dir: Vector3 = -player.global_transform.basis.z.normalized()
-						var rel: Vector3 = p_trans.origin - beam_origin
-						var rd: float = max(beam_dir.dot(rel), 0.0)
-						var obp: Vector3 = beam_origin + beam_dir * (rd + min(p_speed, 343.0))
-						var st: Vector3 = adv_move.torque_to_pos(p_delta, self, Vector3.UP, obp)
-						var lim: float = properties["mass"] * 0.1
-						var sst: Vector3 = (st * 10.0).clamp(-Vector3.ONE * lim, Vector3.ONE * lim)
-						apply_torque(p_trans.basis.x * sst.y + p_trans.basis.z * sst.x)
-					xval = 0.0
-					yval = 0.0
+						var beam_origin = player.global_transform.origin
+						var beam_dir = -player.global_transform.basis.z.normalized()
+						var rel = p_trans.origin - beam_origin
+						var rd = max(beam_dir.dot(rel), 0.0)
+						var bp = beam_origin + (beam_dir * rd) # axil
+						var obp = bp + (beam_dir * min(dynq, 343)) # axil + forwarding
+						var st = adv_move.torque_to_pos(p_delta, self, Vector3.UP, obp)
+						apply_torque(st * dynq)
+					
 				Seeker.RADAR:
-					xval = -angles.x
-					yval = angles.y
-					var calcs: Vector2 = Vector2(xval, yval)
-					var rate_rel_angle: Vector2 = (calcs - prev_rel_ang) / p_delta
-					prev_rel_ang = calcs
-					var pitch_rate: float = p_ang_vel.dot(p_trans.basis.x)
-					var yaw_rate: float = p_ang_vel.dot(p_trans.basis.z)
-					var py_vel: Vector2 = Vector2(yaw_rate, pitch_rate)
-					var output: Vector2 = rate_rel_angle - py_vel
-					xval = output.x
-					yval = output.y
-				_:
-					xval = 0.0
-					yval = 0.0
-
-			var yaw_out: float = -pidx0.update(p_delta, 0.0, xval, YAW_KP, YAW_KI, YAW_KD)
-			var pitch_out: float = -pidy0.update(p_delta, 0.0, yval, PITCH_KP, PITCH_KI, PITCH_KD)
-			apply_torque(p_trans.basis.x * pitch_out + p_trans.basis.z * yaw_out * force_scale)
-
+					if radar_first:
+						radar_first = false
+						prev_rel_ang = angles
+						prev_ang_rate = Vector2.ZERO
+					
+					var ang_rate = (angles - prev_rel_ang) / p_delta
+					prev_rel_ang = angles
+					
+					ang_rate *= 5.0
+					
+					# Compute desired correction (LOS rate - body rotation)
+					var yaw_cmd = ang_rate.x - p_ang_vel.z
+					var pitch_cmd = ang_rate.y - p_ang_vel.x
+					
+					# PID gains
+					var kp = 100.0
+					var ki = 0.0
+					var kd = 0.0
+					
+					# Get torques from PID
+					var yaw_tq = -pidx1.update(p_delta, 0.0, yaw_cmd, kp, ki, kd)
+					var pitch_tq = -pidy1.update(p_delta, 0.0, pitch_cmd, kp, ki, kd)
+					
+					# Apply torque in missile's local basis
+					var torque = p_trans.basis.z * yaw_tq + p_trans.basis.x * pitch_tq
+					torque = torque.lerp(Vector3.ZERO, 0.125) 
+					apply_torque(torque)
+					
+				Seeker.NONE:
+					pass
+	
 	if not tracking and seeker_type != Seeker.LASER:
 		unlocked_life += p_delta
 	if unlocked_life >= unlocked_detonation_delay:
+		explode_and_remove()
+	if p_trans.origin.y < -10.0:
 		explode_and_remove()
 
 func explode_and_remove() -> void:
@@ -323,16 +348,15 @@ func explode_and_remove() -> void:
 
 func get_target_angles(target_node: Node3D) -> Vector2:
 	var dir: Vector3 = (target_node.global_position - p_trans.origin).normalized()
-	var fwd: Vector3 = p_forward
 	var right: Vector3 = p_trans.basis.x
 	var up: Vector3 = p_trans.basis.z
 	
-	var yaw: float = atan2(dir.dot(right), dir.dot(fwd)) * deg_to_rad(seeker_fov)
-	var pitch: float = atan2(dir.dot(up), dir.dot(fwd)) * deg_to_rad(seeker_fov)
+	var yaw: float = atan2(dir.dot(right), dir.dot(p_forward))
+	var pitch: float = atan2(dir.dot(up), dir.dot(p_forward))
 	
 	if abs(rad_to_deg(yaw)) > seeker_fov or abs(rad_to_deg(pitch)) > seeker_fov:
 		tracking = false
 		return Vector2.ZERO
 	else:
 		tracking = true
-	return Vector2(yaw, pitch)
+	return Vector2(-yaw, pitch)

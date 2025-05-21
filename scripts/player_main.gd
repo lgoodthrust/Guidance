@@ -40,13 +40,14 @@ extends CharacterBody3D
 @export_category("Advanced")
 @export var UPDATE_PLAYER_ON_PHYS_STEP := true
 
-var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
+var gravity = 9.80665
 var speed = SPEED
 var accel = ACCEL
-var noclip_tog := false
-var zoom_tog := false
-var msl_follow_tog := false
-var slomo_tog := false
+var noclip_tog = false
+var zoom_tog = false
+var msl_follow_tog = false
+var slomo_tog = false
+var actv_menu = false
 
 var rotation_target_player : float
 var rotation_target : float
@@ -197,8 +198,7 @@ func toggle_msl_follow(enabled: bool):
 					# Orientation follow
 					var forward = -rigid.global_basis.y.normalized()
 					var up = rigid.global_basis.z.normalized()
-					var right = -rigid.global_basis.x.normalized()
-					#up = right.cross(forward).normalized()
+					var right = rigid.global_basis.x.normalized()
 					
 					global_transform.basis = Basis(right, up, forward).orthonormalized()
 					

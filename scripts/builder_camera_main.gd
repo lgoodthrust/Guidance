@@ -35,14 +35,11 @@ var velocity
 
 var rotation_target_player : float
 var rotation_target : float
-var start_pos : Vector3
 var camming: bool = false
 
 func _ready():
 	if CAPTURE_ON_START:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	
-	start_pos = self.position
 
 func _physics_process(delta):
 	
