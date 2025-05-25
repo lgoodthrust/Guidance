@@ -87,7 +87,7 @@ func load_target():
 		add_child(target_instance)
 		target_instance.set_owner(self)
 		LAUCNHER_CHILD_SHARED_DATA["scenes"]["target"] = target_instance
-		target_instance.global_position = Vector3(0, 450, -5000)
+		target_instance.global_position = Vector3(0, 300, -3000)
 		print("Target loaded successfully!")
 	else:
 		print("Error: Target scene not assigned!")

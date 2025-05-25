@@ -4,8 +4,8 @@ extends Camera3D
 ###########################
 
 @export_subgroup("Settings")
-@export var SPEED := 100.0
-@export var ACCEL := 150.0
+@export var SPEED := 300.0
+@export var ACCEL := 200.0
 
 @export_subgroup("Clamp Head Rotation")
 @export var CLAMP_HEAD_ROTATION := true

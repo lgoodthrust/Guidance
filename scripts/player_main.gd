@@ -95,16 +95,15 @@ func _input(event):
 		set_rotation_target(event.relative)
 
 func set_rotation_target(mouse_motion : Vector2):
-	if not msl_follow_tog:
-		if zoom_tog:
-			rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS_ZOOM
-			rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS_ZOOM
-		else:
-			rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS
-			rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS
-		
-		if CLAMP_HEAD_ROTATION:
-			rotation_target = clamp(rotation_target, deg_to_rad(CLAMP_HEAD_ROTATION_MIN), deg_to_rad(CLAMP_HEAD_ROTATION_MAX))
+	if zoom_tog:
+		rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS_ZOOM
+		rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS_ZOOM
+	else:
+		rotation_target_player += -mouse_motion.x * KEY_BIND_MOUSE_SENS
+		rotation_target += -mouse_motion.y * KEY_BIND_MOUSE_SENS
+	
+	if CLAMP_HEAD_ROTATION: # and not msl_follow_tog
+		rotation_target = clamp(rotation_target, deg_to_rad(CLAMP_HEAD_ROTATION_MIN), deg_to_rad(CLAMP_HEAD_ROTATION_MAX))
 
 func rotate_player(delta):
 	if MOUSE_ACCEL:
@@ -196,11 +195,10 @@ func toggle_msl_follow(enabled: bool):
 					global_transform.origin = rigid.global_transform.origin
 					
 					# Orientation follow
-					var forward = -rigid.global_basis.y.normalized()
-					var up = rigid.global_basis.z.normalized()
-					var right = rigid.global_basis.x.normalized()
-					
-					global_transform.basis = Basis(right, up, forward).orthonormalized()
+					#var forward = -rigid.global_basis.y.normalized()
+					#var up = rigid.global_basis.z.normalized()
+					#var right = rigid.global_basis.x.normalized()
+					#global_transform.basis = Basis(right, up, forward).orthonormalized()
 					
 					# Set flags
 					msl_follow_tog = true
