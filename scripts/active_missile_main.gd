@@ -188,15 +188,13 @@ func _physics_process(delta: float) -> void:
 			return
 	
 	if properties["has_seeker"] and target and dist < max_range:
-		var angles: Vector2 = _get_target_angles(target)
-		if angles != Vector2.ZERO:
-			match seeker_type:
-				Seeker.IR:
-					_ir_guidance(angles)
-				Seeker.LASER:
-					_laser_guidance()
-				Seeker.RADAR:
-					_radar_guidance(angles)
+		match seeker_type:
+			Seeker.IR:
+				_ir_guidance()
+			Seeker.LASER:
+				_laser_guidance()
+			Seeker.RADAR:
+				_radar_guidance()
 	
 	if not tracking and seeker_type != Seeker.LASER:
 		unlocked_life += p_delta
@@ -228,8 +226,7 @@ func _apply_aero_forces() -> void:
 	var aoa_hat: Vector3 = aoa_axis.normalized()
 	var lift_axis: Vector3 = vel_dir.cross(aoa_hat).normalized()
 	var lift: Vector3 = lift_axis * p_dynq * properties["total_lift"] * AERO_A * ang
-	var error: Vector3 = p_error * p_speed
-	apply_force(lift + error, centers["pressure"])
+	apply_force(lift + p_error, centers["pressure"])
 	var aero_tq: Vector3 = -aoa_hat * ang * p_dynq * properties["total_lift"] * AERO_B
 	
 	var roll = get_roll_y_forward()
@@ -239,11 +236,28 @@ func _apply_aero_forces() -> void:
 	
 	apply_torque((aero_tq + rollerons))
 
-func _ir_guidance(angles: Vector2) -> void:
+func _ir_guidance() -> void:
+	var noisy_pos = target.global_position + (p_error * dist * 0.01)
+	var dir: Vector3 = (noisy_pos - p_trans.origin).normalized()
+	var right: Vector3 = -p_trans.basis.x.normalized()
+	var up: Vector3 = p_trans.basis.z.normalized()
+	var pdot = dir.dot(p_forward.normalized())
+	
+	var angs = Vector2(
+		atan2(dir.dot(-right), pdot),
+		atan2(dir.dot(up),  pdot)
+	)
+	
+	if abs(rad_to_deg(angs.x)) > seeker_fov or abs(rad_to_deg(angs.y)) > seeker_fov:
+		tracking = false
+		return
+	else:
+		tracking = true
+	
 	var ptz = p_trans.basis.z.normalized()
 	var ptx = p_trans.basis.x.normalized()
-	var yaw_tq: float = -pidx0.update(p_delta, 0.0, -angles.x, YAW_KP, YAW_KI, YAW_KD)
-	var pitch_tq: float = -pidy0.update(p_delta, 0.0, angles.y, PITCH_KP, PITCH_KI, PITCH_KD)
+	var yaw_tq: float = -pidx0.update(p_delta, 0.0, -angs.x, YAW_KP, YAW_KI, YAW_KD)
+	var pitch_tq: float = -pidy0.update(p_delta, 0.0, angs.y, PITCH_KP, PITCH_KI, PITCH_KD)
 	var torque: Vector3 = ptz * yaw_tq + ptx * pitch_tq
 	apply_torque(torque * p_dynq)
 
@@ -260,47 +274,58 @@ func _laser_guidance() -> void:
 		var st: Vector3 = adv_move.torque_to_pos(p_delta, self, Vector3.UP, obp)
 		apply_torque(st * p_dynq)
 
-const PN_N:     float = 10.0
-const PN_SCALE: float = 0.95
-const PN_DAMP:  float = 0.01
-func _radar_guidance(angles: Vector2) -> void:
-	if radar_first or not tracking:
-		radar_first = false
-		prev_rel_ang = angles
-		prev_range   = dist
+#–– pitch gains ––
+const KP_PITCH =  1.0
+const KD_PITCH =  5.0
+#–– yaw gains ––
+const KP_YAW = 1.0
+const KD_YAW =  5.0
+#–– scalers ––
+const PNAV = 0.25
+const TORQUE_LIMIT = 300
+
+func _radar_guidance() -> void:
+	var noisy_pos = target.global_position + (p_error * dist * 0.01)
+	var dir: Vector3 = (noisy_pos - p_trans.origin).normalized()
+	var right: Vector3 = -p_trans.basis.x.normalized()
+	var up: Vector3 = p_trans.basis.z.normalized()
+	var pdot = dir.dot(p_forward.normalized())
+	
+	var angs = Vector2(
+		atan2(dir.dot(-right), pdot),
+		atan2(dir.dot(up),  pdot)
+	)
+	
+	if abs(rad_to_deg(angs.x)) > seeker_fov or abs(rad_to_deg(angs.y)) > seeker_fov:
+		tracking = false
 		return
-
-	# 1) LOS rate and closing speed
-	var los_rate = (angles - prev_rel_ang) / p_delta
-	prev_rel_ang = angles
-
+	else:
+		tracking = true
+	
+	# 2) PN guidance on those noisy angles
+	var los_rate = (angs - prev_rel_ang) / p_delta
+	prev_rel_ang = angs
 	var closing_v = -(dist - prev_range) / p_delta
 	prev_range = dist
-	if closing_v < 0.1:
+	if closing_v < 1e-3:
 		return
 
-	# 2) optional damping
-	var sm_x = los_rate.x - (fdbk1x.update_d(p_delta, los_rate.x) * PN_DAMP)
-	var sm_y = los_rate.y - (fdbk1y.update_d(p_delta, los_rate.y) * PN_DAMP)
+	# 3) Pure PN lateral accel
+	var a_lat = PNAV * closing_v * los_rate
+	var yaw_ff = clamp(a_lat.x * dist * 0.1, -TORQUE_LIMIT, TORQUE_LIMIT)
+	var pitch_ff = clamp(a_lat.y * dist * 0.1, -TORQUE_LIMIT, TORQUE_LIMIT)
 
-	# 3) raw errors around local up (z) and local right (x)
-	var raw_yaw   = sm_x - p_ang_vel.z    # yaw‐rate is now .z
-	var raw_pitch = sm_y - p_ang_vel.x
+	# 4) Light PD to absorb jitter
+	var rate_err = los_rate - Vector2(p_ang_vel.z, p_ang_vel.x)
+	var yaw_pd = KP_YAW * (angs.x - 0) - KD_YAW * rate_err.x
+	var pitch_pd = KP_PITCH * (angs.y - 0) - KD_PITCH * rate_err.y
 
-	# 4) scale error
-	var yaw_err   = raw_yaw   * PN_SCALE
-	var pitch_err = raw_pitch * PN_SCALE
+	var yaw_cmd = clamp(yaw_ff + yaw_pd, -TORQUE_LIMIT, TORQUE_LIMIT)
+	var pitch_cmd = clamp(pitch_ff + pitch_pd, -TORQUE_LIMIT, TORQUE_LIMIT)
 
-	# 5) compute torque magnitudes
-	var yaw_tq   = PN_N * closing_v * yaw_err   * dist/10.0
-	var pitch_tq = PN_N * closing_v * pitch_err * dist/10.0
+	var torque = p_trans.basis.z * -yaw_cmd + p_trans.basis.x * pitch_cmd
+	apply_torque(torque * p_speed)
 
-	# 6) apply about local up (basis.z) and local right (basis.x):
-	# yaw torque float inverted to corret for backwards something-or-other
-	var torque = p_trans.basis.z * -yaw_tq + p_trans.basis.x * pitch_tq
-	# p_dynq = 0.5 * air_density(1.225) * speed**2(speed squard)
-	print("yaw_force:", -yaw_tq, " pitch_force:", pitch_tq)
-	apply_torque(torque * p_dynq)
 
 func _calculate_centers() -> void:
 	for child in get_children():
@@ -376,20 +401,3 @@ func _explode_and_remove() -> void:
 		block.hide()
 	await get_tree().create_timer(0.05).timeout
 	queue_free()
-
-func _get_target_angles(target_node: Node3D) -> Vector2:
-	var targ_pos: Vector3 = target_node.global_position + ((p_error/100.0) * dist)
-	var dir: Vector3 = (targ_pos - p_trans.origin).normalized()
-	var fwd: Vector3 = p_forward.normalized()
-	var right: Vector3 = p_trans.basis.x.normalized()
-	var up: Vector3 = p_trans.basis.z.normalized()
-	
-	var yaw: float = atan2(dir.dot(right), dir.dot(fwd))
-	var pitch: float = atan2(dir.dot(up), dir.dot(fwd))
-	
-	if abs(rad_to_deg(yaw)) > seeker_fov or abs(rad_to_deg(pitch)) > seeker_fov:
-		tracking = false
-		return Vector2.ZERO
-	else:
-		tracking = true
-	return Vector2(yaw, pitch)
