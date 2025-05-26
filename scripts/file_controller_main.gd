@@ -6,11 +6,11 @@ var grid: Dictionary
 var cell_size: float
 var folder: String = ""
 
-func _init(builder: Node, grid_ref: Dictionary, cell_size_ref: float, exe_folder: String):
+func _init(builder: Node, grid_ref: Dictionary, cell_size_ref: float, path: String):
 	builder_instance = builder
 	grid = grid_ref
 	cell_size = cell_size_ref
-	folder = exe_folder
+	folder = path
 
 func save_vehicle(save_dir: String):
 	var path = save_dir + ".json"
@@ -157,6 +157,7 @@ func save_assembly(save_dir: String):
 	packed_scene.pack(missile_root)
 	
 	var tscn_dir = save_dir + ".tscn"
+	tscn_dir = folder.path_join(tscn_dir)
 	var err = ResourceSaver.save(packed_scene, tscn_dir)
 	if err == OK:
 		print("Assembled TSCN saved to: %s" % tscn_dir)
@@ -164,7 +165,7 @@ func save_assembly(save_dir: String):
 		push_error("Failed to save TSCN. Error: %d" % err)
 
 func load_assembly(tscn_dir: String) -> Node3D:
-	tscn_dir = tscn_dir
+	tscn_dir = tscn_dir + ".tscn"
 	tscn_dir = folder.path_join(tscn_dir)
 	
 	var resource = ResourceLoader.load(tscn_dir)

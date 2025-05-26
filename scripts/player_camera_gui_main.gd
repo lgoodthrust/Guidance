@@ -66,7 +66,6 @@ func get_missiles() -> Array:
 	
 	return bodies
 
-# Function to draw the target on screen
 func _draw() -> void:
 	if target and camera and not buildering:
 		# Convert world position to screen position

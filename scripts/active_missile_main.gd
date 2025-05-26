@@ -69,7 +69,7 @@ var sound_scale: float = 1.0
 @onready var fdbk0: FEEDBACK = FEEDBACK.new()
 @onready var fdbk1x: FEEDBACK = FEEDBACK.new()
 @onready var fdbk1y: FEEDBACK = FEEDBACK.new()
-var rng := RandomNumberGenerator.new()
+var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 const AIR_DENSITY: float = 1.225
 const AERO_A: float = 1.0
@@ -267,8 +267,8 @@ func _laser_guidance() -> void:
 		var st: Vector3 = adv_move.torque_to_pos(p_delta, self, Vector3.UP, obp)
 		apply_torque(st * p_dynq)
 
-const KP =  1.5
-const KD =  0.25
+const KP =  10.0
+const KD =  0.0
 const PNAV = 3.0
 const TORQUE_LIMIT = 150
 func _radar_guidance() -> void:

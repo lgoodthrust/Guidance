@@ -5,13 +5,14 @@ extends Node3D
 var launcher: Node # FOR DATA SHARE
 var leader_node: Node3D  # The node to follow
 var loader_saver: Loader_Saver
-var active_builder := false
+var active_builder = false
 
 var list_o_msls:Array = []
 
 func _ready():
 	launcher = get_tree().root.get_node("Launcher") # FOR DATA SHARE
 	leader_node = get_player()
+
 	
 	loader_saver = Loader_Saver.new(
 		self,
@@ -51,8 +52,8 @@ func get_player() -> Node:
 	return node
 
 func spawn_missile():
-	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
-	var missile_instance: Node3D = loader_saver.load_assembly(path + ".tscn")
+	var dest = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_NAME")
+	var missile_instance: Node3D = loader_saver.load_assembly(dest)
 	var missile_script = load("res://scripts/active_missile_main.gd")
 	
 	var world_root = get_tree().current_scene.get_node(".")

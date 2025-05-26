@@ -10,9 +10,6 @@
 
 [node name="Builder" type="Node3D"]
 script = ExtResource("1_q1upv")
-grid_size = null
-cell_size = null
-placement_distance = null
 ghost_block_scene = ExtResource("2_5yny8")
 gc_block_scene = ExtResource("3_kbtfm")
 cl_block_scene = ExtResource("4_i6lgh")

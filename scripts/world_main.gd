@@ -6,7 +6,7 @@ const CHUNK_HEIGHT = 5.0
 
 var noise: FastNoiseLite
 var chunks: Dictionary = {}  # Vector2i → Chunk
-var ground_tex = preload("res://textures/terrain.png")
+var ground_tex = preload("res://textures/grass.png")
 var ground_material: StandardMaterial3D
 
 var launcher: Node  # FOR DATA SHARE

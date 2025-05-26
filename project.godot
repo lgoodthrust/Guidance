@@ -141,10 +141,6 @@ ui_text_dedent={
 "deadzone": 0.5,
 "events": []
 }
-ui_text_backspace_word={
-"deadzone": 0.5,
-"events": []
-}
 ui_text_backspace_word.macos={
 "deadzone": 0.5,
 "events": []

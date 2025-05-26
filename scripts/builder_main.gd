@@ -19,7 +19,7 @@ var ct_block: Node3D  # CL block instance
 var launcher = Node  # FOR DATA SHARE
 var grid_mesh: MeshInstance3D  # The grid renderer
 var selected_block: PackedScene = null
-var loader_saver
+var loader_saver: Loader_Saver
 
 var aval_blocks = [
 	load("res://game_data/blocks/back_cannard.tscn"),
@@ -41,6 +41,7 @@ func _ready():
 	launcher = self.get_parent() # FOR DATA SHARE
 	
 	center_camera()
+	
 	
 	loader_saver = Loader_Saver.new(
 		self,  # Pass builder node
@@ -296,7 +297,7 @@ func create_block_button():
 			block_instance.queue_free()
 
 func _SAVER():
-	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
+	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_NAME") # get save file path
 	if grid:
 		loader_saver.save_vehicle(path)
 		loader_saver.save_assembly(path)
@@ -304,7 +305,7 @@ func _SAVER():
 		print("Invalid Grid Data")
 
 func _LOADER():
-	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_PATH") # get save file path
+	var path = LAUCNHER_CHILD_SHARE_GET("main_menu", "FILE_NAME") # get save file path
 	loader_saver.load_vehicle(path)
 	update_center_of_mass()
 	update_center_of_lift()

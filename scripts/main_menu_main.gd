@@ -1,6 +1,5 @@
 extends Window
 
-@export_subgroup("KEY BINDS")
 @export var KEY_ESCAPE := "key_esc"
 
 @export_subgroup("PARAMETERS")
@@ -53,6 +52,8 @@ func _process(_delta) -> void:
 	
 	if Input_Volume_Slider.drag_ended:
 		update_volume(Input_Volume_Slider.value)
+	
+	update_build_file(Input_Build_Filename.text)
 
 func update_volume(volume: float) -> void:
 	var val = lerp(-60, 0, volume/100.0)
@@ -99,8 +100,7 @@ func toggler():
 		scene2.process_mode = Node.PROCESS_MODE_INHERIT
 
 func update_build_file(filename: String):
-	var full_filename = filename
-	LAUCNHER_CHILD_SHARE_SET("main_menu", "FILE_PATH", full_filename)
+	LAUCNHER_CHILD_SHARE_SET("main_menu", "FILE_NAME", filename)
 
 func switch_to_tester():
 	cur_mode = Mode.test
