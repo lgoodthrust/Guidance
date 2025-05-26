@@ -121,6 +121,29 @@ layout_mode = 2
 action_mode = 0
 text = "Builder"
 
+[node name="V_Container_Game" type="VBoxContainer" parent="Control"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -20.0
+offset_top = -51.0
+offset_right = 20.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="Label_Game_Volume" type="Label" parent="Control/V_Container_Game"]
+layout_mode = 2
+text = "Master Volume"
+
+[node name="HSeparator" type="HSeparator" parent="Control/V_Container_Game"]
+layout_mode = 2
+
+[node name="Slider_Game_Volume" type="HSlider" parent="Control/V_Container_Game"]
+layout_mode = 2
+
 [connection signal="close_requested" from="." to="." method="toggler"]
 [connection signal="pressed" from="Control/Misc/Button_Tester" to="." method="switch_to_tester"]
 [connection signal="pressed" from="Control/Misc/Button_Builder" to="." method="switch_to_builder"]

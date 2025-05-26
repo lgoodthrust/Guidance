@@ -14,6 +14,9 @@ var target_instance: Node
 
 var LIFE_SUPPORT = preload("res://coconut.png")
 
+var defualt_assembly_json = preload("res://game_data/assemblies/TEST.json")
+var defualt_assembly_tscn = preload("res://game_data/assemblies/TEST.tscn")
+
 var LAUCNHER_CHILD_SHARED_DATA = {
 	"scenes":{
 		"player":InstancePlaceholder,
@@ -24,14 +27,23 @@ var LAUCNHER_CHILD_SHARED_DATA = {
 		},
 	"player":{},
 	"world":{},
-	"main_menu":{},
+	"main_menu":{
+		"active":false
+		},
 	"builder":{},
-	"target":{}
+	"target":{},
+	"file_dirs":{
+		"exe_path":"",
+		"game_res_path":"",
+		"assemblies_path":""
+		}
 	}
 
 func _ready() -> void:
+	
 	if not LIFE_SUPPORT.get_size() == Vector2(256, 256):
 		return
+	setup_dirs()
 	load_player()
 	load_world()
 	load_Builder()
@@ -41,6 +53,25 @@ func _ready() -> void:
 func _process(_delta) -> void:
 	if Input.is_action_just_pressed("key_alt_f4"):
 		get_tree().quit()
+
+func setup_dirs() -> void:
+	var exe_path: String = OS.get_executable_path()
+	var exe_dir: String = exe_path.get_base_dir()
+	var dir_instance: DirAccess = DirAccess.open(exe_dir)
+	var subfolder: String = exe_dir.path_join("game_data/assemblies")
+	if not dir_instance.dir_exists(subfolder):
+		var err = dir_instance.make_dir_recursive(subfolder)
+		if err != OK:
+			push_error("Could not create folder: %s (error %d)" % [subfolder, err])
+		else:
+			print("Created folder at: ", subfolder)
+	else:
+		print("Folder already exists: ", subfolder)
+	
+	ResourceSaver.save(defualt_assembly_json, subfolder.path_join("TEST.json"))
+	ResourceSaver.save(defualt_assembly_tscn, subfolder.path_join("TEST.tscn"))
+	
+	LAUCNHER_CHILD_SHARED_DATA["file_dirs"]["assemblies_path"] = subfolder
 
 func load_world():
 	if world_scene:

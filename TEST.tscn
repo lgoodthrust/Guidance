@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://game_data/blocks/ir_seeker.tscn" id="1_eb1bf"]
+[ext_resource type="Script" path="res://scripts/block_scripts/ir_seeker.gd" id="2_kac5q"]
+
+[node name="MissileRoot" type="Node3D"]
+
+[node name="RigidBody3D" type="RigidBody3D" parent="."]
+
+[node name="IR_Seeker" type="Node3D" parent="RigidBody3D" instance=ExtResource("1_eb1bf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9, 0)
+script = ExtResource("2_kac5q")
+DATA = {
+"LIFT": 0.0,
+"MASS": 10.0,
+"NAME": "IR_Seeker",
+"TYPE": 1.0,
+"UDLRTB": [0.0, -1.0, 0.0, 0.0, 0.0, 0.0]
+}

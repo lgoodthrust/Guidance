@@ -4,7 +4,7 @@ extends Node3D
 
 var launcher: Node # FOR DATA SHARE
 var leader_node: Node3D  # The node to follow
-var loader_saver
+var loader_saver: Loader_Saver
 var active_builder := false
 
 var list_o_msls:Array = []
@@ -13,11 +13,16 @@ func _ready():
 	launcher = get_tree().root.get_node("Launcher") # FOR DATA SHARE
 	leader_node = get_player()
 	
-	loader_saver = Loader_Saver.new(self, {}, 1.0)
+	loader_saver = Loader_Saver.new(
+		self,
+		{},
+		1.0,
+		LAUCNHER_CHILD_SHARE_GET("file_dirs", "assemblies_path")
+		)
 
 func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("key_mouse_left") and not active_builder:
-		if LAUCNHER_CHILD_SHARE_GET("main_menu", "open") == false:
+		if LAUCNHER_CHILD_SHARE_GET("main_menu", "active") == false:
 			spawn_missile()
 
 func _physics_process(_delta: float) -> void:

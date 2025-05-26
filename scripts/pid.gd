@@ -30,8 +30,7 @@ func update(delta: float, target: float, current: float, p: float, i: float, d: 
 	
 	# Derivative term
 	var derivative = (error - _prev_error) / delta
-	var d_term = d * derivative
-	
 	_prev_error = error
+	var d_term = d * derivative
 	
 	return p_term + i_term + d_term

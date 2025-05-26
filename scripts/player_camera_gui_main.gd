@@ -34,7 +34,7 @@ func _physics_process(_delta: float) -> void:
 # Process function to control redrawing
 func _process(_delta: float) -> void:
 	if tps and fps:
-		tps.text = "TPS: " + str(1/_delta)
+		tps.text = "TPS: " + str(floor(1/_delta))
 		fps.text = "FPS: " + str(Engine.get_frames_per_second())
 	
 	FOV = camera.fov

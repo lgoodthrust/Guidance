@@ -8,10 +8,14 @@ var sum: float = 0.0
 var sums: Array = []
 
 var derivative: float = 0.0
+var delt: float = 0.0
+var delt_first: bool = true
 
 func reset():
 	integral = 0.0
 	derivative = 0.0
+	delt = 0.0
+	delt_first = true
 	history.clear()
 
 func update_sum(value: float, stack_size: int = 10) -> float:
@@ -36,3 +40,12 @@ func update_d(delta: float, error: float) -> float:
 	var _derivative = (error - derivative) / delta
 	derivative = error
 	return _derivative
+
+func update_delta(delta: float, error: float) -> float:
+	if delt_first:
+		delt = error
+		delt_first = false
+	
+	var _deeltu = (error - delt) / delta
+	delt = error
+	return _deeltu

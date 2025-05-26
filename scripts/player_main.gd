@@ -74,12 +74,15 @@ func _physics_process(delta):
 		toggle_zoom(zoom_tog)
 
 func _process(delta):
+	actv_menu = LAUCNHER_CHILD_SHARE_GET("main_menu", "active")
+	
 	if !UPDATE_PLAYER_ON_PHYS_STEP:
-		move_player(delta)
-		rotate_player(delta)
-		toggle_msl_follow(msl_follow_tog)
-		toggle_slomo(slomo_tog)
-		toggle_zoom(zoom_tog)
+		if LAUCNHER_CHILD_SHARE_GET("main_menu", "open") == false:
+			move_player(delta)
+			rotate_player(delta)
+			toggle_msl_follow(msl_follow_tog)
+			toggle_slomo(slomo_tog)
+			toggle_zoom(zoom_tog)
 	
 	if Input.is_action_just_pressed(KEY_BIND_MSL):
 		msl_follow_tog =! msl_follow_tog

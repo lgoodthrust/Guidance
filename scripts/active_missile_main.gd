@@ -4,7 +4,7 @@ extends RigidBody3D
 @export var lifetime: float = 25.0
 @export var launch_charge_force: float = 30.0
 @export var motor_delay: float = 0.3
-@export var fuel_duration: float = 1.5
+@export var fuel_duration: float = 0.5
 @export var proximity_detonation_radius: float = 20.0
 @export var max_range: float = 8000.0
 @export var seeker_fov: float = 45.0
@@ -12,13 +12,6 @@ extends RigidBody3D
 
 enum Seeker { NONE, IR, LASER, RADAR }
 var seeker_type: Seeker = Seeker.NONE
-
-@export var YAW_KP: float = 1.5
-@export var YAW_KI: float = 15.0
-@export var YAW_KD: float = 0.3
-@export var PITCH_KP: float = 1.5
-@export var PITCH_KI: float = 15.0
-@export var PITCH_KD: float = 0.3
 
 var centers = {
 	"mass": Vector3.ZERO,
@@ -121,7 +114,7 @@ func _ready() -> void:
 	rng.randomize()
 
 func _rand_range() -> float:
-	return rng.randf_range(-1.0, 1.0)
+	return rng.randf_range(-0.1, 0.1)
 
 func _spawn_sound(path: String, autoplay: bool = false) -> AudioStreamPlayer3D:
 	var s: AudioStreamPlayer3D = AudioStreamPlayer3D.new()
@@ -146,7 +139,7 @@ func _physics_process(delta: float) -> void:
 	p_ang_vel = angular_velocity
 	p_speed = p_lin_vel.length()
 	p_dynq = 0.5 * AIR_DENSITY * (p_speed**2)
-	p_error = Vector3(_rand_range(), _rand_range(), _rand_range()) * 0.1
+	p_error = Vector3(_rand_range(), _rand_range(), _rand_range())
 	
 	p_lin_acc = (p_lin_vel - prev_lin_vel) / p_delta
 	p_ang_acc = (p_ang_vel - prev_ang_vel) / p_delta
@@ -212,6 +205,7 @@ func get_roll_y_forward() -> float:
 	var angle = 2.0 * acos(clamp(delta.w, -1.0, 1.0))
 	var axis = delta.get_axis()
 	var unstable = angle if axis.dot(f) < 0.0 else -angle
+	unstable = sin(unstable)
 	var stable = fmod(unstable + PI, 2.0 * PI) - PI
 	return stable
 
@@ -230,9 +224,8 @@ func _apply_aero_forces() -> void:
 	var aero_tq: Vector3 = -aoa_hat * ang * p_dynq * properties["total_lift"] * AERO_B
 	
 	var roll = get_roll_y_forward()
-	var roll_summed = fdbk0.update_sum(roll, 16)
-	var roll_smooth = fdbk0.update_d(p_delta, roll_summed) * 0.001
-	var rollerons = (roll - roll_smooth) * p_dynq * p_trans.basis.y.normalized()
+	var scaled_roll = roll * (abs(roll)+1)**1.5
+	var rollerons = scaled_roll * p_dynq * p_trans.basis.y.normalized()
 	
 	apply_torque((aero_tq + rollerons))
 
@@ -256,8 +249,8 @@ func _ir_guidance() -> void:
 	
 	var ptz = p_trans.basis.z.normalized()
 	var ptx = p_trans.basis.x.normalized()
-	var yaw_tq: float = -pidx0.update(p_delta, 0.0, -angs.x, YAW_KP, YAW_KI, YAW_KD)
-	var pitch_tq: float = -pidy0.update(p_delta, 0.0, angs.y, PITCH_KP, PITCH_KI, PITCH_KD)
+	var yaw_tq: float = -pidx0.update(p_delta, 0.0, -angs.x, 1.5, 15, 0.3)
+	var pitch_tq: float = -pidy0.update(p_delta, 0.0, angs.y, 1.5, 15, 0.3)
 	var torque: Vector3 = ptz * yaw_tq + ptx * pitch_tq
 	apply_torque(torque * p_dynq)
 
@@ -274,16 +267,10 @@ func _laser_guidance() -> void:
 		var st: Vector3 = adv_move.torque_to_pos(p_delta, self, Vector3.UP, obp)
 		apply_torque(st * p_dynq)
 
-#–– pitch gains ––
-const KP_PITCH =  1.0
-const KD_PITCH =  5.0
-#–– yaw gains ––
-const KP_YAW = 1.0
-const KD_YAW =  5.0
-#–– scalers ––
-const PNAV = 0.25
-const TORQUE_LIMIT = 300
-
+const KP =  1.5
+const KD =  0.25
+const PNAV = 3.0
+const TORQUE_LIMIT = 150
 func _radar_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
 	var dir: Vector3 = (noisy_pos - p_trans.origin).normalized()
@@ -309,20 +296,20 @@ func _radar_guidance() -> void:
 	prev_range = dist
 	if closing_v < 1e-3:
 		return
-
+	
 	# 3) Pure PN lateral accel
 	var a_lat = PNAV * closing_v * los_rate
-	var yaw_ff = clamp(a_lat.x * dist * 0.1, -TORQUE_LIMIT, TORQUE_LIMIT)
-	var pitch_ff = clamp(a_lat.y * dist * 0.1, -TORQUE_LIMIT, TORQUE_LIMIT)
-
+	var yaw_ff = clamp(a_lat.x * dist, -TORQUE_LIMIT, TORQUE_LIMIT)
+	var pitch_ff = clamp(a_lat.y * dist, -TORQUE_LIMIT, TORQUE_LIMIT)
+	
 	# 4) Light PD to absorb jitter
 	var rate_err = los_rate - Vector2(p_ang_vel.z, p_ang_vel.x)
-	var yaw_pd = KP_YAW * (angs.x - 0) - KD_YAW * rate_err.x
-	var pitch_pd = KP_PITCH * (angs.y - 0) - KD_PITCH * rate_err.y
-
+	var yaw_pd = (KP * angs.x) - (KD * rate_err.x)
+	var pitch_pd = (KP * angs.y) - (KD * rate_err.y)
+	
 	var yaw_cmd = clamp(yaw_ff + yaw_pd, -TORQUE_LIMIT, TORQUE_LIMIT)
 	var pitch_cmd = clamp(pitch_ff + pitch_pd, -TORQUE_LIMIT, TORQUE_LIMIT)
-
+	
 	var torque = p_trans.basis.z * -yaw_cmd + p_trans.basis.x * pitch_cmd
 	apply_torque(torque * p_speed)
 

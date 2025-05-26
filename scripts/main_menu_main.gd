@@ -19,11 +19,12 @@ extends Window
 @onready var Input_Switch_to_Builder: Button = $Control/Misc/Button_Builder
 @onready var Input_Switch_to_Tester: Button = $Control/Misc/Button_Tester
 
+@onready var Input_Volume_Slider: HSlider = $Control/V_Container_Game/Slider_Game_Volume
+
 var active = false
 enum Mode {build, test}
 var cur_mode = Mode.test
 var launcher # FOR DATA SHARE
-var build_file_path: String = "res://game_data/assemblies/"
 var active_target_node: Node3D
 
 func _ready() -> void:
@@ -34,7 +35,10 @@ func _ready() -> void:
 	update_build_file(Input_Build_Filename.text)
 	switch_to_tester()
 	
-	LAUCNHER_CHILD_SHARE_SET("main_menu", "open", false)
+	LAUCNHER_CHILD_SHARE_SET("main_menu", "active", false)
+	
+	Input_Volume_Slider.value = 80.0
+	update_volume(Input_Volume_Slider.value)
 
 var pressing: bool = false
 func _process(_delta) -> void:
@@ -46,6 +50,13 @@ func _process(_delta) -> void:
 		pressing = true
 	elif not Input_Target_Button_Apply.button_pressed and pressing :
 		pressing = false
+	
+	if Input_Volume_Slider.drag_ended:
+		update_volume(Input_Volume_Slider.value)
+
+func update_volume(volume: float) -> void:
+	var val = lerp(-60, 0, volume/100.0)
+	AudioServer.set_bus_volume_db(0, val)
 
 func update_target():
 	var dist = float(Input_Target_Distance.text)
@@ -63,8 +74,8 @@ func toggler():
 	
 	if active:
 		show()
-		LAUCNHER_CHILD_SHARE_SET("main_menu", "open", true)
-		Input.mouse_mode = Input.MOUSE_MODE_CONFINED
+		LAUCNHER_CHILD_SHARE_SET("main_menu", "active", true)
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		var scene1 = LAUCNHER_CHILD_SHARE_GET("scenes", "world")
 		if scene1 == InstancePlaceholder:
 			return
@@ -77,7 +88,7 @@ func toggler():
 			scene2.noclip_tog = true
 	else:
 		hide()
-		LAUCNHER_CHILD_SHARE_SET("main_menu", "open", false)
+		LAUCNHER_CHILD_SHARE_SET("main_menu", "active", false)
 		if cur_mode == Mode.build:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif cur_mode == Mode.test:
@@ -88,7 +99,7 @@ func toggler():
 		scene2.process_mode = Node.PROCESS_MODE_INHERIT
 
 func update_build_file(filename: String):
-	var full_filename = str(build_file_path + filename)
+	var full_filename = filename
 	LAUCNHER_CHILD_SHARE_SET("main_menu", "FILE_PATH", full_filename)
 
 func switch_to_tester():

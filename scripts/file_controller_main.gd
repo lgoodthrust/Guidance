@@ -4,14 +4,17 @@ class_name Loader_Saver
 var builder_instance: Node
 var grid: Dictionary
 var cell_size: float
+var folder: String = ""
 
-func _init(builder: Node, grid_ref: Dictionary, cell_size_ref: float):
+func _init(builder: Node, grid_ref: Dictionary, cell_size_ref: float, exe_folder: String):
 	builder_instance = builder
 	grid = grid_ref
 	cell_size = cell_size_ref
+	folder = exe_folder
 
 func save_vehicle(save_dir: String):
 	var path = save_dir + ".json"
+	path = folder.path_join(path)
 	
 	var save_data = []
 	for pos in grid.keys():
@@ -42,6 +45,7 @@ func save_vehicle(save_dir: String):
 
 func load_vehicle(load_dir: String):
 	var path = load_dir + ".json"
+	path = folder.path_join(path)
 	
 	# Clear out old blocks
 	for pos in grid.keys():
@@ -95,6 +99,8 @@ func save_assembly(save_dir: String):
 	
 	# Prepare to parse the JSON
 	var path = save_dir + ".json"
+	path = folder.path_join(path)
+	
 	var file = FileAccess.open(path, FileAccess.READ)
 	if not file:
 		push_error("Failed to open JSON at: %s" % path)
@@ -159,6 +165,8 @@ func save_assembly(save_dir: String):
 
 func load_assembly(tscn_dir: String) -> Node3D:
 	tscn_dir = tscn_dir
+	tscn_dir = folder.path_join(tscn_dir)
+	
 	var resource = ResourceLoader.load(tscn_dir)
 	if not resource or not (resource is PackedScene):
 		push_error("Failed to load TSCN at: %s" % tscn_dir)

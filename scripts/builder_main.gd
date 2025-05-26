@@ -45,7 +45,8 @@ func _ready():
 	loader_saver = Loader_Saver.new(
 		self,  # Pass builder node
 		grid,  # Reference to the grid
-		cell_size  # Pass cell size
+		cell_size,  # Pass cell size
+		LAUCNHER_CHILD_SHARE_GET("file_dirs", "assemblies_path")
 	)
 	
 	if gc_block_scene:
