@@ -8,7 +8,7 @@ var time: float = 0.0
 var radius: float = 100.0
 
 var forward_velocity: float = 50.0
-var forward_acceleration: float = 15.0
+var forward_acc: float = 15.0
 
 # Yaw and pitch targets
 var rotation_target_yaw: float = PI
@@ -18,7 +18,7 @@ var curr_pos: Vector3 = Vector3.ZERO
 
 func _process(delta: float) -> void:
 	time += delta * drift_rate
-	current_drift.x = deg_to_rad(yaw_drift) + (time*PI/radius)*PI
+	current_drift.x = deg_to_rad(yaw_drift) + (time/radius)*forward_velocity
 	current_drift.y = deg_to_rad(pitch_drift) * cos(time*PI)
 
 func _physics_process(delta: float) -> void:
@@ -40,5 +40,5 @@ func _move(delta: float) -> void:
 	var right = quat_rot * Vector3.RIGHT
 	var movement_dir = (forward * input_dir.y) + (right * input_dir.x)
 	movement_dir = movement_dir.normalized()
-	curr_velocity = curr_velocity.lerp(movement_dir * forward_velocity, forward_acceleration * delta)
+	curr_velocity = curr_velocity.lerp(movement_dir * forward_velocity, forward_acc * delta)
 	global_position = curr_pos + (curr_velocity * delta)

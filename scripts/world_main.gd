@@ -14,8 +14,8 @@ var launcher: Node  # FOR DATA SHARE
 var range_in: int = CHUNK_AMOUNT / 2
 var range_out: int = range_in + 1
 
-# -- optional cache for extra anchors read from the launcher
-var extra_anchors : PackedVector2Array = PackedVector2Array()  # keeps uniques
+var obj: MeshInstance3D = MeshInstance3D.new()
+var bm: BoxMesh = BoxMesh.new()
 
 func _ready() -> void:
 	launcher = get_parent()

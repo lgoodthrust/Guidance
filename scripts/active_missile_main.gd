@@ -5,9 +5,9 @@ extends RigidBody3D
 @export var launch_charge_force: float = 30.0
 @export var motor_delay: float = 0.3
 @export var fuel_duration: float = 0.5
-@export var proximity_detonation_radius: float = 20.0
-@export var max_range: float = 8000.0
-@export var seeker_fov: float = 45.0
+@export var proximity_detonation_radius: float = 30.0
+@export var max_range: float = 5000.0
+@export var seeker_fov: float = 30.0
 @export var unlocked_detonation_delay: float = 3.0
 
 enum Seeker { NONE, IR, LASER, RADAR }
@@ -69,11 +69,12 @@ var sound_scale: float = 1.0
 @onready var fdbk0: FEEDBACK = FEEDBACK.new()
 @onready var fdbk1x: FEEDBACK = FEEDBACK.new()
 @onready var fdbk1y: FEEDBACK = FEEDBACK.new()
-var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+@onready var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
 
 const AIR_DENSITY: float = 1.225
-const AERO_A: float = 1.0
-const AERO_B: float = 1.0
+const DRAG_CO_A: float = 0.1
+const DRAG_CO_B: float = 0.1
 
 var radar_first: bool = true
 var prev_rel_ang: Vector2 = Vector2.ZERO
@@ -124,6 +125,7 @@ func _spawn_sound(path: String, autoplay: bool = false) -> AudioStreamPlayer3D:
 	if autoplay:
 		s.play()
 	return s
+	
 
 func _process(_delta: float) -> void:
 	sound_scale = Engine.time_scale - 0.25 * Engine.time_scale
@@ -194,7 +196,7 @@ func _physics_process(delta: float) -> void:
 	if unlocked_life >= unlocked_detonation_delay or global_transform.origin.y < -10.0:
 		_explode_and_remove()
 
-func get_roll_y_forward() -> float:
+func get_roll_ang() -> float:
 	var b = p_trans.basis
 	var f = b.y.normalized()
 	var r = f.cross(Vector3.UP).normalized()
@@ -210,24 +212,52 @@ func get_roll_y_forward() -> float:
 	return stable
 
 func _apply_aero_forces() -> void:
-	if p_speed < 0.001:
+	if p_lin_vel.length() < 0.1:
 		return
+
+	# Direction of motion and forward vector
 	var vel_dir: Vector3 = p_lin_vel.normalized()
-	var aoa_axis: Vector3 = p_forward.cross(vel_dir)
-	if aoa_axis.length() < 0.00001:
+	var forward: Vector3 = p_forward.normalized()
+
+	# Angle of attack (alpha) between forward and velocity
+	var alpha: float = forward.angle_to(vel_dir)
+	if alpha < 0.001:
+		# Almost no angle of attack => negligible lift
 		return
-	var ang: float = p_forward.angle_to(vel_dir)
-	var aoa_hat: Vector3 = aoa_axis.normalized()
-	var lift_axis: Vector3 = vel_dir.cross(aoa_hat).normalized()
-	var lift: Vector3 = lift_axis * p_dynq * properties["total_lift"] * AERO_A * ang
-	apply_force(lift + p_error, centers["pressure"])
-	var aero_tq: Vector3 = -aoa_hat * ang * p_dynq * properties["total_lift"] * AERO_B
+
+	# Axis perpendicular to both forward and velocity (roll axis)
+	var aoas_axis: Vector3 = forward.cross(vel_dir)
 	
-	var roll = get_roll_y_forward()
-	var scaled_roll = roll * (abs(roll)+1)**1.5
-	var rollerons = scaled_roll * p_dynq * p_trans.basis.y.normalized()
+	if aoas_axis.length() < 0.0001:
+		return
 	
-	apply_torque((aero_tq + rollerons))
+	aoas_axis = aoas_axis.normalized()
+
+	# Lift direction: perpendicular to both velocity and aoa_axis
+	var lift_dir: Vector3 = vel_dir.cross(aoas_axis).normalized()
+
+	# Dynamic pressure q = 0.5 * rho * v^2 is precomputed in p_dynq
+	var lift_mag: float = p_dynq * alpha * properties["total_lift"]
+	var lift: Vector3 = lift_dir * lift_mag
+
+	# Apply lift at aerodynamic center
+	apply_force(lift, centers["pressure"])
+
+	# Simple drag: D = q * Cd * S
+	var Cd0: float = DRAG_CO_A
+	var Cd02: float = DRAG_CO_B
+	var drag_mag: float = p_dynq * (Cd0 + Cd02) * (alpha**2) * properties["total_lift"]
+	var drag: Vector3 = -vel_dir * drag_mag
+	apply_force(drag, centers["pressure"])
+
+	# Aerodynamic pitching moment (optional)
+	var pitch_moment: float = p_dynq * alpha * properties["total_lift"]
+	apply_torque(aoas_axis * pitch_moment)
+
+	# Roll damping: oppose roll rate around longitudinal axis
+	var roll_rate: float = p_ang_vel.dot(forward)
+	var roll_damp_torque: Vector3 = -forward * (roll_rate * 0.25)
+	apply_torque(roll_damp_torque)
 
 func _ir_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
@@ -267,10 +297,10 @@ func _laser_guidance() -> void:
 		var st: Vector3 = adv_move.torque_to_pos(p_delta, self, Vector3.UP, obp)
 		apply_torque(st * p_dynq)
 
-const KP =  10.0
-const KD =  0.0
+const KP =  1.0
+const KD =  1.0
 const PNAV = 3.0
-const TORQUE_LIMIT = 150
+const TORQUE_LIMIT = 300
 func _radar_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
 	var dir: Vector3 = (noisy_pos - p_trans.origin).normalized()
@@ -312,7 +342,6 @@ func _radar_guidance() -> void:
 	
 	var torque = p_trans.basis.z * -yaw_cmd + p_trans.basis.x * pitch_cmd
 	apply_torque(torque * p_speed)
-
 
 func _calculate_centers() -> void:
 	for child in get_children():
