@@ -2,9 +2,9 @@ extends RigidBody3D
 
 @export var thrust_force: float = 300.0
 @export var lifetime: float = 25.0
-@export var launch_charge_force: float = 30.0
+@export var launch_charge_force: float = 100.0
 @export var motor_delay: float = 0.3
-@export var fuel_duration: float = 0.5
+@export var fuel_duration: float = 0.25
 @export var proximity_detonation_radius: float = 30.0
 @export var max_range: float = 5000.0
 @export var seeker_fov: float = 30.0
@@ -73,8 +73,8 @@ var sound_scale: float = 1.0
 
 
 const AIR_DENSITY: float = 1.225
-const DRAG_CO_A: float = 0.1
-const DRAG_CO_B: float = 0.1
+const DRAG_CO_A: float = 0.025
+const DRAG_CO_B: float = 0.025
 
 var radar_first: bool = true
 var prev_rel_ang: Vector2 = Vector2.ZERO
@@ -214,50 +214,27 @@ func get_roll_ang() -> float:
 func _apply_aero_forces() -> void:
 	if p_lin_vel.length() < 0.1:
 		return
-
-	# Direction of motion and forward vector
 	var vel_dir: Vector3 = p_lin_vel.normalized()
 	var forward: Vector3 = p_forward.normalized()
-
-	# Angle of attack (alpha) between forward and velocity
 	var alpha: float = forward.angle_to(vel_dir)
 	if alpha < 0.001:
-		# Almost no angle of attack => negligible lift
 		return
-
-	# Axis perpendicular to both forward and velocity (roll axis)
 	var aoas_axis: Vector3 = forward.cross(vel_dir)
-	
 	if aoas_axis.length() < 0.0001:
 		return
-	
 	aoas_axis = aoas_axis.normalized()
-
-	# Lift direction: perpendicular to both velocity and aoa_axis
 	var lift_dir: Vector3 = vel_dir.cross(aoas_axis).normalized()
-
-	# Dynamic pressure q = 0.5 * rho * v^2 is precomputed in p_dynq
 	var lift_mag: float = p_dynq * alpha * properties["total_lift"]
 	var lift: Vector3 = lift_dir * lift_mag
-
-	# Apply lift at aerodynamic center
-	apply_force(lift, centers["pressure"])
-
-	# Simple drag: D = q * Cd * S
 	var Cd0: float = DRAG_CO_A
 	var Cd02: float = DRAG_CO_B
 	var drag_mag: float = p_dynq * (Cd0 + Cd02) * (alpha**2) * properties["total_lift"]
 	var drag: Vector3 = -vel_dir * drag_mag
-	apply_force(drag, centers["pressure"])
-
-	# Aerodynamic pitching moment (optional)
+	apply_force(drag + lift, centers["pressure"])
 	var pitch_moment: float = p_dynq * alpha * properties["total_lift"]
-	apply_torque(aoas_axis * pitch_moment)
-
-	# Roll damping: oppose roll rate around longitudinal axis
 	var roll_rate: float = p_ang_vel.dot(forward)
 	var roll_damp_torque: Vector3 = -forward * (roll_rate * 0.25)
-	apply_torque(roll_damp_torque)
+	apply_torque((aoas_axis * pitch_moment) + roll_damp_torque)
 
 func _ir_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
@@ -300,7 +277,7 @@ func _laser_guidance() -> void:
 const KP =  1.0
 const KD =  1.0
 const PNAV = 3.0
-const TORQUE_LIMIT = 300
+const TORQUE_LIMIT = 150
 func _radar_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
 	var dir: Vector3 = (noisy_pos - p_trans.origin).normalized()
