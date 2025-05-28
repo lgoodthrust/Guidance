@@ -3,33 +3,6 @@
 		"DATA": {
 			"LIFT": 0,
 			"MASS": 15,
-			"NAME": "Radar_Seeker",
-			"TYPE": 1,
-			"UDLRTB": [
-				0,
-				-1,
-				0,
-				0,
-				0,
-				0
-			]
-		},
-		"path": "res://game_data/blocks/radar_seeker.tscn",
-		"position": {
-			"x": 0,
-			"y": 9,
-			"z": 0
-		},
-		"rotation": {
-			"x": 0,
-			"y": 0,
-			"z": 0
-		}
-	},
-	{
-		"DATA": {
-			"LIFT": 0,
-			"MASS": 15,
 			"NAME": "Rocket_Fuel",
 			"TYPE": 7,
 			"UDLRTB": [
@@ -260,6 +233,33 @@
 		"position": {
 			"x": 0,
 			"y": 0,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0,
+			"y": 0,
+			"z": 0
+		}
+	},
+	{
+		"DATA": {
+			"LIFT": 0,
+			"MASS": 15,
+			"NAME": "Radar_Seeker",
+			"TYPE": 1,
+			"UDLRTB": [
+				0,
+				-1,
+				0,
+				0,
+				0,
+				0
+			]
+		},
+		"path": "res://game_data/blocks/radar_seeker.tscn",
+		"position": {
+			"x": 0,
+			"y": 9,
 			"z": 0
 		},
 		"rotation": {
