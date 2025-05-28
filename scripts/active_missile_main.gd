@@ -66,15 +66,11 @@ var sound_scale: float = 1.0
 @onready var pidy0: PID = PID.new()
 @onready var adv_move: ADV_MOVE = ADV_MOVE.new()
 @onready var particles: gpu_particle_effects = gpu_particle_effects.new()
-@onready var fdbk0: FEEDBACK = FEEDBACK.new()
-@onready var fdbk1x: FEEDBACK = FEEDBACK.new()
-@onready var fdbk1y: FEEDBACK = FEEDBACK.new()
 @onready var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
 const AIR_DENSITY: float = 1.225
 const DRAG_CO_A: float = 0.025
-const DRAG_CO_B: float = 0.025
 
 var radar_first: bool = true
 var prev_rel_ang: Vector2 = Vector2.ZERO
@@ -125,7 +121,6 @@ func _spawn_sound(path: String, autoplay: bool = false) -> AudioStreamPlayer3D:
 	if autoplay:
 		s.play()
 	return s
-	
 
 func _process(_delta: float) -> void:
 	sound_scale = Engine.time_scale - 0.25 * Engine.time_scale
@@ -172,8 +167,6 @@ func _physics_process(delta: float) -> void:
 			add_child(smoke)
 			smoke.position = centers["thrust"]
 	
-	apply_central_force(Vector3.DOWN * 9.80665 * mass)
-	
 	_apply_aero_forces()
 	
 	if target:
@@ -212,29 +205,18 @@ func get_roll_ang() -> float:
 	return stable
 
 func _apply_aero_forces() -> void:
-	if p_lin_vel.length() < 0.1:
-		return
-	var vel_dir: Vector3 = p_lin_vel.normalized()
-	var forward: Vector3 = p_forward.normalized()
-	var alpha: float = forward.angle_to(vel_dir)
-	if alpha < 0.001:
-		return
-	var aoas_axis: Vector3 = forward.cross(vel_dir)
-	if aoas_axis.length() < 0.0001:
-		return
-	aoas_axis = aoas_axis.normalized()
-	var lift_dir: Vector3 = vel_dir.cross(aoas_axis).normalized()
-	var lift_mag: float = p_dynq * alpha * properties["total_lift"]
-	var lift: Vector3 = lift_dir * lift_mag
-	var Cd0: float = DRAG_CO_A
-	var Cd02: float = DRAG_CO_B
-	var drag_mag: float = p_dynq * (Cd0 + Cd02) * (alpha**2) * properties["total_lift"]
-	var drag: Vector3 = -vel_dir * drag_mag
-	apply_force(drag + lift, centers["pressure"])
-	var pitch_moment: float = p_dynq * alpha * properties["total_lift"]
-	var roll_rate: float = p_ang_vel.dot(forward)
-	var roll_damp_torque: Vector3 = -forward * (roll_rate * 0.25)
-	apply_torque((aoas_axis * pitch_moment) + roll_damp_torque)
+	# lift/side‐force: F_lift = ½ρV² CL(α) A
+	var vel_body = p_trans.basis.inverse() * p_lin_vel
+	var alpha = atan2(vel_body.y, vel_body.z)
+	var lift_body = Vector3(0, alpha * p_dynq * properties["total_lift"], 0)
+	apply_force(p_trans.basis * lift_body, centers["pressure"])
+
+	# parasitic drag: F_drag = -½ρV² CD A
+	var drag = -p_lin_vel.normalized() * p_dynq * DRAG_CO_A
+	apply_force(drag, centers["mass"])
+
+	# gravity (if not already applied)
+	apply_central_force(Vector3.DOWN * 9.80665 * mass)
 
 func _ir_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
@@ -274,51 +256,107 @@ func _laser_guidance() -> void:
 		var st: Vector3 = adv_move.torque_to_pos(p_delta, self, Vector3.UP, obp)
 		apply_torque(st * p_dynq)
 
-const KP =  1.0
-const KD =  1.0
+const KP = 1.0
+const KI = 0.0
+const KD = 0.1
 const PNAV = 3.0
-const TORQUE_LIMIT = 150
+const TORQUE_LIMIT = 300.0
+var prev_target_pos: Vector3 = Vector3.ZERO
+var _prev_w_err: Vector3 = Vector3.ZERO
+var _integral_w: Vector3
 func _radar_guidance() -> void:
+	# 1) Noisy direction & FOV check
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
-	var dir: Vector3 = (noisy_pos - p_trans.origin).normalized()
-	var right: Vector3 = -p_trans.basis.x.normalized()
-	var up: Vector3 = p_trans.basis.z.normalized()
+	var dir = (noisy_pos - p_trans.origin).normalized()
+	var right = -p_trans.basis.x
+	var up = p_trans.basis.z
 	var pdot = dir.dot(p_forward.normalized())
-	
 	var angs = Vector2(
 		atan2(dir.dot(-right), pdot),
-		atan2(dir.dot(up),  pdot)
+		atan2(dir.dot(up),    pdot)
 	)
-	
 	if abs(rad_to_deg(angs.x)) > seeker_fov or abs(rad_to_deg(angs.y)) > seeker_fov:
 		tracking = false
 		return
 	else:
 		tracking = true
-	
-	# 2) PN guidance on those noisy angles
-	var los_rate = (angs - prev_rel_ang) / p_delta
-	prev_rel_ang = angs
+
+	# 2) Closing speed
 	var closing_v = -(dist - prev_range) / p_delta
-	prev_range = dist
+	prev_range    = dist
 	if closing_v < 1e-3:
 		return
-	
-	# 3) Pure PN lateral accel
-	var a_lat = PNAV * closing_v * los_rate
-	var yaw_ff = clamp(a_lat.x * dist, -TORQUE_LIMIT, TORQUE_LIMIT)
-	var pitch_ff = clamp(a_lat.y * dist, -TORQUE_LIMIT, TORQUE_LIMIT)
-	
-	# 4) Light PD to absorb jitter
-	var rate_err = los_rate - Vector2(p_ang_vel.z, p_ang_vel.x)
-	var yaw_pd = (KP * angs.x) - (KD * rate_err.x)
-	var pitch_pd = (KP * angs.y) - (KD * rate_err.y)
-	
-	var yaw_cmd = clamp(yaw_ff + yaw_pd, -TORQUE_LIMIT, TORQUE_LIMIT)
-	var pitch_cmd = clamp(pitch_ff + pitch_pd, -TORQUE_LIMIT, TORQUE_LIMIT)
-	
-	var torque = p_trans.basis.z * -yaw_cmd + p_trans.basis.x * pitch_cmd
-	apply_torque(torque * p_speed)
+
+	# 3) Intercept point
+	var r = target.global_position - p_trans.origin
+	var target_vel = (target.global_position - prev_target_pos) / p_delta
+	prev_target_pos = target.global_position
+
+	var a_coeff = target_vel.dot(target_vel) - p_speed * p_speed
+	var b_coeff = 2.0 * r.dot(target_vel)
+	var c_coeff = r.dot(r)
+	var disc = b_coeff*b_coeff - 4.0*a_coeff*c_coeff
+	var t_go = 0.0
+	if disc > 0.0:
+		var t1 = (-b_coeff + sqrt(disc)) / (2.0 * a_coeff)
+		var t2 = (-b_coeff - sqrt(disc)) / (2.0 * a_coeff)
+		t_go = max(t1, t2)
+	else:
+		t_go = r.length() / max(p_speed, 0.1)
+
+	var intercept = target.global_position + target_vel * t_go
+	var dir_i = (intercept - p_trans.origin).normalized()
+
+	# 4) LOS angles to intercept & rate (Vector2)
+	var pdot_i = dir_i.dot(p_forward.normalized())
+	var angs_i = Vector2(
+		atan2(dir_i.dot(-right), pdot_i),
+		atan2(dir_i.dot(up),     pdot_i)
+	)
+	var los_rate = (angs_i - prev_rel_ang) / p_delta
+	prev_rel_ang = angs_i
+
+	# 5) Build 3D lateral accel in body-frame (PN law)
+	var a_lat_body = Vector3(
+		0.0,
+		PNAV * closing_v * los_rate.y,  # pitch accel (body +Y)
+		PNAV * closing_v * los_rate.x   # yaw   accel (body –Z)
+	)
+
+	var a_max = (TORQUE_LIMIT) * 9.80665
+	if a_lat_body.length() > a_max:
+		a_lat_body = a_lat_body.normalized() * a_max
+
+	# 7) Desired angular rate from that accel
+	var omega_des = p_trans.basis.y.cross(a_lat_body) / max(p_speed, 0.1)
+
+	# 8) PID on angular-rate error
+	var w_err = omega_des - p_ang_vel
+	_integral_w += w_err * p_delta
+	var windup_lim = (TORQUE_LIMIT / max(p_speed, 0.1)) * Vector3.ONE
+	_integral_w = _integral_w.clamp(-windup_lim, windup_lim)
+	var w_dot = (w_err - _prev_w_err) / p_delta
+	_prev_w_err = w_err
+	var torque_pid = (KP * w_err) + (KI * _integral_w) + (KD * w_dot)
+
+	# 9) Torque request via inertia, plus damping
+	var I_vec = Vector3(inertia.x, inertia.y, inertia.z)
+	var torque_req = torque_pid * I_vec
+	var C_damp = Vector3(1,1,1) * 0.5
+	var damp_torque = -C_damp * p_ang_vel
+
+	# 10) Total torque & clamp
+	var tau_total = torque_req + damp_torque
+	if tau_total.length() > TORQUE_LIMIT:
+		tau_total = tau_total.normalized() * TORQUE_LIMIT
+		print("lim")
+
+	if radar_first:
+		radar_first = false
+		print("first")
+	else:
+		apply_torque(tau_total * p_dynq)
+		print(tau_total * p_dynq)
 
 func _calculate_centers() -> void:
 	for child in get_children():
