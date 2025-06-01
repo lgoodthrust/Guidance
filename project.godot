@@ -13,7 +13,7 @@ config_version=5
 config/name="Guidance"
 run/main_scene="res://launcher.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
-run/max_fps=200
+run/max_fps=144
 boot_splash/image="res://missile_01.png"
 config/icon="res://icon.svg"
 boot_splash/minimum_display_time=500
@@ -448,7 +448,7 @@ key_backspace={
 
 [memory]
 
-limits/message_queue/max_size_mb=64
+limits/message_queue/max_size_mb=16
 
 [navigation]
 
@@ -465,11 +465,11 @@ common/max_physics_steps_per_frame=100
 3d/physics_engine="JoltPhysics3D"
 3d/default_gravity=9.807
 3d/solver/solver_iterations=32
-jolt_3d/sleep/velocity_threshold=0.05
 rapier/solver/num_internal_stabilization_iterations=4
-jolt_3d/collisions/areas_detect_static_bodies=true
 rapier/solver/normalized_allowed_linear_error=0.001
 rapier/logic/ghost_collision_distance_3d=0.001
+jolt_3d/sleep/velocity_threshold=0.05
+jolt_3d/collisions/areas_detect_static_bodies=true
 jolt_3d/solver/velocity_iterations=32
 jolt_3d/solver/position_iterations=8
 jolt_3d/solver/position_correction=25.0
@@ -482,12 +482,12 @@ jolt_3d/limits/max_temporary_memory=64
 [rendering]
 
 occlusion_culling/bvh_build_quality=1
+renderer/rendering_method="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
-driver/depth_prepass/enable=false
+shader_compiler/shader_cache/strip_debug=true
 environment/ssao/quality=1
 anti_aliasing/screen_space_roughness_limiter/limit=0.25
-occlusion_culling/occlusion_rays_per_thread=256
+occlusion_culling/occlusion_rays_per_thread=128
 environment/glow/upscale_mode=0
 global_illumination/sdfgi/frames_to_converge=0
 anti_aliasing/quality/screen_space_aa=1
-mesh_lod/lod_change/threshold_pixels=0.0

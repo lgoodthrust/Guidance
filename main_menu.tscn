@@ -175,7 +175,7 @@ layout_mode = 2
 
 [node name="How_To_Button" type="Button" parent="Control/V_Container_Game"]
 layout_mode = 2
-text = "HOW TO"
+text = "TUTORIAL"
 
 [connection signal="close_requested" from="." to="." method="toggler"]
 [connection signal="pressed" from="Control/Misc/Button_Tester" to="." method="switch_to_tester"]

@@ -20,6 +20,8 @@ var curr_pos: Vector3 = Vector3.ZERO
 
 @onready var particles: gpu_particle_effects = gpu_particle_effects.new()
 
+@onready var launcher = get_tree().root.get_node("Launcher")
+
 func _process(delta: float) -> void:
 	time += delta * drift_rate
 	current_drift.x = deg_to_rad(yaw_drift) + (time/radius)*forward_velocity
@@ -39,6 +41,9 @@ func _explode_and_remove() -> void:
 	kaboom.global_position = global_transform.origin
 	self.hide()
 	await get_tree().create_timer(0.05).timeout
+	var targs: Array = launcher.LAUCNHER_CHILD_SHARED_DATA["scenes"]["targets"]
+	var self_id = targs.find(self)
+	launcher.LAUCNHER_CHILD_SHARED_DATA["scenes"]["targets"].pop_at(self_id)
 	queue_free()
 
 func _rotate() -> void:
