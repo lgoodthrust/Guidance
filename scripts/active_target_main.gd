@@ -1,5 +1,7 @@
 extends Node3D
 
+var HEALTH: float = 100.0
+
 var yaw_drift: float = 90.0
 var pitch_drift: float = 10.0
 var drift_rate: float = 0.5
@@ -16,6 +18,8 @@ var rotation_target_pitch: float = 0.0
 var curr_velocity: Vector3 = Vector3.ZERO
 var curr_pos: Vector3 = Vector3.ZERO
 
+@onready var particles: gpu_particle_effects = gpu_particle_effects.new()
+
 func _process(delta: float) -> void:
 	time += delta * drift_rate
 	current_drift.x = deg_to_rad(yaw_drift) + (time/radius)*forward_velocity
@@ -25,6 +29,17 @@ func _physics_process(delta: float) -> void:
 	curr_pos = global_position
 	_rotate()
 	_move(delta)
+	
+	if HEALTH <= 0.0:
+		_explode_and_remove()
+
+func _explode_and_remove() -> void:
+	var kaboom = particles.explotion_01()
+	get_tree().current_scene.get_node(".").add_child(kaboom)
+	kaboom.global_position = global_transform.origin
+	self.hide()
+	await get_tree().create_timer(0.05).timeout
+	queue_free()
 
 func _rotate() -> void:
 	rotation_target_pitch = clamp(current_drift.y, deg_to_rad(-90), deg_to_rad(90))

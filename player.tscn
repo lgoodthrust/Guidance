@@ -41,25 +41,37 @@ grow_vertical = 2
 script = ExtResource("5_omvbk")
 
 [node name="FTPS" type="Label" parent="Player_Camera/Player_Camera_GUI"]
-layout_mode = 0
-offset_left = 10.0
-offset_top = 743.0
-offset_right = 65.0
-offset_bottom = 768.0
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = -71.0
+offset_right = 57.0
+offset_bottom = -48.0
+grow_vertical = 0
 text = "FTPS: /"
 
 [node name="TPS" type="Label" parent="Player_Camera/Player_Camera_GUI"]
-layout_mode = 0
-offset_left = 10.0
-offset_top = 758.0
-offset_right = 65.0
-offset_bottom = 783.0
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = -48.0
+offset_right = 57.0
+offset_bottom = -25.0
+grow_vertical = 0
 text = "TPS: /"
 
 [node name="FPS" type="Label" parent="Player_Camera/Player_Camera_GUI"]
-layout_mode = 0
-offset_left = 10.0
-offset_top = 773.0
-offset_right = 65.0
-offset_bottom = 798.0
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = -25.0
+offset_right = 57.0
+offset_bottom = -2.0
+grow_vertical = 0
 text = "FPS: /"

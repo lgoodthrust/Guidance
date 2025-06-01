@@ -23,7 +23,7 @@ var LAUCNHER_CHILD_SHARED_DATA = {
 		"world":InstancePlaceholder,
 		"main_menu":InstancePlaceholder,
 		"builder":InstancePlaceholder,
-		"target":InstancePlaceholder
+		"targets":[]
 		},
 	"player":{},
 	"world":{},
@@ -31,7 +31,7 @@ var LAUCNHER_CHILD_SHARED_DATA = {
 		"active":false
 		},
 	"builder":{},
-	"target":{},
+	"targets":{},
 	"file_dirs":{
 		"exe_path":"",
 		"game_res_path":"",
@@ -40,14 +40,14 @@ var LAUCNHER_CHILD_SHARED_DATA = {
 	}
 
 func _ready() -> void:
-	
 	if not LIFE_SUPPORT.get_size() == Vector2(256, 256):
 		return
+	
 	setup_dirs()
 	load_player()
 	load_world()
 	load_Builder()
-	load_target()
+	load_targets()
 	load_main_menu()
 
 func _process(_delta) -> void:
@@ -112,12 +112,12 @@ func load_main_menu():
 	else:
 		print("Error: Main Menu scene not assigned!")
 
-func load_target():
+func load_targets():
 	if target_scene:
 		target_instance = target_scene.instantiate()
 		add_child(target_instance)
 		target_instance.set_owner(self)
-		LAUCNHER_CHILD_SHARED_DATA["scenes"]["target"] = target_instance
+		LAUCNHER_CHILD_SHARED_DATA["scenes"]["targets"].append(target_instance)
 		target_instance.global_position = Vector3(0, 300, -3000)
 		print("Target loaded successfully!")
 	else:

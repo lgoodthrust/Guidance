@@ -4,8 +4,8 @@ extends RigidBody3D
 @export var lifetime: float = 25.0
 @export var launch_charge_force: float = 30.0
 @export var motor_delay: float = 0.3
-@export var fuel_duration: float = 0.25
-@export var proximity_detonation_radius: float = 30.0
+@export var fuel_duration: float = 0.5
+@export var proximity_detonation_radius: float = 300.0
 @export var max_range: float = 5000.0
 @export var seeker_fov: float = 30.0
 @export var unlocked_detonation_delay: float = 3.0
@@ -53,6 +53,7 @@ var unlocked_life: float = 0.0
 var smoking: bool = false
 var dist: float = 100.0
 var target: Node3D
+var targets: Array = []
 var player: Node3D
 var tracking: bool = true
 
@@ -61,15 +62,17 @@ var sound_fly: AudioStreamPlayer3D
 var sound_wind: AudioStreamPlayer3D
 var wind_playing: bool = false
 var sound_scale: float = 1.0
+var YES_A_HIT: bool = false
 
 @onready var pidx0: PID = PID.new()
 @onready var pidy0: PID = PID.new()
 @onready var adv_move: ADV_MOVE = ADV_MOVE.new()
 @onready var particles: gpu_particle_effects = gpu_particle_effects.new()
 @onready var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+@onready var flame: SpotLight3D = SpotLight3D.new()
 
 const AIR_DENSITY: float = 1.225
-const DRAG_CO_A: float = 0.025
+const DRAG_CO_A: float = 0.075
 
 func _ready() -> void:
 	for child in get_children():
@@ -77,7 +80,7 @@ func _ready() -> void:
 			blocks.append(child)
 	
 	launcher = get_tree().root.get_node("Launcher")
-	target = launcher.LAUCNHER_CHILD_SHARED_DATA["scenes"]["target"]
+	targets = launcher.LAUCNHER_CHILD_SHARED_DATA["scenes"]["targets"]
 	player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
 	
 	sound_launch = _spawn_sound("res://game_data/sound/cursed_missile_01.mp3", true)
@@ -85,6 +88,18 @@ func _ready() -> void:
 	sound_wind = _spawn_sound("res://game_data/sound/cursed_missile_03.mp3")
 	
 	_calculate_centers()
+	
+	flame.spot_range = 50.0
+	flame.spot_angle = 25.0
+	flame.light_color = Color(1, 0.745, 0.528)
+	flame.light_energy = 12.0
+	flame.light_specular = 12.0
+	flame.shadow_enabled = true
+	add_child(flame)
+	flame = flame
+	flame.hide()
+	flame.rotation = Vector3.BACK * global_transform.basis
+	flame.position = Vector3(0,-1,0)#centers["thrust"]
 	
 	var shape: BoxShape3D = BoxShape3D.new()
 	var box: CollisionShape3D = CollisionShape3D.new()
@@ -123,7 +138,11 @@ func _process(_delta: float) -> void:
 	sound_fly.pitch_scale = sound_scale
 	sound_wind.pitch_scale = sound_scale
 
+var tick: int = 0
+const tick_trig = 32
 func _physics_process(delta: float) -> void:
+	tick += 1
+	
 	p_delta = delta
 	p_trans = global_transform
 	p_forward = p_trans.basis.y
@@ -153,6 +172,8 @@ func _physics_process(delta: float) -> void:
 	
 	if properties["has_motor"] and life > motor_delay and life < properties["fuel"]:
 		apply_force(p_forward * thrust_force * mass, centers["thrust"])
+		flame.show()
+		
 		if not sound_fly.playing:
 			sound_fly.play()
 			sound_fly.pitch_scale = sound_scale
@@ -161,57 +182,87 @@ func _physics_process(delta: float) -> void:
 			var smoke: Node3D = particles.smoke_01()
 			add_child(smoke)
 			smoke.position = centers["thrust"]
+	else:
+		flame.hide()
 	
 	_apply_aero_forces()
 	
-	if target:
+	if is_instance_valid(target):
 		dist = global_transform.origin.distance_to(target.global_transform.origin)
 		if dist <= proximity_detonation_radius and properties["has_warhead"]:
 			_explode_and_remove()
+			if not YES_A_HIT:
+				target.HEALTH -= 25.0
+				YES_A_HIT = true
 			return
 	
-	if properties["has_seeker"] and target and dist < max_range:
+	if properties["has_controller"] and properties["has_seeker"] and tick > tick_trig:
+		find_visible_target_id(targets, p_trans.origin, p_forward)
+		tick = 0
+		
+		
 		match seeker_type:
 			Seeker.IR:
-				_ir_guidance()
+				if is_instance_valid(target):
+					_ir_guidance()
 			Seeker.LASER:
 				_laser_guidance()
 			Seeker.RADAR:
-				_radar_guidance()
+				if is_instance_valid(target):
+					_radar_guidance()
 	
 	if not tracking and seeker_type != Seeker.LASER:
 		unlocked_life += p_delta
 	if unlocked_life >= unlocked_detonation_delay or global_transform.origin.y < -10.0:
 		_explode_and_remove()
 
-func get_roll_ang() -> float:
-	var b = p_trans.basis
-	var f = b.y.normalized()
-	var r = f.cross(Vector3.UP).normalized()
-	var u = r.cross(f).normalized()
-	var q = b.orthonormalized().get_rotation_quaternion()
-	var q0 = Basis(r, f, u).orthonormalized().get_rotation_quaternion()
-	var delta = q0.inverse()*q.normalized()
-	var angle = 2.0 * acos(clamp(delta.w, -1.0, 1.0))
-	var axis = delta.get_axis()
-	var unstable = angle if axis.dot(f) < 0.0 else -angle
-	unstable = sin(unstable)
-	var stable = fmod(unstable + PI, 2.0 * PI) - PI
-	return stable
+func find_visible_target_id(
+		targs: Array,
+		missile_pos: Vector3,
+		missile_forward: Vector3
+	) -> int:
+	
+	var best_id = -1
+	var closest_dist_sq = INF
+	var cos_fov = cos(deg_to_rad(seeker_fov * 0.5))
+	
+	for i in range(targs.size()):
+		var targ = targs[i]
+		if not targ or not targ is Node3D:
+			continue
+	
+		var to_target = targ.global_position - missile_pos
+		var dist_sq = to_target.length_squared()
+		if dist_sq > max_range * max_range:
+			continue
+	
+		var dir_to_target = to_target.normalized()
+		var dot := missile_forward.normalized().dot(dir_to_target)
+		if dot < cos_fov:
+			continue
+	
+		if dist_sq < closest_dist_sq:
+			closest_dist_sq = dist_sq
+			best_id = i
+	
+	return best_id
 
 func _apply_aero_forces() -> void:
 	var speed = p_lin_vel.length()
-	if speed < 0.1: return
+	if speed < 1e-3:
+		return
 	var vdir = p_lin_vel / speed
 	var fwd = p_forward.normalized()
 	var right = p_trans.basis.x.normalized()
 	var up = p_trans.basis.z.normalized()
 	var α = acos(clamp(fwd.dot(vdir), -1.0, 1.0))
-	if vdir.dot(up) > 0: α = -α
+	if vdir.dot(up) > 0:
+		α = -α
 	var lift_dir = right.cross(vdir).normalized()
-	if lift_dir.dot(up) < 0: lift_dir = -lift_dir
-	var lift = lift_dir * (p_dynq * TAU * properties["total_lift"] * α)
-	var drag = -vdir * (p_dynq * DRAG_CO_A * properties["total_lift"])
+	if lift_dir.dot(up) < 0:
+		lift_dir = -lift_dir
+	var lift = lift_dir * (TAU * properties["total_lift"] * α)
+	var drag = -vdir * (DRAG_CO_A * properties["total_lift"])
 	var torq_dir = fwd.cross(vdir).normalized()
 	apply_force((lift + drag), centers["pressure"])
 	apply_central_force(Vector3.DOWN * 9.80665 * mass)
@@ -237,8 +288,8 @@ func _ir_guidance() -> void:
 	
 	var ptz = p_trans.basis.z.normalized()
 	var ptx = p_trans.basis.x.normalized()
-	var yaw_tq: float = -pidx0.update(p_delta, 0.0, -angs.x, 1.5, 15, 0.3)
-	var pitch_tq: float = -pidy0.update(p_delta, 0.0, angs.y, 1.5, 15, 0.3)
+	var yaw_tq: float = -pidx0.update(p_delta, 0.0, -angs.x, 2.0, 15, 0.3)
+	var pitch_tq: float = -pidy0.update(p_delta, 0.0, angs.y, 2.0, 15, 0.3)
 	var torque: Vector3 = ptz * yaw_tq + ptx * pitch_tq
 	apply_torque(torque * p_dynq)
 
@@ -252,94 +303,45 @@ func _laser_guidance() -> void:
 		var rd: float = max(beam_dir.dot(rel), 10.0)
 		var bp: Vector3 = beam_origin + beam_dir * rd
 		var obp: Vector3 = bp + beam_dir * min(p_speed, 343.0)
-		var st: Vector3 = adv_move.torque_to_pos(p_delta, self, Vector3.UP, obp)
+		var st: Vector3 = adv_move.torque_to_pos(p_trans, Vector3.UP, obp)
 		apply_torque(st * p_dynq)
 
-const KP = 1.0
-const KI = 0.0
-const KD = 0.1
-const PNAV = 3.0
-const TORQUE_LIMIT = 300.0
 var prev_range: float = 0.0
-var prev_target_pos_est: Vector3 = Vector3.ZERO
-var prev_intercept_ang: Vector2 = Vector2.ZERO
-var _prev_w_err: Vector3 = Vector3.ZERO
-var _integral_w: Vector3 = Vector3.ZERO
 var radar_first: bool = true
 func _radar_guidance() -> void:
 	var noisy_pos = target.global_position + p_error * dist * 0.01
-	var dir = (noisy_pos - p_trans.origin).normalized()
+	var to_target = (noisy_pos - p_trans.origin).normalized()
 	var right = -p_trans.basis.x
 	var up = p_trans.basis.z
-	var pdot = dir.dot(p_forward.normalized())
-	var angs = Vector2(
-		atan2(dir.dot(-right), pdot),
-		atan2(dir.dot(up),    pdot)
-	)
-	if abs(rad_to_deg(angs.x)) > seeker_fov or abs(rad_to_deg(angs.y)) > seeker_fov:
+	var fwd = p_forward.normalized()
+
+	# Compute relative angles
+	var pdot = to_target.dot(fwd)
+	var yaw = atan2(to_target.dot(-right), pdot)
+	var pitch = atan2(to_target.dot(up), pdot)
+
+	# FOV check
+	if abs(rad_to_deg(yaw)) > seeker_fov or abs(rad_to_deg(pitch)) > seeker_fov:
 		tracking = false
 		return
 	tracking = true
 
+	# Estimate position and velocity
 	var closing_v = -(dist - prev_range) / p_delta
 	prev_range = dist
 	if closing_v < 1e-3:
 		return
 
-	var yaw = angs.x
-	var pitch = angs.y
-	var cosP = cos(angs.y)
-	var dir_body = Vector3(
-		sin(yaw) * cosP,
-		cos(yaw) * cosP,
-		sin(pitch)
-	)
-	var dir_world = p_trans.basis * dir_body
-	var target_pos_est = p_trans.origin + dir_world * dist
-	print(target_pos_est)
-	print(target.global_position)
-	print()
-	
-	var target_vel = (target_pos_est - prev_target_pos_est) / p_delta
-	prev_target_pos_est = target_pos_est
-	print(target_vel)
-	print(target.curr_velocity)
-	print()
+	var dir_body = Vector3(sin(yaw) * cos(pitch), cos(yaw) * cos(pitch), sin(pitch))
+	var target_pos_est = p_trans.origin + (p_trans.basis * dir_body) * dist
 
-	# Compute PN acceleration in body frame
-	var r = target_pos_est - p_trans.origin
-	var r_body = p_trans.basis.inverse() * r
-	var tv_body = p_trans.basis.inverse() * target_vel
-	var r_norm = r_body.length()
-	var r_hat = r_body / max(r_norm, 0.001)
-	var omega_los = r_body.cross(tv_body) / max(r_norm * r_norm, 0.001)
-	var a_nav_body = r_hat.cross(omega_los) * (PNAV * closing_v)
-	var a_max = 10.0 * 9.80665
-	if a_nav_body.length() > a_max:
-		a_nav_body = a_nav_body.normalized() * a_max
-
-	var omega_des = p_trans.basis.y.cross(a_nav_body) / max(p_speed, 0.1)
-
-	var w_err = omega_des - p_ang_vel
-	_integral_w += w_err * p_delta
-	var max_i = TORQUE_LIMIT / max(p_speed, 0.1)
-	_integral_w.x = clamp(_integral_w.x, -max_i, max_i)
-	_integral_w.y = clamp(_integral_w.y, -max_i, max_i)
-	_integral_w.z = clamp(_integral_w.z, -max_i, max_i)
-	var w_dot = (w_err - _prev_w_err) / p_delta
-	_prev_w_err = w_err
-	var torque_pid = KP * w_err + KI * _integral_w + KD * w_dot
-
-	var torque_req = torque_pid * inertia
-	var damp_torque = -p_ang_vel * 0.5
-	var tau_total = torque_req + damp_torque
-	if tau_total.length() > TORQUE_LIMIT:
-		tau_total = tau_total.normalized() * TORQUE_LIMIT
+	var torque = adv_move.torque_to_pos(p_trans, Vector3.UP, target_pos_est)
 
 	if radar_first:
 		radar_first = false
 		return
-	apply_torque(tau_total * p_dynq)
+
+	apply_torque(torque * p_dynq)
 
 func _calculate_centers() -> void:
 	for child in get_children():

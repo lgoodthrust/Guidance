@@ -77,3 +77,14 @@ func smoke_01() -> GPUParticles3D:
 	gpup.draw_pass_1 = bm
 	
 	return gpup
+
+func ass_light_01() -> SpotLight3D:
+	var FUCK: SpotLight3D = SpotLight3D.new()
+	FUCK.spot_range = 10.0
+	FUCK.spot_angle = 75.0
+	FUCK.light_color = Color(1, 0.745, 0.528)
+	FUCK.light_energy = 16.0
+	FUCK.light_specular = 16.0
+	FUCK.shadow_enabled = true
+	
+	return FUCK

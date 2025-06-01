@@ -11,12 +11,17 @@ extends Window
 @onready var Input_Target_Speed: LineEdit = $Control/V_Container_Tester/Line_Target_Speed
 @onready var Input_Target_Altitude: LineEdit = $Control/V_Container_Tester/Line_Target_Altitude
 @onready var Input_Target_Distance: LineEdit = $Control/V_Container_Tester/Line_Target_Distance
-@onready var Input_Target_Button_Apply: Button = $Control/V_Container_Tester/Button_Target_Apply
+@onready var Input_Target_Apply: Button = $Control/V_Container_Tester/HSeparator4/VBoxContainer/HBoxContainer/Button_Target_Apply
+@onready var Input_Targets_ID: SpinBox = $Control/V_Container_Tester/HSeparator4/VBoxContainer/HBoxContainer/ID_Spinbox
+@onready var Input_Targets_Add: Button = $Control/V_Container_Tester/HSeparator4/VBoxContainer/Button_Add_Target
+@onready var Input_Targets_Remove: Button = $Control/V_Container_Tester/HSeparator4/VBoxContainer/Button_Remove_Target
 
 @onready var Input_Build_Filename: LineEdit = $Control/V_Container_Builder/Line_Build_Filename
 
 @onready var Input_Switch_to_Builder: Button = $Control/Misc/Button_Builder
 @onready var Input_Switch_to_Tester: Button = $Control/Misc/Button_Tester
+
+@onready var Input_How_To_Button: Button = $Control/V_Container_Game/How_To_Button
 
 @onready var Input_Volume_Slider: HSlider = $Control/V_Container_Game/Slider_Game_Volume
 
@@ -24,11 +29,11 @@ var active = false
 enum Mode {build, test}
 var cur_mode = Mode.test
 var launcher # FOR DATA SHARE
-var active_target_node: Node3D
+var active_targets: Array = []
 
 func _ready() -> void:
 	launcher = self.get_parent() # FOR DATA SHARE
-	active_target_node = LAUCNHER_CHILD_SHARE_GET("scenes", "target")
+	active_targets = LAUCNHER_CHILD_SHARE_GET("scenes", "targets")
 	hide()
 	Input_Build_Filename.text = Build_Filename
 	update_build_file(Input_Build_Filename.text)
@@ -40,35 +45,63 @@ func _ready() -> void:
 	update_volume(Input_Volume_Slider.value)
 
 var pressing: bool = false
+var holding: bool = false
+var pressing_add: bool = false
+var pressing_apply: bool = false
+var pressing_remove: bool = false
 func _process(_delta) -> void:
 	if Input.is_action_just_released(KEY_ESCAPE):
 		toggler()
 	
-	if Input_Target_Button_Apply.button_pressed and not pressing:
-		update_target()
+	get_targets()
+	
+	if Input_Targets_Add.button_pressed:
+		if not pressing_add:
+			launcher.load_targets()
+			pressing_add = true
 		pressing = true
-	elif not Input_Target_Button_Apply.button_pressed and pressing :
+	
+	elif Input_Target_Apply.button_pressed:
+		if not pressing_apply:
+			update_target(int(Input_Targets_ID.value))
+			pressing_apply = true
+		pressing = true
+	
+	elif Input_Targets_Remove.button_pressed:
+		if not pressing_remove:
+			active_targets.pop_back()
+			pressing_remove = true
+		pressing = true
+	
+	else:
 		pressing = false
+		pressing_add = false
+		pressing_apply = false
+		pressing_remove = false
 	
 	if Input_Volume_Slider.drag_ended:
 		update_volume(Input_Volume_Slider.value)
 	
 	update_build_file(Input_Build_Filename.text)
+	
+	if len(active_targets) > 0:
+		Input_Targets_ID.max_value = len(active_targets)
+
+func get_targets():
+	active_targets = LAUCNHER_CHILD_SHARE_GET("scenes", "targets")
 
 func update_volume(volume: float) -> void:
 	var val = lerp(-60, 0, volume/100.0)
 	AudioServer.set_bus_volume_db(0, val)
 
-func update_target():
+func update_target(id: int):
 	var dist = float(Input_Target_Distance.text)
 	var alt = float(Input_Target_Altitude.text)
 	var speed = float(Input_Target_Speed.text)
 	
-	print(dist, alt)
-	
-	active_target_node.forward_velocity = speed
-	active_target_node.curr_pos = Vector3(0, alt, -dist)
-	active_target_node.global_position = Vector3(0, alt, -dist)
+	active_targets[id-1].forward_velocity = speed
+	active_targets[id-1].curr_pos = Vector3(0, alt, -dist)
+	active_targets[id-1].global_position = Vector3(0, alt, -dist)
 
 func toggler():
 	active = !active
@@ -120,10 +153,11 @@ func switch_to_tester():
 	scene2.show()
 	LAUCNHER_CHILD_SHARE_GET("world", "SPAWNER").active_builder = false
 	
-	var scene4 = active_target_node
-	if scene4 == InstancePlaceholder:
+	var scene4 = active_targets
+	if len(scene4) < 0:
 		return
-	scene4.process_mode = Node.PROCESS_MODE_INHERIT
+	for i in scene4:
+		i.process_mode = Node.PROCESS_MODE_INHERIT
 	scene2.process_mode = Node.PROCESS_MODE_INHERIT
 	
 	var scene3 = LAUCNHER_CHILD_SHARE_GET("scenes", "player")
@@ -152,10 +186,11 @@ func switch_to_builder():
 	scene2.hide()
 	LAUCNHER_CHILD_SHARE_GET("world", "SPAWNER").active_builder = true
 	
-	var scene4 = active_target_node
-	if scene4 == InstancePlaceholder:
+	var scene4 = active_targets
+	if len(scene4) < 0:
 		return
-	scene4.process_mode = Node.PROCESS_MODE_DISABLED
+	for i in scene4:
+		i.process_mode = Node.PROCESS_MODE_DISABLED
 	scene2.process_mode = Node.PROCESS_MODE_DISABLED
 	
 	var scene3 = LAUCNHER_CHILD_SHARE_GET("scenes", "builder")

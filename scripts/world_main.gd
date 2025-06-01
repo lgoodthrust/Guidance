@@ -54,7 +54,7 @@ func _physics_process(_delta: float) -> void:
 
 func _initialize_noise():
 	noise = FastNoiseLite.new()
-	noise.seed = randi_range(1, 1_000_000)
+	noise.seed = randi_range(1, 1_000)
 	noise.noise_type = FastNoiseLite.TYPE_PERLIN
 	noise.frequency = 0.005
 	noise.fractal_gain = 0.75
