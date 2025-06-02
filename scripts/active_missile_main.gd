@@ -71,7 +71,6 @@ const AIR_DENSITY: float = 1.225
 const DRAG_CO_A: float = 0.075
 
 func _ready() -> void:
-	
 	launcher = get_tree().root.get_node("Launcher")
 	player = get_tree().current_scene.get_node_or_null("Player/Player_Camera")
 	
@@ -94,7 +93,7 @@ func _ready() -> void:
 	
 	var shape: BoxShape3D = BoxShape3D.new()
 	var box: CollisionShape3D = CollisionShape3D.new()
-	shape.size = Vector3(0.5, len(blocks), 0.5)
+	shape.size = Vector3(0.5, len(blocks) * 2, 0.5)
 	box.shape = shape
 	add_child(box)
 	box.owner = self
@@ -199,9 +198,10 @@ func _physics_process(delta: float) -> void:
 			Seeker.RADAR:
 				if is_instance_valid(target):
 					_radar_guidance()
+		
+		if seeker_type != Seeker.LASER and not tracking or ids == -1:
+				unlocked_life += p_delta
 	
-	if not tracking and seeker_type != Seeker.LASER:
-		unlocked_life += p_delta
 	if unlocked_life >= unlocked_detonation_delay or global_transform.origin.y < -10.0:
 		_explode_and_remove()
 
@@ -237,25 +237,36 @@ func find_visible_target_id(
 	return best_id
 
 func _apply_aero_forces() -> void:
-	var speed = p_lin_vel.length()
-	if speed < 1e-3:
+	if p_speed < 1e-3:
 		return
-	var vdir = p_lin_vel / speed
-	var fwd = p_forward
+
+	var vdir = p_lin_vel / p_speed
+	var forward_dir = p_forward.normalized()
+
 	var right = p_trans.basis.x.normalized()
 	var up = p_trans.basis.z.normalized()
-	var α = acos(clamp(fwd.dot(vdir), -1.0, 1.0))
+
+	var α = acos(clamp(forward_dir.dot(vdir), -1.0, 1.0))
 	if vdir.dot(up) > 0:
 		α = -α
+
 	var lift_dir = right.cross(vdir).normalized()
 	if lift_dir.dot(up) < 0:
 		lift_dir = -lift_dir
+
 	var lift = lift_dir * (TAU * total_lift * α)
 	var drag = -vdir * (DRAG_CO_A * total_lift)
-	var torq_dir = fwd.cross(vdir).normalized()
-	apply_force((lift + drag), COP)
-	apply_central_force(Vector3.DOWN * 9.80665 * mass) # Hard-coded gravity; consider using ProjectSettings default value
-	apply_torque(torq_dir * p_dynq)
+
+	var torq_axis = forward_dir.cross(vdir)
+	if torq_axis.length_squared() < 1e-6:
+		torq_axis = Vector3.ZERO
+	else:
+		torq_axis = torq_axis.normalized()
+
+	apply_force(lift + drag, COP)
+	apply_central_force(Vector3.DOWN * 9.80665 * mass)
+	apply_torque(torq_axis * p_dynq)
+
 
 func _ir_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
@@ -288,10 +299,10 @@ func _laser_guidance() -> void:
 	if p_speed > 15.0:
 		var beam_origin: Vector3 = player.global_transform.origin
 		var beam_dir: Vector3 = -player.global_transform.basis.z.normalized()
-		var rel: Vector3 = p_trans.origin - beam_origin
+		var rel: Vector3 = (p_trans.origin - beam_origin).normalized()
 		var rd: float = max(beam_dir.dot(rel), 10.0)
 		var bp: Vector3 = beam_origin + beam_dir * rd
-		var obp: Vector3 = bp + beam_dir * min(p_speed, 343.0)
+		var obp: Vector3 = bp + beam_dir * min(p_speed, 100.0)
 		var st: Vector3 = adv_move.torque_to_pos(p_trans, Vector3.UP, obp)
 		apply_torque(st * p_dynq)
 

@@ -473,10 +473,10 @@ jolt_3d/collisions/areas_detect_static_bodies=true
 jolt_3d/solver/velocity_iterations=32
 jolt_3d/solver/position_iterations=8
 jolt_3d/solver/position_correction=25.0
-jolt_3d/solver/bounce_velocity_threshold=25.0
-jolt_3d/limits/world_boundary_shape_size=30000.0
-jolt_3d/limits/max_linear_velocity=686.0
-jolt_3d/limits/max_angular_velocity=360.0
+jolt_3d/solver/bounce_velocity_threshold=10.0
+jolt_3d/limits/world_boundary_shape_size=50000.0
+jolt_3d/limits/max_linear_velocity=1029.0
+jolt_3d/limits/max_angular_velocity=720.0
 jolt_3d/limits/max_temporary_memory=64
 
 [rendering]

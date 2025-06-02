@@ -5,9 +5,11 @@ const MAX_THREADS: int = 128
 const LOD_DIVISIONS: int = 4
 const TEX_TILE_SIZE: float = 1.0
 
+# Thread-gate using Godot's Semaphore. Pre-fill with MAX_THREADS tokens.
 static var thread_semaphore: Semaphore = Semaphore.new()
 static var _semaphore_init: bool = false
 
+# Public fields (assigned by terrain streamer)
 var noise_template: FastNoiseLite
 var chunkX: int
 var chunkZ: int
@@ -15,6 +17,7 @@ var chunkSize: int
 var height_amp: float
 var ground_material: Material
 
+# Internals
 var meshInstance: MeshInstance3D
 var collisionShape: CollisionShape3D
 var thread: Thread
@@ -27,15 +30,18 @@ func _init(noiseParam: FastNoiseLite, x: int, z: int, size: int, height: float =
 	height_amp = height
 
 func _ready() -> void:
+	# One-time semaphore priming
 	if not _semaphore_init:
 		for _i in range(MAX_THREADS):
 			thread_semaphore.post()
 		_semaphore_init = true
 	
+	# Create MeshInstance3D
 	meshInstance = MeshInstance3D.new()
 	meshInstance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	add_child(meshInstance)
 	
+	# Create CollisionShape3D
 	collisionShape = CollisionShape3D.new()
 	add_child(collisionShape)
 	
@@ -127,12 +133,6 @@ func _build_mesh_fast(n: FastNoiseLite) -> ArrayMesh:
 	var mesh: ArrayMesh = ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	
-	# Generate tangents if a normal-map is present
-	if ground_material is StandardMaterial3D and (ground_material as StandardMaterial3D).normal_texture:
-		mesh.generate_tangents()
-	elif ground_material is ORMMaterial3D and (ground_material as ORMMaterial3D).normal_texture:
-		mesh.generate_tangents()
-	
 	return mesh
 
 func _calculate_normals(verts: PackedVector3Array, inds: PackedInt32Array) -> PackedVector3Array:
@@ -154,6 +154,9 @@ func _calculate_normals(verts: PackedVector3Array, inds: PackedInt32Array) -> Pa
 
 func _apply_mesh(mesh: ArrayMesh) -> void:
 	meshInstance.mesh = mesh
+	meshInstance.visible = true
+	meshInstance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	
 	if ground_material:
 		meshInstance.set_surface_override_material(0, ground_material)
 	

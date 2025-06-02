@@ -18,6 +18,8 @@ func _ready() -> void:
 	launcher = get_parent()
 	_initialize_noise()
 	ground_material = StandardMaterial3D.new()
+	ground_material.backlight_enabled = true
+	ground_material.backlight = Color.WHITE
 	ground_material.albedo_texture = ground_tex
 	ground_material.roughness = 1.0
 	ground_material.uv1_scale = Vector3(1, 1, 1)
