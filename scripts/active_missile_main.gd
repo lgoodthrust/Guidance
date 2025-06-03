@@ -69,6 +69,7 @@ var YES_A_HIT: bool = false
 
 const AIR_DENSITY: float = 1.225
 const DRAG_CO_A: float = 0.075
+const DRAG_CO_ALPHA: float = 0.25
 
 func _ready() -> void:
 	launcher = get_tree().root.get_node("Launcher")
@@ -180,7 +181,7 @@ func _physics_process(delta: float) -> void:
 		if dist <= proximity_detonation_radius and has_warhead:
 			_explode_and_remove()
 			if not YES_A_HIT:
-				target.HEALTH -= 25.0 # Directly mutating target health may cause side effects; use a method instead
+				target.HEALTH -= 25.0
 				YES_A_HIT = true
 			return
 	
@@ -199,8 +200,9 @@ func _physics_process(delta: float) -> void:
 				if is_instance_valid(target):
 					_radar_guidance()
 		
-		if seeker_type != Seeker.LASER and not tracking or ids == -1:
-				unlocked_life += p_delta
+		if seeker_type != Seeker.LASER:
+			if tracking == false or ids == -1:
+					unlocked_life += p_delta
 	
 	if unlocked_life >= unlocked_detonation_delay or global_transform.origin.y < -10.0:
 		_explode_and_remove()
@@ -240,33 +242,40 @@ func _apply_aero_forces() -> void:
 	if p_speed < 1e-3:
 		return
 
-	var vdir = p_lin_vel / p_speed
+	var vdir = p_lin_vel.normalized()
 	var forward_dir = p_forward.normalized()
-
 	var right = p_trans.basis.x.normalized()
 	var up = p_trans.basis.z.normalized()
-
 	var α = acos(clamp(forward_dir.dot(vdir), -1.0, 1.0))
 	if vdir.dot(up) > 0:
 		α = -α
-
 	var lift_dir = right.cross(vdir).normalized()
 	if lift_dir.dot(up) < 0:
 		lift_dir = -lift_dir
-
-	var lift = lift_dir * (TAU * total_lift * α)
-	var drag = -vdir * (DRAG_CO_A * total_lift)
-
 	var torq_axis = forward_dir.cross(vdir)
-	if torq_axis.length_squared() < 1e-6:
+	if torq_axis.length() < 1e-3:
 		torq_axis = Vector3.ZERO
 	else:
 		torq_axis = torq_axis.normalized()
+	
+	var alpha = acos(clamp(forward_dir.dot(vdir), -1.0, 1.0))
+	if vdir.dot(up) > 0:
+		alpha = -alpha
 
-	apply_force(lift + drag, COP)
+	# Coefficients
+	var cl = 0.5 * alpha
+	var cd = DRAG_CO_A + DRAG_CO_ALPHA * alpha * alpha
+
+	# Magnitudes
+	var lift = right.cross(vdir).normalized() * p_dynq * total_lift * cl
+	var drag = -vdir * p_dynq * total_lift * cd
+	var COD: Vector3 = (COM + (len(blocks) * Vector3.UP)) / 2.0
+	
+	# Apply
+	apply_force(lift, COP)
+	apply_force(drag, COD)
 	apply_central_force(Vector3.DOWN * 9.80665 * mass)
 	apply_torque(torq_axis * p_dynq)
-
 
 func _ir_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
@@ -296,20 +305,23 @@ func _ir_guidance() -> void:
 func _laser_guidance() -> void:
 	if not player:
 		return
+	
 	if p_speed > 15.0:
 		var beam_origin: Vector3 = player.global_transform.origin
 		var beam_dir: Vector3 = -player.global_transform.basis.z.normalized()
-		var rel: Vector3 = (p_trans.origin - beam_origin).normalized()
-		var rd: float = max(beam_dir.dot(rel), 10.0)
-		var bp: Vector3 = beam_origin + beam_dir * rd
-		var obp: Vector3 = bp + beam_dir * min(p_speed, 100.0)
-		var st: Vector3 = adv_move.torque_to_pos(p_trans, Vector3.UP, obp)
-		apply_torque(st * p_dynq)
+		var rel_to_beam = p_trans.origin - beam_origin
+		var forward_dist = beam_dir.dot(rel_to_beam)
+		var beam_point = beam_origin + beam_dir * forward_dist
+		var intercept_point = beam_point + beam_dir * clamp(p_speed * 0.5, 10.0, 686.0)
+		var steer_torque = adv_move.torque_to_pos(p_trans, Vector3.UP, intercept_point)
+		apply_torque(steer_torque * p_dynq)
+
 
 var prev_range: float = 0.0
 var radar_first: bool = true
+var prev_target_pos_est: Vector3 = Vector3.ZERO
 func _radar_guidance() -> void:
-	var noisy_pos = target.global_position + p_error * dist * 0.01
+	var noisy_pos = target.global_position + (p_error * dist * 0.01)
 	var to_target = (noisy_pos - p_trans.origin).normalized()
 	
 	var pdot = to_target.dot(p_forward.normalized())
@@ -324,8 +336,14 @@ func _radar_guidance() -> void:
 	var dir_body = Vector3(sin(yaw) * cos(pitch), cos(yaw) * cos(pitch), sin(pitch))
 	var target_pos_est = p_trans.origin + (p_trans.basis * dir_body) * dist
 	
+	var t_vel: Vector3 = (target_pos_est - prev_target_pos_est)
+	prev_target_pos_est = target_pos_est
+	t_vel = lerp(prev_target_pos_est, t_vel, 0.95)
+	
+	target_pos_est = target_frame_intercept(p_trans.origin, p_speed, target_pos_est, t_vel)
+	print(t_vel)
+	
 	var torque = adv_move.torque_to_pos(p_trans, Vector3.UP, target_pos_est)
-	print(target_pos_est)
 	
 	if radar_first:
 		radar_first = false
@@ -333,8 +351,24 @@ func _radar_guidance() -> void:
 	
 	apply_torque(torque * p_dynq)
 
+func target_frame_intercept(P0: Vector3, s: float, T0: Vector3, v_target: Vector3) -> Vector3:
+	var rel_pos = P0 - T0
+	var rel_vel = -v_target
+	var rel_speed = rel_vel.length()
+	if rel_speed == 0:
+		return Vector3.ZERO
+	var v_pursuer = -rel_vel.normalized() * s
+	var dv = v_pursuer - rel_vel
+	var denom = dv.length_squared()
+	if denom == 0.0:
+		return Vector3.ZERO
+	var t = -rel_pos.dot(dv) / denom
+	if t < 0.0:
+		return Vector3.ZERO
+	return T0 + v_target * t
+
+
 func _calculate_centers() -> void:
-	# Comment: blocks list is appended again here, causing duplicates; consider clearing or using a single pass
 	for child in get_children():
 		if child.get_class() == "Node3D" and child.DATA.has("NAME"):
 			blocks.append(child)
