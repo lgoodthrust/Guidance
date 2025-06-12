@@ -67,9 +67,12 @@ var YES_A_HIT: bool = false
 @onready var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 @onready var flame: SpotLight3D = SpotLight3D.new()
 
+# === Aerodynamic parameters ===
 const AIR_DENSITY: float = 1.225
 const DRAG_CO_A: float = 0.075
-const DRAG_CO_ALPHA: float = 0.25
+const DRAG_CO_ALPHA: float = 0.1
+const moment_coefficient: float = 0.05
+const chord_length: float = 0.25
 
 func _ready() -> void:
 	launcher = get_tree().root.get_node("Launcher")
@@ -238,44 +241,58 @@ func find_visible_target_id(
 	
 	return best_id
 
+func smooth_vector3(
+	x_prev: Vector3,
+	z: Vector3,
+	tau: float,
+	delta: float) -> Vector3:
+	var alpha = delta / (tau + delta)
+	return x_prev + (z - x_prev) * alpha
+
 func _apply_aero_forces() -> void:
-	if p_speed < 1e-3:
+	# Early exit if static
+	var speed = p_lin_vel.length()
+	if speed < 1e-3:
 		return
 
-	var vdir = p_lin_vel.normalized()
+	# Unit vectors
+	var vdir = p_lin_vel / speed
 	var forward_dir = p_forward.normalized()
 	var right = p_trans.basis.x.normalized()
 	var up = p_trans.basis.z.normalized()
-	var α = acos(clamp(forward_dir.dot(vdir), -1.0, 1.0))
-	if vdir.dot(up) > 0:
-		α = -α
-	var lift_dir = right.cross(vdir).normalized()
-	if lift_dir.dot(up) < 0:
-		lift_dir = -lift_dir
-	var torq_axis = forward_dir.cross(vdir)
-	if torq_axis.length() < 1e-3:
-		torq_axis = Vector3.ZERO
-	else:
-		torq_axis = torq_axis.normalized()
-	
-	var alpha = acos(clamp(forward_dir.dot(vdir), -1.0, 1.0))
-	if vdir.dot(up) > 0:
+
+	# Angle of attack (α), positive when nose below the wind
+	var pdot = clamp(forward_dir.dot(vdir), -1.0, 1.0)
+	var alpha = acos(pdot)
+	if vdir.dot(up) > 0.0:
 		alpha = -alpha
 
-	# Coefficients
-	var cl = 0.5 * alpha
+	# Lift direction
+	var lift_dir = right.cross(vdir).normalized()
+	if lift_dir.dot(up) < 0.0:
+		lift_dir = -lift_dir
+
+	# Aerodynamic coefficients
+	var cl = 2.0 * alpha  # linear lift slope
 	var cd = DRAG_CO_A + DRAG_CO_ALPHA * alpha * alpha
 
-	# Magnitudes
-	var lift = right.cross(vdir).normalized() * p_dynq * total_lift * cl
+	# Dynamic pressure
+	var lift = lift_dir * p_dynq * total_lift * cl
 	var drag = -vdir * p_dynq * total_lift * cd
-	var COD: Vector3 = (COM + (len(blocks) * Vector3.UP)) / 2.0
-	
-	# Apply
-	apply_force(lift, COP)
-	apply_force(drag, COD)
+
+	# Apply at center of pressure (COP)
+	apply_force(lift + drag, COP)
+
+	# Apply gravity
 	apply_central_force(Vector3.DOWN * 9.80665 * mass)
-	apply_torque(torq_axis * p_dynq)
+
+	# Aerodynamic moment (torque)
+	var torq_axis = forward_dir.cross(vdir)
+	if torq_axis.length() >= 1e-3:
+		torq_axis = torq_axis.normalized()
+		var moment = torq_axis * p_dynq * total_lift * chord_length * moment_coefficient
+		apply_torque(moment)
+
 
 func _ir_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
@@ -316,57 +333,73 @@ func _laser_guidance() -> void:
 		var steer_torque = adv_move.torque_to_pos(p_trans, Vector3.UP, intercept_point)
 		apply_torque(steer_torque * p_dynq)
 
-
-var prev_range: float = 0.0
+var prev_targ_pos_est: Vector3 = Vector3.ZERO
+var prev_vel: Vector3 = Vector3.ZERO
 var radar_first: bool = true
-var prev_target_pos_est: Vector3 = Vector3.ZERO
 func _radar_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
-	var to_target = (noisy_pos - p_trans.origin).normalized()
-	
-	var pdot = to_target.dot(p_forward.normalized())
-	var yaw = atan2(to_target.dot(p_trans.basis.x.normalized()), pdot)
-	var pitch = atan2(to_target.dot(p_trans.basis.z.normalized()), pdot)
+	var to_target_dir = (noisy_pos - p_trans.origin).normalized()
+	var pdot = to_target_dir.dot(p_forward.normalized())
+	var yaw   = atan2(to_target_dir.dot(p_trans.basis.x), pdot)
+	var pitch = atan2(to_target_dir.dot(p_trans.basis.z), pdot)
 	
 	if abs(rad_to_deg(yaw)) > seeker_fov or abs(rad_to_deg(pitch)) > seeker_fov:
 		tracking = false
 		return
 	tracking = true
 	
-	var dir_body = Vector3(sin(yaw) * cos(pitch), cos(yaw) * cos(pitch), sin(pitch))
-	var target_pos_est = p_trans.origin + (p_trans.basis * dir_body) * dist
+	var dir_body = Vector3(
+		sin(yaw) * cos(pitch),
+		cos(yaw) * cos(pitch),
+		sin(pitch)
+	)
+	var raw_est = p_trans.origin + (p_trans.basis * dir_body) * dist
 	
-	var t_vel: Vector3 = (target_pos_est - prev_target_pos_est)
-	prev_target_pos_est = target_pos_est
-	t_vel = lerp(prev_target_pos_est, t_vel, 0.95)
+	# compute & smooth velocity
+	var raw_vel = raw_est - prev_targ_pos_est
+	prev_targ_pos_est = raw_est
+	prev_vel = smooth_vector3(prev_vel, raw_vel, 0.5, p_delta)
 	
-	target_pos_est = target_frame_intercept(p_trans.origin, p_speed, target_pos_est, t_vel)
-	print(t_vel)
-	
-	var torque = adv_move.torque_to_pos(p_trans, Vector3.UP, target_pos_est)
+	# lead‐pursuit intercept (fallback to raw_est)
+	var intercept_pt = target_frame_intercept(
+		p_trans.origin,
+		p_speed,
+		raw_est,
+		prev_vel
+	)
+	if intercept_pt == Vector3.ZERO:
+		intercept_pt = raw_est
 	
 	if radar_first:
 		radar_first = false
 		return
 	
+	var torque = adv_move.torque_to_pos(p_trans, Vector3.UP, intercept_pt)
 	apply_torque(torque * p_dynq)
 
-func target_frame_intercept(P0: Vector3, s: float, T0: Vector3, v_target: Vector3) -> Vector3:
-	var rel_pos = P0 - T0
-	var rel_vel = -v_target
-	var rel_speed = rel_vel.length()
-	if rel_speed == 0:
-		return Vector3.ZERO
-	var v_pursuer = -rel_vel.normalized() * s
-	var dv = v_pursuer - rel_vel
-	var denom = dv.length_squared()
-	if denom == 0.0:
-		return Vector3.ZERO
-	var t = -rel_pos.dot(dv) / denom
-	if t < 0.0:
-		return Vector3.ZERO
-	return T0 + v_target * t
-
+func target_frame_intercept(P0: Vector3, s: float, T0: Vector3, v_targ: Vector3) -> Vector3:
+	var R = T0 - P0
+	var a = v_targ.dot(v_targ) - s * s
+	var b = 2.0 * R.dot(v_targ)
+	var c = R.dot(R)
+	
+	var t: float
+	if abs(a) < 1e-6:
+		if abs(b) < 1e-6:
+			return T0
+		t = -c / b
+	else:
+		var disc = b * b - 4.0 * a * c
+		if disc <= 0.0:
+			return T0
+		var sd = sqrt(disc)
+		var t1 = (-b + sd) / (2.0 * a)
+		var t2 = (-b - sd) / (2.0 * a)
+		# GDScript‐style ternary
+		t = min(t1, t2) if (t1 > 0.0 and t2 > 0.0) else max(t1, t2)
+	
+	t = max(0.0, t)
+	return T0 + v_targ * t
 
 func _calculate_centers() -> void:
 	for child in get_children():
@@ -437,10 +470,6 @@ func _calculate_centers() -> void:
 	has_motor = has_motor
 	has_warhead = has_warhead
 	has_controller = has_controller
-	has_seeker = has_seeker
-	total_lift = total_lift
-	mass_value = mass_value
-	fuel_time = fuel_time
 
 func _explode_and_remove() -> void:
 	var kaboom = particles.explotion_01()
