@@ -69,10 +69,15 @@ var YES_A_HIT: bool = false
 
 # === Aerodynamic parameters ===
 const AIR_DENSITY: float = 1.225
-const DRAG_CO_A: float = 0.075
-const DRAG_CO_ALPHA: float = 0.1
-const moment_coefficient: float = 0.05
-const chord_length: float = 0.25
+const DRAG_CO_A: float = 0.05
+const chord_length: float = 0.5
+const diameter: float = 0.5
+const REFERENCE_AREA = PI * (diameter * 0.5) ** 2
+const LIFT_SLOPE = 4.0
+const CD0 = 0.04
+const DRAG_FACTOR = 0.075
+const MOMENT_COEFF = 0.08
+const MEAN_CHORD = chord_length
 
 func _ready() -> void:
 	launcher = get_tree().root.get_node("Launcher")
@@ -250,49 +255,45 @@ func smooth_vector3(
 	return x_prev + (z - x_prev) * alpha
 
 func _apply_aero_forces() -> void:
-	# Early exit if static
 	var speed = p_lin_vel.length()
 	if speed < 1e-3:
 		return
-
-	# Unit vectors
 	var vdir = p_lin_vel / speed
-	var forward_dir = p_forward.normalized()
+	var fwd = p_forward.normalized()
 	var right = p_trans.basis.x.normalized()
 	var up = p_trans.basis.z.normalized()
-
-	# Angle of attack (α), positive when nose below the wind
-	var pdot = clamp(forward_dir.dot(vdir), -1.0, 1.0)
+	
+	# angle of attack
+	var pdot = clamp(fwd.dot(vdir), -1.0, 1.0)
 	var alpha = acos(pdot)
 	if vdir.dot(up) > 0.0:
 		alpha = -alpha
-
-	# Lift direction
+	
+	# lift & drag coefficients
+	var cl = LIFT_SLOPE * alpha
+	var cd = CD0 + DRAG_FACTOR * (cl * cl)
+	
+	# dynamic pressure
+	var q = p_dynq
+	
+	# forces
 	var lift_dir = right.cross(vdir).normalized()
 	if lift_dir.dot(up) < 0.0:
 		lift_dir = -lift_dir
-
-	# Aerodynamic coefficients
-	var cl = 2.0 * alpha  # linear lift slope
-	var cd = DRAG_CO_A + DRAG_CO_ALPHA * alpha * alpha
-
-	# Dynamic pressure
-	var lift = lift_dir * p_dynq * total_lift * cl
-	var drag = -vdir * p_dynq * total_lift * cd
-
-	# Apply at center of pressure (COP)
+	var lift  = lift_dir * q * cl * REFERENCE_AREA
+	var drag  = -vdir    * q * cd * REFERENCE_AREA
 	apply_force(lift + drag, COP)
-
-	# Apply gravity
+	
+	# gravity
 	apply_central_force(Vector3.DOWN * 9.80665 * mass)
-
-	# Aerodynamic moment (torque)
-	var torq_axis = forward_dir.cross(vdir)
-	if torq_axis.length() >= 1e-3:
-		torq_axis = torq_axis.normalized()
-		var moment = torq_axis * p_dynq * total_lift * chord_length * moment_coefficient
-		apply_torque(moment)
-
+	
+	# pitching moment
+	var axis = fwd.cross(vdir)
+	if axis.length() >= 1e-3:
+		axis = axis.normalized()
+		var Cm = MOMENT_COEFF * alpha
+		var M  = axis * q * Cm * REFERENCE_AREA * MEAN_CHORD
+		apply_torque(M)
 
 func _ir_guidance() -> void:
 	var noisy_pos = target.global_position + (p_error * dist * 0.01)
@@ -358,15 +359,15 @@ func _radar_guidance() -> void:
 	# compute & smooth velocity
 	var raw_vel = raw_est - prev_targ_pos_est
 	prev_targ_pos_est = raw_est
-	prev_vel = smooth_vector3(prev_vel, raw_vel, 0.5, p_delta)
+	prev_vel = smooth_vector3(prev_vel, raw_vel, 0.8, p_delta)
 	
-	# lead‐pursuit intercept (fallback to raw_est)
-	var intercept_pt = target_frame_intercept(
+	var intercept_pt = debug_intercept(
 		p_trans.origin,
 		p_speed,
 		raw_est,
 		prev_vel
 	)
+	
 	if intercept_pt == Vector3.ZERO:
 		intercept_pt = raw_est
 	
@@ -377,29 +378,16 @@ func _radar_guidance() -> void:
 	var torque = adv_move.torque_to_pos(p_trans, Vector3.UP, intercept_pt)
 	apply_torque(torque * p_dynq)
 
-func target_frame_intercept(P0: Vector3, s: float, T0: Vector3, v_targ: Vector3) -> Vector3:
-	var R = T0 - P0
-	var a = v_targ.dot(v_targ) - s * s
-	var b = 2.0 * R.dot(v_targ)
-	var c = R.dot(R)
+func debug_intercept(P0, s, T0, v_targ):
+	# initial guess
+	var t = P0.distance_to(T0) / max(s, 1e-6)
+	for i in range(3):
+		var aim = T0 + v_targ * t
+		var flight = P0.distance_to(aim) / s
+		t = (t + flight) * 0.5
+	print(" final t = ", t, "  aim_offset = ", (T0 + v_targ*t) - T0)
 	
-	var t: float
-	if abs(a) < 1e-6:
-		if abs(b) < 1e-6:
-			return T0
-		t = -c / b
-	else:
-		var disc = b * b - 4.0 * a * c
-		if disc <= 0.0:
-			return T0
-		var sd = sqrt(disc)
-		var t1 = (-b + sd) / (2.0 * a)
-		var t2 = (-b - sd) / (2.0 * a)
-		# GDScript‐style ternary
-		t = min(t1, t2) if (t1 > 0.0 and t2 > 0.0) else max(t1, t2)
-	
-	t = max(0.0, t)
-	return T0 + v_targ * t
+	return T0 + v_targ * max(t, 0.0)
 
 func _calculate_centers() -> void:
 	for child in get_children():
